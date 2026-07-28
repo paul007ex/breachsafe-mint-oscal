@@ -9,38 +9,24 @@ Protection) is the anchor; SC-12 (Cryptographic Key Establishment/Management) is
 supporting when key establishment is classical. SC-8 (Transmission
 Confidentiality/Integrity) is intentionally EXCLUDED as overreach: the finding is
 about the cryptographic primitive's quantum readiness, not transmission integrity.
-A program targeting CNSA 2.0 or NIST SP 1800-38 (PQC migration) may prefer a
-different control frame; keep this table auditable and swappable per program.
+
+The verdict->control, ->severity, and ->risk tables are *policy*, not mechanism, so
+they live in the versioned policy pack (:mod:`mint_oscal.policy`, ``default`` pack)
+as reviewable YAML rather than hardcoded here. A program targeting CNSA 2.0 or NIST
+SP 1800-38 (PQC migration) may prefer a different frame: copy the pack and swap the
+table per program.
 """
 
 from __future__ import annotations
 
-_CRYPTO_PROTECTION = "SC-13"
-_KEY_ESTABLISHMENT = "SC-12"
-
-_CLASSICAL_READINESS = frozenset({"quantum_vulnerable", "classically_weak"})
-
-_RISK_STATEMENTS = {
-    "quantum_vulnerable": (
-        "Classical key establishment exposes captured traffic to "
-        "harvest-now-decrypt-later once a cryptographically relevant quantum "
-        "computer exists."
-    ),
-    "classically_weak": "A weak or deprecated cryptographic primitive is offered.",
-    "transitional_hybrid": (
-        "PQ-hybrid key exchange is negotiated; residual classical elements remain "
-        "(for example a classical certificate signature)."
-    ),
-}
+from mint_oscal.policy import get_policy
 
 
 def controls_for(readiness: str) -> tuple[str, ...]:
     """Return the NIST 800-53 control ids a readiness verdict implicates."""
-    if readiness in _CLASSICAL_READINESS:
-        return (_CRYPTO_PROTECTION, _KEY_ESTABLISHMENT)
-    return (_CRYPTO_PROTECTION,)
+    return tuple(get_policy().crosswalk.get(readiness, ["SC-13"]))
 
 
 def risk_statement(readiness: str) -> str:
     """Return a plain-language risk statement for a readiness verdict."""
-    return _RISK_STATEMENTS.get(readiness, f"Cryptographic posture: {readiness}.")
+    return get_policy().risk.get(readiness, f"Cryptographic posture: {readiness}.")

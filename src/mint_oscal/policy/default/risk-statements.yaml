@@ -1,0 +1,18 @@
+# DRAFT - UNREVIEWED - needs conformance sign-off (R-CTRL-01)
+#
+# Policy: cryptographic-posture readiness verdict -> plain-language risk statement.
+# Reviewable source data, NOT an authored compliance decision.
+---
+quantum_vulnerable: >-
+  Classical key establishment exposes captured traffic to harvest-now-decrypt-later
+  once a cryptographically relevant quantum computer exists.
+classically_weak: A weak or deprecated cryptographic primitive is offered.
+transitional_hybrid: >-
+  PQ-hybrid key exchange is negotiated; residual classical elements remain (for
+  example a classical certificate signature).
+quantum_ready: >-
+  Key establishment is post-quantum; monitor for residual classical dependencies
+  elsewhere in the cryptographic stack.
+unknown: >-
+  No key exchange could be assessed from the inventory; quantum readiness is
+  undetermined and warrants manual review.

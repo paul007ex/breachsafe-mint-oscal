@@ -1,0 +1,13 @@
+# DRAFT - UNREVIEWED - needs conformance sign-off (R-CTRL-01)
+#
+# Policy: cryptographic-posture readiness verdict -> POA&M severity.
+# Reviewable source data, NOT an authored compliance decision.
+#
+# The CBOM finding is about the quantum readiness of key establishment, so a
+# still-classical exchange is a real but not urgent exposure (medium, not high).
+---
+quantum_vulnerable: medium
+classically_weak: medium
+transitional_hybrid: low
+quantum_ready: info
+unknown: info
