@@ -117,3 +117,64 @@ jobs:
           python -m pip install --upgrade pip pip-audit
           pip install .
           pip-audit --desc
+
+  conformance:
+    # NIST oscal-cli conformance gate (#17): prove every POA&M we mint is schema-
+    # /constraint-valid against the upstream OSCAL reference validator, not just our
+    # in-tree checks. This job does NOT depend on the pytest suite.
+    #
+    # TODO(#6/#41): a golden-output regression job and a minimum test-count / coverage
+    # gate are the other #17 CI items; they legitimately depend on the test suite
+    # (#6) and stable fixtures (#41), so they are deferred there and NOT implemented
+    # here.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      # NIST oscal-cli, pinned by digest. Digest resolved from
+      # ghcr.io/metaschema-framework/oscal-cli:latest on 2026-07-28. Re-resolve with
+      # `docker inspect --format='{{index .RepoDigests 0}}' <image>` when bumping.
+      OSCAL_CLI: ghcr.io/metaschema-framework/oscal-cli@sha256:755aa57e68159bc0d73db815234f7e7ef46016b6ceeb8963467d02ec9626bd65
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: Generate POA&M from example CBOM
+        run: mint-oscal poam generate --from cbom examples/example.cbom.json > poam.json
+
+      # oscal-cli exits 0 even when a document is INVALID, so we must not trust $?.
+      # Instead we assert on the reference validator's own verdict strings: a valid
+      # doc prints "... is valid.", an invalid one prints "... is invalid." (note
+      # "is valid" is not a substring of "is invalid", so the two are unambiguous).
+      - name: Validate generated POA&M (positive control)
+        run: |
+          set -euo pipefail
+          out="$(docker run --rm -v "$PWD:/w" "$OSCAL_CLI" poam validate /w/poam.json 2>&1)"
+          echo "$out"
+          if echo "$out" | grep -q "is invalid" || ! echo "$out" | grep -q "is valid"; then
+            echo "::error::oscal-cli did not report the minted POA&M as valid"
+            exit 1
+          fi
+          echo "PASS: minted POA&M is OSCAL-valid"
+
+      # Negative control: a deliberately-broken POA&M (top-level required `uuid`
+      # removed) MUST be rejected. This proves the gate actually catches invalidity
+      # rather than rubber-stamping every input.
+      - name: Reject broken POA&M (negative control)
+        run: |
+          set -euo pipefail
+          out="$(docker run --rm -v "$PWD:/w" "$OSCAL_CLI" poam validate /w/examples/broken.poam.json 2>&1)"
+          echo "$out"
+          if ! echo "$out" | grep -q "is invalid"; then
+            echo "::error::oscal-cli failed to reject a known-invalid POA&M — the conformance gate is not working"
+            exit 1
+          fi
+          echo "PASS: broken POA&M correctly rejected by oscal-cli"
