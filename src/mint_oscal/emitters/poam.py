@@ -9,7 +9,6 @@ inputs and are left as caller-supplied fields, not fabricated here.
 
 from __future__ import annotations
 
-import datetime
 import uuid
 from collections.abc import Iterable
 from typing import Any
@@ -25,6 +24,18 @@ _NAMESPACE = uuid.UUID("6f9619ff-8b86-d011-b42d-00c04fc964ff")
 def _det(*parts: str) -> str:
     """Deterministic uuid from stable inputs (reproducible OSCAL output)."""
     return str(uuid.uuid5(_NAMESPACE, "|".join(parts)))
+
+
+def _stamp(findings: list[Finding]) -> str:
+    """Deterministic document timestamp: the latest observation time.
+
+    Using the findings' own ``observed_at`` (rather than wall-clock ``now()``) makes the
+    same input produce a byte-identical POA&M. Adapters emit normalised UTC isoformat, so
+    the lexical max is the chronological max. Falls back to the Unix epoch when no finding
+    carries an observation time, keeping the output deterministic in that edge case too.
+    """
+    stamps = sorted(f.observed_at for f in findings if f.observed_at)
+    return stamps[-1] if stamps else "1970-01-01T00:00:00+00:00"
 
 
 def emit(ir: IR, *, source: str | None = None, now: str | None = None) -> dict[str, Any]:
@@ -46,7 +57,7 @@ def to_poam(
 ) -> dict[str, Any]:
     """Emit an OSCAL POA&M document from IR findings for one subject."""
     findings = list(findings)
-    timestamp = now or datetime.datetime.now(datetime.UTC).isoformat()
+    timestamp = now or _stamp(findings)
     inventory_uuid = _det("inventory-item", subject.id)
 
     observations: list[dict[str, Any]] = []
