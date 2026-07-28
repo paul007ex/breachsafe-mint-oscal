@@ -7,35 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+## [0.1.0] - 2026-07-28
 
-- **License: Apache-2.0 → PolyForm Noncommercial 1.0.0** (ADR-0007). The project is now
-  **source-available, not open source**: read/run/evaluate/self-host/modify for any
-  noncommercial purpose; commercial use requires a separate license (see `NOTICE`).
-- Require Python 3.12 (was 3.11); CI runs on 3.12 only.
-
-### Fixed
-
-- Deterministic `metadata.last-modified` derived from the source observation time, not
-  wall-clock — same input now yields a byte-identical POA&M (#4).
-- `--validate` no longer false-greens: replaced the shallow structural check with a
-  Layer-2 semantic validator registry (uuid uniqueness, observation/risk/subject
-  reference resolution, prop namespacing) and honest messaging that points at `oscal-cli`
-  as the authoritative schema oracle (#3, ADR-0005).
-
-## [0.0.1] - Unreleased
+First tagged release. Validated end-to-end against live infrastructure — qureddy 0.2.12
+CBOMs of cloudflare.com, www.google.com, github.com, and pecutx.org — with output confirmed
+by NIST `oscal-cli` and IBM `trestle`.
 
 ### Added
 
-- Agnostic core (ADR-0004): `convert(ir, *, shape, **params)` dispatching to a
-  registry of OSCAL emitters, fed by entry-point-discovered source adapters.
-- Source-neutral intermediate representation (`mint_oscal.ir`) with a
-  `mint.ir.v1` JSON Schema.
-- OSCAL POA&M emitter (`poam`); `ar` and `component-definition` emitters stubbed.
-- QuReddy `qureddy.scan.v1` adapter (bundled convenience).
-- NIST SP 800-53 control mapping and a draft, unreviewed r5 crosswalk.
-- `mint-oscal <model> generate --from <source>` CLI, structural POA&M validation,
-  and JSON rendering (XML/YAML via external `oscal-cli`, ADR-0005).
+- **Agnostic core** (ADR-0004): `convert(ir, *, shape, **params)` over registries of
+  entry-point-discovered source adapters and OSCAL emitters, fed by a source-neutral
+  intermediate representation (`mint_oscal.ir`, `mint.ir.v1` JSON Schema).
+- **CBOM ingestion** (ADR-0006): file-driven CycloneDX-CBOM → IR with data-driven
+  algorithm classification (`crypto-registry.yaml`) and readiness rules
+  (`readiness-rules.yaml`); shape-validated, honest confidence, secret material skipped.
+- **`--extension` model** (ADR-0008): source × extension orthogonality. `--extension
+  breachsafe` runs a `breachsafe:v1` producer-observation enricher that cross-checks
+  producer-declared readiness against the derived verdict (ours authoritative) and records
+  provenance (`derived | producer-confirmed | conflict:*`).
+- OSCAL **POA&M emitter**; QuReddy `qureddy.scan.v1` adapter; NIST SP 800-53 control
+  mapping. `ar` and `component-definition` emitters stubbed.
+- **CLI** `mint-oscal <model> generate --from <source>`: reads a file or STDIN (`-`, the
+  flagship pipe), structured logging to STDERR (structlog; `-v/-q/--json-logs`) keeping
+  STDOUT a pure OSCAL channel, and a source-agnostic error boundary (clean one-line
+  diagnostics + non-zero exit, never a traceback).
+- **Semantic `--validate`** (ADR-0005, Layer 2): uuid uniqueness, observation/risk/subject
+  reference resolution, prop namespacing; NIST `oscal-cli` is the authoritative Layer-1
+  schema oracle.
 
-[Unreleased]: https://github.com/breachsafe/breachsafe-mint-oscal/compare/v0.0.1...HEAD
-[0.0.1]: https://github.com/breachsafe/breachsafe-mint-oscal/releases/tag/v0.0.1
+### Changed
+
+- **License: Apache-2.0 → PolyForm Noncommercial 1.0.0** (ADR-0007): source-available,
+  not open source; commercial use requires a separate license (see `NOTICE`).
+- Require **Python 3.12**.
+- Render/validation boundary hand-rolled with `oscal-cli` as the oracle — **no `trestle`
+  dependency** (version sovereignty + minimal supply chain; ADR-0005).
+
+### Fixed
+
+- Deterministic output: `last-modified`/uuids derived from the source, not wall-clock
+  (#4, #33); timestamps normalised to timezone-aware, which oscal-cli requires (#18).
+- `--validate` no longer false-greens (#3); custom props are always namespaced (#2).
+- CBOM fail-open hardening — malformed/under-declared input can no longer mint a
+  confident-but-wrong POA&M (#9); an unclassified KEX never reads as the most-favorable
+  posture (#24); finding id content-addressed over the crypto inventory (#26); CLI never
+  leaks a traceback on bad input (#20).
+
+### Known limitations
+
+- No automated test suite yet (#6) — 0.1.0 is validated manually, against live
+  infrastructure, and by independent review; a CI test suite is the immediate follow-on.
+- `ar`/`component-definition` emitters and the `consume` side are stubs.
+
+[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.0
