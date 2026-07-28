@@ -21,9 +21,11 @@ from typing import cast
 
 import yaml
 
-# Every readiness verdict the CBOM engine (and extensions) can emit. A policy pack
-# that omits any of these for any table is rejected at load rather than defaulting.
-_REQUIRED_READINESS = frozenset(
+# The canonical readiness vocabulary — the single source of truth shared by the policy
+# loader (a pack omitting any of these for any table is rejected at load) and the
+# breachsafe extension (which recognises a producer-declared verdict only if it is one
+# of these). Keep this the ONLY definition so the two cannot drift (issue #47).
+READINESS_VERDICTS = frozenset(
     {
         "quantum_vulnerable",
         "transitional_hybrid",
@@ -69,7 +71,7 @@ def get_policy(name: str = "default") -> Policy:
         ("control-crosswalk", policy.crosswalk),
         ("risk-statements", policy.risk),
     ):
-        missing = _REQUIRED_READINESS - data.keys()
+        missing = READINESS_VERDICTS - data.keys()
         if missing:
             msg = f"policy '{name}' {table}.yaml missing readiness keys: {sorted(missing)}"
             raise ValueError(msg)

@@ -29,12 +29,9 @@ from dataclasses import replace
 from typing import Any
 
 from mint_oscal.ir import Finding, Subject
+from mint_oscal.policy import READINESS_VERDICTS
 
 _EXT_PREFIX = "breachsafe:v1:"
-# The only readiness verdicts we recognize; anything else is treated as absent (ignored).
-_READINESS_VALUES = frozenset(
-    {"quantum_vulnerable", "transitional_hybrid", "quantum_ready", "unknown"}
-)
 
 
 def _observations(document: dict[str, Any]) -> dict[str, str]:
@@ -72,7 +69,7 @@ def _crosscheck(derived: str, observations: dict[str, str]) -> str:
     On conflict the derived verdict is authoritative; the producer's claim is only recorded.
     """
     declared = observations.get("readiness")
-    if declared not in _READINESS_VALUES:
+    if declared not in READINESS_VERDICTS:
         declared = None
     if declared and declared != derived:
         return f"conflict:producer={declared},derived={derived}"
