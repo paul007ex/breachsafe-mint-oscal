@@ -6,9 +6,16 @@ NIST ``oscal-cli``-aligned shape -- the OSCAL model is the first token, the verb
 second::
 
     mint-oscal poam generate --from qureddy scan.json
+    cat scan.json | mint-oscal poam generate --from cbom -
 
 Source is selected explicitly (``--from``); adapters (prowler, ocsf, ...) register
 through the ``mint_oscal.adapters`` entry-point group without touching the CLI.
+
+The CLI is the only boundary that logs and exits: it reads input (a file path, or
+STDIN when the report argument is ``-``), configures structured logging to STDERR so
+STDOUT stays a pure OSCAL data channel, and converts the domain errors raised by the
+pure core into clean one-line diagnostics plus a non-zero exit code -- never a
+traceback.
 """
 
 from __future__ import annotations
@@ -20,8 +27,10 @@ from pathlib import Path
 
 from mint_oscal import convert
 from mint_oscal.adapters import available_adapters, get_adapter
+from mint_oscal.adapters.cbom import MalformedCbomError
 from mint_oscal.emitters import available_models
 from mint_oscal.ir import IR
+from mint_oscal.logging import configure_logging, get_logger
 from mint_oscal.render import render
 from mint_oscal.validate import oscal_cli_available, semantic_errors
 
@@ -36,7 +45,10 @@ def _build_parser() -> argparse.ArgumentParser:
         verbs = model_parser.add_subparsers(dest="verb", required=True)
         generate = verbs.add_parser("generate", help=f"generate an OSCAL {model}")
         generate.add_argument("--from", dest="source", choices=sources, required=True)
-        generate.add_argument("report", help="path to the source report JSON")
+        generate.add_argument(
+            "report",
+            help="path to the source report JSON, or '-' to read it from STDIN",
+        )
         generate.add_argument(
             "--to",
             dest="fmt",
@@ -47,38 +59,86 @@ def _build_parser() -> argparse.ArgumentParser:
             help="output encoding: JSON|XML|YAML (default JSON; xml/yaml require oscal-cli)",
         )
         generate.add_argument("--validate", action="store_true", help="check internal integrity")
+        generate.add_argument(
+            "-v",
+            "--verbose",
+            dest="verbose",
+            action="count",
+            default=0,
+            help="increase log verbosity (-v INFO, -vv DEBUG); logs go to STDERR",
+        )
+        generate.add_argument(
+            "-q",
+            "--quiet",
+            dest="quiet",
+            action="store_true",
+            help="suppress warnings and below (only errors are logged)",
+        )
+        generate.add_argument(
+            "--json-logs",
+            dest="json_logs",
+            action="store_true",
+            help="emit logs as newline-delimited JSON instead of console text",
+        )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Entry point: read a source report, emit an OSCAL document to stdout."""
+    """Entry point: read a source report, emit an OSCAL document to STDOUT.
+
+    STDOUT carries only the minted OSCAL document; all diagnostics go to STDERR via
+    structured logging. Domain errors from the pure core are mapped to non-zero exit
+    codes without leaking a traceback: input/OS errors and malformed/garbage input
+    exit ``2``; not-yet-implemented paths (stub emitters, XML/YAML render) exit ``3``.
+    """
     args = _build_parser().parse_args(argv)
+    configure_logging(verbosity=args.verbose, json_logs=args.json_logs, quiet=args.quiet)
+    log = get_logger("mint_oscal.cli")
 
-    document = json.loads(Path(args.report).read_text(encoding="utf-8"))
-    findings, subject = get_adapter(args.source)(document)
-    ir = IR(findings=tuple(findings), subject=subject, source=args.source)
-    oscal = convert(ir, shape=args.model, source=args.source.capitalize())
-
-    if args.validate:
-        problems = semantic_errors(oscal)
-        if problems:
-            for problem in problems:
-                print(f"semantic error: {problem}", file=sys.stderr)  # noqa: T201
-            return 1
-        oracle = oscal_cli_available()
-        note = (
-            f"authoritative NIST check available: {oracle} validate"
-            if oracle
-            else "run NIST oscal-cli for authoritative schema conformance"
+    try:
+        raw = (
+            sys.stdin.read()
+            if args.report == "-"
+            else Path(args.report).read_text(encoding="utf-8")
         )
-        print(  # noqa: T201
-            f"semantic checks passed (uuid/ref/ns integrity) -- NOT NIST schema validation; {note}",
-            file=sys.stderr,
-        )
+        document = json.loads(raw)
+        findings, subject = get_adapter(args.source)(document)
+        ir = IR(findings=tuple(findings), subject=subject, source=args.source)
+        oscal = convert(ir, shape=args.model, source=args.source.capitalize())
 
-    sys.stdout.write(render(oscal, fmt=args.fmt))
-    sys.stdout.write("\n")
-    return 0
+        if args.validate:
+            problems = semantic_errors(oscal)
+            if problems:
+                for problem in problems:
+                    log.error("semantic_error", problem=problem)
+                return 1
+            oracle = oscal_cli_available()
+            note = (
+                f"authoritative NIST check available: {oracle} validate"
+                if oracle
+                else "run NIST oscal-cli for authoritative schema conformance"
+            )
+            log.info(
+                "semantic_checks_passed",
+                scope="uuid/ref/ns integrity -- NOT NIST schema validation",
+                note=note,
+            )
+
+        sys.stdout.write(render(oscal, fmt=args.fmt))
+        sys.stdout.write("\n")
+        return 0
+    except (FileNotFoundError, OSError) as exc:
+        log.error("input_error", report=args.report, error=str(exc))
+        return 2
+    except json.JSONDecodeError as exc:
+        log.error("invalid_json", report=args.report, error=str(exc))
+        return 2
+    except MalformedCbomError as exc:
+        log.error("malformed_cbom", source=args.source, error=str(exc))
+        return 2
+    except NotImplementedError as exc:
+        log.error("not_implemented", model=args.model, fmt=args.fmt, error=str(exc))
+        return 3
 
 
 if __name__ == "__main__":

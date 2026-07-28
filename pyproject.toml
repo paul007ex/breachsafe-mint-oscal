@@ -23,6 +23,7 @@ classifiers = [
 dependencies = [
   "cyclonedx-python-lib>=11,<12",
   "PyYAML>=6",
+  "structlog>=24",
 ]
 
 [project.urls]
