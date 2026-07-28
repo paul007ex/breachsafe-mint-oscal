@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **UTC timestamp normalization** (#39): the POA&M emitter now converts every observation
+  timestamp to UTC (`+00:00`), so the document timestamp (lexical max of ISO strings) is the
+  true chronological latest even across mixed-offset inputs.
+- **CycloneDX specVersion validation** (#38): the CBOM adapter rejects an unsupported
+  `specVersion` with `MalformedCbomError` (supported set derived from
+  `cyclonedx.schema.SchemaVersion`) instead of attempting to parse it.
+- **QuReddy typed error** (#21): the `qureddy.scan.v1` adapter validates the envelope shape
+  and raises a new `MalformedScanError` on malformed input, mirroring the CBOM adapter, rather
+  than leaking a bare `KeyError`/`TypeError`.
+
+### Changed
+
+- **POA&M title casing** (#13): source display names in the title now read `CBOM`/`QuReddy`
+  via a display-name map instead of `str.capitalize()` (`Cbom`/`Qureddy`).
+
 ## [0.1.0] - 2026-07-28
 
 First tagged release. Validated end-to-end against live infrastructure — qureddy 0.2.12

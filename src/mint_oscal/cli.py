@@ -37,6 +37,10 @@ from mint_oscal.logging import configure_logging, get_logger
 from mint_oscal.render import render
 from mint_oscal.validate import oscal_cli_available, semantic_errors
 
+# Human-facing display names for a source id (used in the POA&M title); falls back to the
+# raw source so a newly registered adapter still reads sensibly without a code change here.
+_SOURCE_DISPLAY = {"cbom": "CBOM", "qureddy": "QuReddy"}
+
 
 def _build_parser() -> argparse.ArgumentParser:
     """Build the ``mint-oscal <model> generate ...`` argument parser."""
@@ -137,7 +141,7 @@ def main(argv: list[str] | None = None) -> int:
             log.error("malformed_input", source=args.source, error=str(exc))
             return 2
         ir = IR(findings=tuple(findings), subject=subject, source=args.source)
-        oscal = convert(ir, shape=args.model, source=args.source.capitalize())
+        oscal = convert(ir, shape=args.model, source=_SOURCE_DISPLAY.get(args.source, args.source))
 
         if args.validate:
             problems = semantic_errors(oscal)

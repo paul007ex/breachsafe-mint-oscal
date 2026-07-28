@@ -28,11 +28,14 @@ def _det(*parts: str) -> str:
 
 
 def _aware(timestamp: str) -> str:
-    """Return an ISO-8601 timestamp guaranteed to carry a timezone.
+    """Return an ISO-8601 timestamp guaranteed to carry a UTC (``+00:00``) offset.
 
     OSCAL's ``dateTime-with-timezone`` datatype (which oscal-cli enforces at parse time)
-    rejects a naive timestamp, so a timezone-less input is interpreted as UTC. Unparseable
-    strings are returned unchanged for the semantic layer / oscal-cli to flag.
+    rejects a naive timestamp, so a timezone-less input is interpreted as UTC. Every input
+    is then converted to UTC so that a lexical string compare is a chronological compare
+    (see :func:`_stamp`): a mixed-offset set like ``+05:30`` and ``-08:00`` would otherwise
+    sort by wall-clock text, not by instant. Unparseable strings are returned unchanged for
+    the semantic layer / oscal-cli to flag.
     """
     try:
         parsed = datetime.datetime.fromisoformat(timestamp)
@@ -40,7 +43,7 @@ def _aware(timestamp: str) -> str:
         return timestamp
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=datetime.UTC)
-    return parsed.isoformat()
+    return parsed.astimezone(datetime.UTC).isoformat()
 
 
 def _stamp(findings: list[Finding]) -> str:
