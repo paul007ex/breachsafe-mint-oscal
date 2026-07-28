@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-07-28
+
+### Added
+
+- **Branded `--help`, consistent with BreachSAFE QuReddy** (CLI): the help output now leads
+  with a `BreachSAFE Mint-OSCAL <version> -- <description>` header and carries UPPERCASE
+  section blocks in the epilog (`QUICK START:` / `MORE HELP:` on the root; `EXAMPLES:` /
+  `EXIT CODES:` / `ENVIRONMENT:` / `Project:` on `generate`), colorized by line shape
+  (bold-cyan sections, dim `#` comments, green command lines, severity-colored exit codes,
+  magenta env vars) and `NO_COLOR`-aware. Every command level has its own help; stub models
+  are labelled `(planned)`; `--from` is documented and `--validate` reworded honestly
+  (Layer-2, not authoritative NIST). New `mint_oscal._branding` and `mint_oscal._help`
+  mirror QuReddy's module structure without taking its click/typer dependency.
+- **`--version` / `-V`** print a single-line branded banner
+  (`BreachSAFE Mint-OSCAL <version> -- https://www.breachsafe.ai`).
+- **No-args, `mint-oscal help`, and a model with no verb** print the relevant help to STDOUT
+  and exit 0 (discovery UX, not an error).
+
+### Fixed
+
+- **Version drift** (`__version__`): `mint_oscal.__version__` was hardcoded `"0.0.1"` while the
+  packaged metadata read `0.1.x`. It now derives from installed package metadata via the new
+  `_branding` module, so a release bump can't drift from the banner.
+
 ## [0.1.3] - 2026-07-28
 
 ### Added
@@ -142,7 +166,8 @@ by NIST `oscal-cli` and IBM `trestle`.
   infrastructure, and by independent review; a CI test suite is the immediate follow-on.
 - `ar`/`component-definition` emitters and the `consume` side are stubs.
 
-[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.4
 [0.1.3]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.3
 [0.1.2]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.2
 [0.1.1]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.1

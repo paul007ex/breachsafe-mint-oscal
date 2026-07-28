@@ -29,6 +29,14 @@ import sys
 from pathlib import Path
 
 from mint_oscal import convert
+from mint_oscal._branding import (
+    DESCRIPTION,
+    PROJECT_NAME,
+    PROJECT_URL,
+    PROJECT_VERSION,
+    VERSION_BANNER,
+)
+from mint_oscal._help import colorize_help
 from mint_oscal.adapters import available_adapters, get_adapter
 from mint_oscal.emitters import available_models
 from mint_oscal.extensions import apply_extensions, available_extensions
@@ -41,18 +49,105 @@ from mint_oscal.validate import oscal_cli_available, semantic_errors
 # raw source so a newly registered adapter still reads sensibly without a code change here.
 _SOURCE_DISPLAY = {"cbom": "CBOM", "qureddy": "QuReddy"}
 
+# Human-facing OSCAL-model blurbs and the set of stub emitters (they raise
+# NotImplementedError), so `--help` can label planned models honestly. Falls back to the
+# raw model name for a model registered without a blurb here.
+_MODEL_BLURB = {
+    "poam": "POA&M (Plan of Action & Milestones)",
+    "ar": "Assessment Results",
+    "component-definition": "Component Definition",
+}
+_PLANNED_MODELS = {"ar", "component-definition"}
 
-def _build_parser() -> argparse.ArgumentParser:
-    """Build the ``mint-oscal <model> generate ...`` argument parser."""
-    parser = argparse.ArgumentParser(prog="mint-oscal")
-    models = parser.add_subparsers(dest="model", required=True)
+
+def _root_epilog() -> str:
+    """Brand epilog for `mint-oscal --help`: quick start + where to go next."""
+    return colorize_help(
+        "QUICK START:\n\n"
+        "# CBOM on disk -> OSCAL POA&M (JSON on stdout).\n"
+        "mint-oscal poam generate --from cbom scan.cbom.json\n\n"
+        "# Pipe a QuReddy scan straight through (the flagship pipe).\n"
+        "qureddy scan tls example.com --format cbom | mint-oscal poam generate --from cbom -\n\n"
+        "# Add the BreachSAFE producer cross-check, then validate.\n"
+        "mint-oscal poam generate --from cbom scan.cbom.json --extension breachsafe --validate\n\n"
+        "MORE HELP:\n\n"
+        "mint-oscal <model> generate --help   # full options, examples, exit codes\n"
+        "mint-oscal --version                 # show version\n\n"
+        f"Project: {PROJECT_URL}"
+    )
+
+
+def _generate_epilog() -> str:
+    """Brand epilog for `mint-oscal <model> generate --help`: examples, exit codes, environment."""
+    return colorize_help(
+        "EXAMPLES:\n\n"
+        "# Most common: a CBOM file -> POA&M JSON.\n"
+        "mint-oscal poam generate --from cbom scan.cbom.json\n\n"
+        "# Read the report from STDIN.\n"
+        "qureddy scan tls example.com --format cbom | mint-oscal poam generate --from cbom -\n\n"
+        "# Producer cross-check + semantic validation.\n"
+        "mint-oscal poam generate --from cbom scan.cbom.json --extension breachsafe --validate\n\n"
+        "# XML output (requires oscal-cli on PATH).\n"
+        "mint-oscal poam generate --from cbom scan.cbom.json --to xml\n\n"
+        "EXIT CODES:\n\n"
+        "0   OSCAL document minted\n"
+        "1   --validate found a semantic problem\n"
+        "2   input error, or malformed / unrecognized source report\n"
+        "3   requested output needs a local dependency (oscal-cli for xml/yaml)\n\n"
+        "ENVIRONMENT:\n\n"
+        "NO_COLOR   Disable ANSI color in --help (https://no-color.org).\n\n"
+        f"Project: {PROJECT_URL}"
+    )
+
+
+def _build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.ArgumentParser]]:
+    """Build the parser, returning it plus the per-model subparsers (for no-verb help).
+
+    Subparsers are ``required=False`` so a bare ``mint-oscal`` or ``mint-oscal <model>``
+    prints help (exit 0) instead of erroring; :func:`main` dispatches the missing levels.
+    """
+    parser = argparse.ArgumentParser(
+        prog="mint-oscal",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=f"{PROJECT_NAME} {PROJECT_VERSION} -- {DESCRIPTION}.",
+        epilog=_root_epilog(),
+    )
+    parser.add_argument("-V", "--version", action="version", version=VERSION_BANNER)
+    models = parser.add_subparsers(dest="model", required=False, metavar="<model>")
     sources = sorted(available_adapters())
     extensions = sorted(available_extensions())
+    model_parsers: dict[str, argparse.ArgumentParser] = {}
     for model in available_models():
-        model_parser = models.add_parser(model, help=f"OSCAL {model}")
-        verbs = model_parser.add_subparsers(dest="verb", required=True)
-        generate = verbs.add_parser("generate", help=f"generate an OSCAL {model}")
-        generate.add_argument("--from", dest="source", choices=sources, required=True)
+        blurb = _MODEL_BLURB.get(model, model)
+        planned = model in _PLANNED_MODELS
+        note = "  (planned; not yet implemented)" if planned else ""
+        model_parser = models.add_parser(
+            model,
+            help=f"generate an OSCAL {blurb}" + (" (planned)" if planned else ""),
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            description=f"Generate an OSCAL {blurb} from a source report.{note}",
+        )
+        model_parsers[model] = model_parser
+        verbs = model_parser.add_subparsers(dest="verb", required=False, metavar="<verb>")
+        generate = verbs.add_parser(
+            "generate",
+            help=f"generate an OSCAL {blurb}",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            description=f"Generate an OSCAL {blurb} from a source report.{note}",
+            epilog=_generate_epilog(),
+        )
+        generate.add_argument(
+            "report",
+            help="path to the source report JSON, or '-' to read it from STDIN",
+        )
+        generate.add_argument(
+            "--from",
+            dest="source",
+            choices=sources,
+            required=True,
+            metavar="SOURCE",
+            help=f"source adapter to parse the report: {', '.join(sources)}",
+        )
         generate.add_argument(
             "--extension",
             dest="extensions",
@@ -61,14 +156,9 @@ def _build_parser() -> argparse.ArgumentParser:
             choices=extensions,
             metavar="NAME",
             help=(
-                "run an opt-in enricher on the IR after the source adapter; repeatable "
-                "(e.g. --extension breachsafe). Source and extension are orthogonal: "
-                "--from stays vendor-neutral, --extension adds producer cross-checks"
+                "opt-in IR enricher, repeatable (e.g. breachsafe). Orthogonal to --from, "
+                "which stays vendor-neutral; adds producer cross-checks"
             ),
-        )
-        generate.add_argument(
-            "report",
-            help="path to the source report JSON, or '-' to read it from STDIN",
         )
         generate.add_argument(
             "--to",
@@ -77,9 +167,17 @@ def _build_parser() -> argparse.ArgumentParser:
             type=str.lower,
             choices=("json", "xml", "yaml"),
             metavar="FORMAT",
-            help="output encoding: JSON|XML|YAML (default JSON; xml/yaml require oscal-cli)",
+            help="output encoding: json (default), xml, yaml (xml/yaml require oscal-cli)",
         )
-        generate.add_argument("--validate", action="store_true", help="check internal integrity")
+        generate.add_argument(
+            "--validate",
+            action="store_true",
+            help=(
+                "run in-process Layer-2 semantic checks (uuid/ref/ns integrity, OSCAL "
+                "structural + BreachSAFE domain vocab). Not authoritative NIST schema "
+                "validation; run oscal-cli for that. Exit 1 on any problem"
+            ),
+        )
         generate.add_argument(
             "-v",
             "--verbose",
@@ -101,7 +199,7 @@ def _build_parser() -> argparse.ArgumentParser:
             action="store_true",
             help="emit logs as newline-delimited JSON instead of console text",
         )
-    return parser
+    return parser, model_parsers
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -112,7 +210,22 @@ def main(argv: list[str] | None = None) -> int:
     codes without leaking a traceback: input/OS errors and malformed/garbage input
     exit ``2``; not-yet-implemented paths (stub emitters, XML/YAML render) exit ``3``.
     """
-    args = _build_parser().parse_args(argv)
+    if argv is None:
+        argv = sys.argv[1:]
+    parser, model_parsers = _build_parser()
+    # No arguments, an incomplete invocation (a model with no verb), or the bare `help`
+    # word all print the relevant help to STDOUT and exit 0 -- running the tool with nothing
+    # to do shows what it can do; it is not treated as an error.
+    if not argv or argv[0] == "help":
+        parser.print_help()
+        return 0
+    args = parser.parse_args(argv)
+    if args.model is None:
+        parser.print_help()
+        return 0
+    if getattr(args, "verb", None) is None:
+        model_parsers[args.model].print_help()
+        return 0
     configure_logging(verbosity=args.verbose, json_logs=args.json_logs, quiet=args.quiet)
     log = get_logger("mint_oscal.cli")
 

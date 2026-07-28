@@ -18,10 +18,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from mint_oscal._branding import PROJECT_VERSION as __version__
 from mint_oscal.emitters import get_emitter
 from mint_oscal.ir import IR, Evidence, Finding, Subject
-
-__version__ = "0.0.1"
 
 __all__ = [
     "IR",
