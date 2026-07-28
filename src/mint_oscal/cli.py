@@ -155,7 +155,11 @@ def main(argv: list[str] | None = None) -> int:
                 if oracle
                 else "run NIST oscal-cli for authoritative schema conformance"
             )
-            log.info(
+            # --validate is an explicit request, so its result must be visible at the
+            # default level (WARNING) -- not INFO, which is suppressed -- so the user
+            # actually sees the outcome AND the "not authoritative" caveat. `-q` still
+            # silences it (it raises the floor to ERROR).
+            log.warning(
                 "semantic_checks_passed",
                 scope="uuid/ref/ns integrity -- NOT NIST schema validation",
                 note=note,
