@@ -10,26 +10,22 @@ validating it against ``mint.ir.v1.schema.json`` first.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from mint_oscal.ir.model import IR
-
-SCHEMA_PATH = Path(__file__).with_name("mint.ir.v1.schema.json")
 
 
 def load_ir(doc: dict[str, Any]) -> IR:
     """Validate ``doc`` against ``mint.ir.v1`` and build an :class:`IR`.
 
     Not yet implemented: deserialization of the IR wire format is a P1 item once a
-    second (out-of-process) adapter exists. See ADR-0004 (agnostic core) and
-    UC-INGEST.
+    second (out-of-process) adapter exists. See ADR-0004 (agnostic core).
 
     Raises:
         NotImplementedError: always, until the IR wire format lands.
     """
     raise NotImplementedError(
-        "load_ir: mint.ir.v1 deserialization is not implemented yet (ADR-0004, UC-INGEST)"
+        "load_ir: mint.ir.v1 deserialization is not implemented yet (ADR-0004)"
     )
 
 

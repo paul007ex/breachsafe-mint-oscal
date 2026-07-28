@@ -25,7 +25,7 @@ Options considered (workbook T1):
 - **B)** SAR canonical + POA&M derived.
 - **C)** both, independent.
 
-Because all emitters read the same neutral IR (`Finding/Subject/Evidence/Risk`), emitting
+Because all emitters read the same neutral IR (`Finding/Subject/Evidence`), emitting
 both shapes from one scan is cheap — the marginal cost of SAR is a second emitter over data
 we already hold.
 

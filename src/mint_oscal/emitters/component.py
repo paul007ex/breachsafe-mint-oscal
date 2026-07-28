@@ -19,12 +19,12 @@ def emit(ir: IR, **params: Any) -> dict[str, Any]:  # noqa: ANN401
 
     Not yet implemented. Depends on the catalog/profile consume path to resolve
     control text and implemented-requirements. See ADR-0004 and the P2 tier
-    (UC-COMPONENT).
+    (UC-3).
 
     Raises:
         NotImplementedError: always, until the component emitter lands.
     """
     raise NotImplementedError(
         "component.emit: Component Definition emitter depends on catalog/profile "
-        "consume (ADR-0004, UC-COMPONENT, P2)"
+        "consume (ADR-0004, UC-3, P2)"
     )

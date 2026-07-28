@@ -34,20 +34,6 @@ class Evidence:
 
 
 @dataclass(frozen=True)
-class Risk:
-    """The compliance risk framing an emitter needs for a finding.
-
-    Supplied by a per-source control map (see ``mint_oscal.controls``), never
-    invented by the emitter. Kept separate from :class:`Finding` so that a target
-    emitter that models risk differently (Assessment Results vs POA&M) can reuse it.
-    """
-
-    statement: str
-    control_ids: tuple[str, ...]
-    severity: str  # critical|high|medium|low|info
-
-
-@dataclass(frozen=True)
 class Finding:
     """A normalized finding: what was concluded, about what, backed by what.
 
