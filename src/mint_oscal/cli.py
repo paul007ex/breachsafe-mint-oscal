@@ -136,6 +136,9 @@ def main(argv: list[str] | None = None) -> int:
     except MalformedCbomError as exc:
         log.error("malformed_cbom", source=args.source, error=str(exc))
         return 2
+    except KeyError as exc:
+        log.error("unknown_selector", model=args.model, source=args.source, error=str(exc))
+        return 2
     except NotImplementedError as exc:
         log.error("not_implemented", model=args.model, fmt=args.fmt, error=str(exc))
         return 3
