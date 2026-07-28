@@ -43,7 +43,7 @@ sources emit the published `mint.ir.v1` contract directly.
 
 ## Install
 
-Requires Python 3.11+. Not yet on PyPI; install from source:
+Requires Python 3.12+. Not yet on PyPI; install from source:
 
 ```bash
 pip install .
