@@ -12,9 +12,9 @@ and are always available even from a source checkout.
 from __future__ import annotations
 
 from collections.abc import Callable
-from importlib.metadata import entry_points
 from typing import Any, cast
 
+from mint_oscal._registry import discover, resolve
 from mint_oscal.ir import Finding, Subject
 
 Adapter = Callable[[dict[str, Any]], tuple[list[Finding], Subject]]
@@ -27,13 +27,6 @@ _BUILTINS = {
 }
 
 
-def _load_builtin(target: str) -> Adapter:
-    """Import a bundled adapter from its ``module:callable`` reference."""
-    module_name, _, attr = target.partition(":")
-    module = __import__(module_name, fromlist=[attr])
-    return cast("Adapter", getattr(module, attr))
-
-
 def get_adapter(name: str) -> Adapter:
     """Return the adapter registered under ``name``.
 
@@ -43,19 +36,15 @@ def get_adapter(name: str) -> Adapter:
     Raises:
         KeyError: if no adapter is registered under ``name``.
     """
-    for entry_point in entry_points(group=_ENTRY_POINT_GROUP):
-        if entry_point.name == name:
-            return cast("Adapter", entry_point.load())
-    if name in _BUILTINS:
-        return _load_builtin(_BUILTINS[name])
-    raise KeyError(f"unknown source adapter {name!r}; available: {', '.join(available_adapters())}")
+    return cast(
+        "Adapter",
+        resolve(_ENTRY_POINT_GROUP, _BUILTINS, name, "source adapter", available_adapters()),
+    )
 
 
 def available_adapters() -> list[str]:
     """Return the sorted names of all discoverable source adapters."""
-    names = {entry_point.name for entry_point in entry_points(group=_ENTRY_POINT_GROUP)}
-    names.update(_BUILTINS)
-    return sorted(names)
+    return sorted(discover(_ENTRY_POINT_GROUP, _BUILTINS))
 
 
 __all__ = ["Adapter", "available_adapters", "get_adapter"]

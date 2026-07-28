@@ -105,7 +105,9 @@ def from_scan_v1(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
     if not isinstance(target, dict):
         raise MalformedScanError("malformed qureddy.scan.v1: 'target' must be an object")
     subject = Subject(
-        id=_require(target, "locator", "target.locator"),
+        # id flows into the emitter's uuid5 "|".join(...); a non-str would leak a bare
+        # TypeError there, so type-guard it here (like ``readiness`` below) into a typed error.
+        id=_str(_require(target, "locator", "target.locator"), "target.locator"),
         kind="inventory-item",
         description=(
             f"{target.get('scheme', 'tls')} endpoint "
@@ -128,7 +130,8 @@ def from_scan_v1(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
         title = _require(finding, "title", "findings[].title")
         findings.append(
             Finding(
-                id=_require(finding, "id", "findings[].id"),
+                # id flows into the emitter's uuid5 "|".join(...); guard it to a typed error.
+                id=_str(_require(finding, "id", "findings[].id"), "findings[].id"),
                 title=title,
                 description=finding.get("description", title),
                 severity=_require(finding, "severity", "findings[].severity"),

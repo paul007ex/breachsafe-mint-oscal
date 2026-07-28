@@ -17,7 +17,6 @@ from importlib.metadata import PackageNotFoundError, version
 
 PROJECT_NAME = "BreachSAFE Mint-OSCAL"
 PROJECT_URL = "https://www.breachsafe.ai"
-SOURCE_URL = "https://github.com/paul007ex/breachsafe-mint-oscal"
 # One-line description, used in the CLI help header. Single source so the strings
 # on the root and subcommands can't drift.
 DESCRIPTION = "mint NIST OSCAL documents from security-scanner findings"

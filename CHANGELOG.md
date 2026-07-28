@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-07-28
+
+Closes the never-raises boundary gap (#69): the honest-failure contract now holds by
+construction, not by remembering to guard each new site.
+
+### Fixed
+
+- **`semantic_errors()` never raises, enforced at the boundary** (#69): the #62 pass guarded
+  some validators but missed the three reference validators and `props_namespaced`, so an
+  unhashable id/ref/prop-name (a `list`/`dict`) still raised a bare `TypeError`. Those sites are
+  now guarded (string-id sets, type-checked membership), **and** `semantic_errors` runs every
+  validator under a fail-closed boundary so any escaping exception on hostile input degrades to
+  a problem string rather than propagating — the contract holds even if a future validator
+  misses a guard.
+- **Typed error on a non-string qureddy id** (#69): `target.locator` and `findings[].id` used a
+  presence-only `_require` while sibling fields used `_str`; a non-string value flowed into the
+  emitter's uuid5 `"|".join(...)` and leaked a bare `TypeError`. Both are now `_str`-guarded, so
+  malformed input raises the typed `MalformedScanError` (clean exit 2).
+
+### Changed
+
+- **Deduplicated the plugin registry**: the entry-point lookup/discovery logic was copy-pasted
+  between `adapters/__init__.py` and `extensions/__init__.py`; it now lives once in
+  `mint_oscal._registry` (the two ports keep only their type alias, group, built-ins, and error
+  wording). Behavior-identical.
+- **`-v`/`-vv` are no longer no-ops**: the CLI now logs a `minted_document` run summary at INFO,
+  so raising verbosity surfaces real output (STDOUT stays a pure OSCAL channel).
+- Removed a dead `SOURCE_URL` constant from `_branding`.
+
+### Notes
+
+- Two items in #69 were **not** defects and were left unchanged after verification: `_tail`
+  (`str()` handles non-string scalars/lists without raising) and adding `start`/`end` to the
+  dateTime fields (`start`/`end` are `port-range` **integers** in the schema, not
+  dateTime-with-timezone). The two false-greens it listed (zero-finding, empty evidence props)
+  shipped in 0.1.6 (#64/#65).
+
 ## [0.1.6] - 2026-07-28
 
 Multi-agent adversarial review of the modules not touched by 0.1.5 (CBOM adapter, emitters,
@@ -234,7 +271,8 @@ by NIST `oscal-cli` and IBM `trestle`.
   infrastructure, and by independent review; a CI test suite is the immediate follow-on.
 - `ar`/`component-definition` emitters and the `consume` side are stubs.
 
-[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.7
 [0.1.6]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.6
 [0.1.5]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.5
 [0.1.4]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.4

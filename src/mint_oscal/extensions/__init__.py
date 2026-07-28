@@ -23,9 +23,9 @@ subject, and never logs, prints, or exits.
 from __future__ import annotations
 
 from collections.abc import Callable
-from importlib.metadata import entry_points
 from typing import Any, cast
 
+from mint_oscal._registry import discover, resolve
 from mint_oscal.ir import Finding, Subject
 
 Extension = Callable[..., tuple[list[Finding], Subject]]
@@ -37,13 +37,6 @@ _BUILTINS = {
 }
 
 
-def _load_builtin(target: str) -> Extension:
-    """Import a bundled enricher from its ``module:callable`` reference."""
-    module_name, _, attr = target.partition(":")
-    module = __import__(module_name, fromlist=[attr])
-    return cast("Extension", getattr(module, attr))
-
-
 def get_extension(name: str) -> Extension:
     """Return the enricher registered under ``name``.
 
@@ -53,19 +46,15 @@ def get_extension(name: str) -> Extension:
     Raises:
         KeyError: if no extension is registered under ``name``.
     """
-    for entry_point in entry_points(group=_ENTRY_POINT_GROUP):
-        if entry_point.name == name:
-            return cast("Extension", entry_point.load())
-    if name in _BUILTINS:
-        return _load_builtin(_BUILTINS[name])
-    raise KeyError(f"unknown extension {name!r}; available: {', '.join(available_extensions())}")
+    return cast(
+        "Extension",
+        resolve(_ENTRY_POINT_GROUP, _BUILTINS, name, "extension", available_extensions()),
+    )
 
 
 def available_extensions() -> set[str]:
     """Return the names of all discoverable enrichers."""
-    names = {entry_point.name for entry_point in entry_points(group=_ENTRY_POINT_GROUP)}
-    names.update(_BUILTINS)
-    return names
+    return discover(_ENTRY_POINT_GROUP, _BUILTINS)
 
 
 def apply_extensions(

@@ -150,20 +150,44 @@ def unique_uuids(document: dict[str, Any]) -> list[str]:
     return [f"duplicate uuid: {value}" for value, n in sorted(counts.items()) if n > 1]
 
 
+def _string_ids(items: list[Any], key: str) -> set[str]:
+    """Collect the string ``key`` values from a list of dicts.
+
+    Skips missing and non-string ids so an unhashable value (list/dict) can never blow up the
+    set build -- a non-string id cannot be a resolvable OSCAL uuid anyway.
+    """
+    out: set[str] = set()
+    for item in items:
+        if isinstance(item, dict):
+            value = item.get(key)
+            if isinstance(value, str):
+                out.add(value)
+    return out
+
+
+def _unresolved(used: list[Any], declared: set[str], label: str) -> list[str]:
+    """Flag every used ref that is not a declared string id (a non-string ref never resolves)."""
+    return [
+        f"unresolved {label}: {ref}"
+        for ref in used
+        if not (isinstance(ref, str) and ref in declared)
+    ]
+
+
 def observation_refs(document: dict[str, Any]) -> list[str]:
     """Every related-observation uuid resolves to a declared observation."""
     poam = _poam(document)
-    declared = {o.get("uuid") for o in _as_list(poam.get("observations")) if isinstance(o, dict)}
+    declared = _string_ids(_as_list(poam.get("observations")), "uuid")
     used = _find(poam.get("poam-items", []), "observation-uuid")
-    return [f"unresolved observation-uuid: {u}" for u in used if u not in declared]
+    return _unresolved(used, declared, "observation-uuid")
 
 
 def risk_refs(document: dict[str, Any]) -> list[str]:
     """Every related-risk uuid resolves to a declared risk."""
     poam = _poam(document)
-    declared = {r.get("uuid") for r in _as_list(poam.get("risks")) if isinstance(r, dict)}
+    declared = _string_ids(_as_list(poam.get("risks")), "uuid")
     used = _find(poam.get("poam-items", []), "risk-uuid")
-    return [f"unresolved risk-uuid: {u}" for u in used if u not in declared]
+    return _unresolved(used, declared, "risk-uuid")
 
 
 def subject_refs(document: dict[str, Any]) -> list[str]:
@@ -171,9 +195,9 @@ def subject_refs(document: dict[str, Any]) -> list[str]:
     poam = _poam(document)
     ld = poam.get("local-definitions")
     inventory = ld.get("inventory-items", []) if isinstance(ld, dict) else []
-    declared = {i.get("uuid") for i in _as_list(inventory) if isinstance(i, dict)}
+    declared = _string_ids(_as_list(inventory), "uuid")
     used = _find(poam.get("observations", []), "subject-uuid")
-    return [f"unresolved subject-uuid: {u}" for u in used if u not in declared]
+    return _unresolved(used, declared, "subject-uuid")
 
 
 def props_namespaced(document: dict[str, Any]) -> list[str]:
@@ -193,6 +217,7 @@ def props_namespaced(document: dict[str, Any]) -> list[str]:
             f"BreachSAFE prop {prop.get('name')!r} not in the BreachSAFE namespace"
             for prop in group
             if isinstance(prop, dict)
+            and isinstance(prop.get("name"), str)
             and prop.get("name") in _BREACHSAFE_PROP_NAMES
             and prop.get(_PROP_NS_KEY) != BREACHSAFE_NS
         ]
@@ -338,15 +363,26 @@ def semantic_errors(document: dict[str, Any]) -> list[str]:
     Each validator's docstring states the invariant it enforces. This is necessary but
     **not** sufficient for NIST schema conformance -- run ``oscal-cli`` for that.
 
-    Never raises: a document that is not a POA&M (no ``plan-of-action-and-milestones``
-    root, which the per-validator ``_poam`` helper would otherwise surface as a bare
-    ``KeyError``) is reported as a single problem string, so callers always get a list.
+    Never raises. This is enforced at the boundary, not just per validator: a non-POA&M
+    document is reported as one problem string, and each validator runs under a fail-closed
+    guard so that any escaping exception on hostile input degrades to a problem string rather
+    than propagating. The individual validators guard their own inputs too (defense in depth);
+    this guarantee holds even if a future validator misses a guard.
     """
     try:
         _poam(document)
     except KeyError as exc:
         return [f"not a POA&M document: {exc.args[0]}"]
-    return [problem for check in _VALIDATORS for problem in check(document)]
+    problems: list[str] = []
+    for check in _VALIDATORS:
+        try:
+            problems.extend(check(document))
+        except Exception as exc:
+            # Fail-closed boundary: a validator fault on hostile input is a reported problem,
+            # not a propagated crash -- this is what makes the never-raises contract hold even
+            # if an inner guard is ever missed.
+            problems.append(f"validator {check.__name__} failed on malformed input: {exc}")
+    return problems
 
 
 def oscal_cli_available() -> str | None:

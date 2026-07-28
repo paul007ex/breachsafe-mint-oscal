@@ -255,6 +255,16 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         ir = IR(findings=tuple(findings), subject=subject, source=args.source)
         oscal = convert(ir, shape=args.model, source=_SOURCE_DISPLAY.get(args.source, args.source))
+        # Surfaced at -v (INFO); STDOUT stays a pure OSCAL channel. Gives `-v/-vv` real output
+        # (a run summary + the applied extensions) instead of leaving the flags as no-ops.
+        log.info(
+            "minted_document",
+            model=args.model,
+            source=args.source,
+            subject=subject.id,
+            findings=len(ir.findings),
+            extensions=args.extensions,
+        )
 
         if args.validate:
             problems = semantic_errors(oscal)
