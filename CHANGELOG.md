@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Black-box CLI regression harness** (`scripts/regression.sh`): drives the real console entry
+  point across every parameter and exit path (help/version/no-args, all sources, `--extension`,
+  `--validate`, `--to`, stdin, the 0/1/2/3 error paths) plus a **guard for every bug fixed to
+  date** — #67 legacy-TLS-string cap, #68 RSA key transport, #64 zero-finding, #62 open-vocab,
+  never-raises (no traceback on malformed input), and byte-determinism. Self-contained
+  (generates its adversarial fixtures inline), no pytest/mocks, and runs the optional NIST
+  `oscal-cli` Layer-1 check when present. Wired into CI as the `regression` job; 36 checks.
+
 ## [0.1.8] - 2026-07-28
 
 Internal hardening — behavior-identical (every CLI exit path 0/1/2/3 and all source/format

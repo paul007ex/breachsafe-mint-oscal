@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 BreachSAFE
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+#
+# Black-box CLI regression harness — run during PR.
+#
+# Exercises every mint-oscal CLI parameter and exit path, plus a regression guard for
+# every bug fixed to date (#62 open-vocab / #64 zero-finding / #67 legacy-TLS-string /
+# #68 RSA key transport / never-raises / determinism / honest-failure). No pytest, no
+# mocks: it drives the real console entry point against real + adversarial inputs and
+# asserts exit codes and output invariants.
+#
+# Usage:
+#   scripts/regression.sh                 # installed `mint-oscal`, else `python -m mint_oscal.cli`
+#   MINT="/path/to/mint-oscal" scripts/regression.sh
+#
+# Exit 0 iff every check passes; non-zero (= number of failures) otherwise.
+
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+EX="$ROOT/examples"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+# --- resolve the CLI under test -------------------------------------------------------
+if [ -n "${MINT:-}" ]; then
+  :
+elif command -v mint-oscal >/dev/null 2>&1; then
+  MINT="mint-oscal"
+else
+  MINT="python3 -m mint_oscal.cli"
+  export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
+fi
+PY="${PYTHON:-python3}"
+
+pass=0
+fail=0
+_ok() { pass=$((pass + 1)); printf "  \033[32mPASS\033[0m  %s\n" "$1"; }
+_no() { fail=$((fail + 1)); printf "  \033[31mFAIL\033[0m  %s\n" "$1"; }
+
+# expect_exit WANT "desc" -- <cli args...>
+expect_exit() {
+  local want="$1" desc="$2"; shift 3   # drop WANT, desc, the literal `--`
+  $MINT "$@" >"$TMP/o" 2>"$TMP/e"
+  local got=$?
+  if [ "$got" -eq "$want" ]; then _ok "$desc (exit $got)"
+  else _no "$desc (want $want, got $got)"; sed 's/^/        /' "$TMP/e" | head -3; fi
+}
+
+# stdout_has "needle" "desc" -- <cli args...>
+stdout_has() {
+  local needle="$1" desc="$2"; shift 3
+  if $MINT "$@" 2>/dev/null | grep -qF "$needle"; then _ok "$desc"
+  else _no "$desc (stdout missing: $needle)"; fi
+}
+
+# stdout_valid_json "desc" -- <cli args...>
+stdout_valid_json() {
+  local desc="$1"; shift 2
+  if $MINT "$@" 2>/dev/null | "$PY" -m json.tool >/dev/null 2>&1; then _ok "$desc"
+  else _no "$desc (stdout not valid JSON)"; fi
+}
+
+# _readiness <cbom file> -> "<readiness> <legacy-bool-lowercase> <kex-offered...>"
+_readiness() {
+  $MINT poam generate --from cbom "$1" 2>/dev/null | "$PY" -c '
+import sys, json
+p = json.load(sys.stdin)["plan-of-action-and-milestones"]
+props = {pr["name"]: pr["value"] for o in p.get("observations", []) for pr in o.get("props", [])}
+print(props.get("readiness", "NONE"), str("legacy-protocols" in props).lower(), props.get("kex-offered", "-"))'
+}
+
+# readiness_is EXPECT LEGACY(true/false) "desc" <cbom file>
+readiness_is() {
+  local want="$1" legacy="$2" desc="$3" file="$4" r leg kex
+  read -r r leg kex <<<"$(_readiness "$file")"
+  if [ "$r" = "$want" ] && [ "$leg" = "$legacy" ]; then _ok "$desc -> $r legacy=$leg kex=$kex"
+  else _no "$desc (want $want/$legacy, got $r/$leg kex=$kex)"; fi
+}
+
+# ======================================================================================
+# fixtures (generated inline; happy-path canonical inputs come from examples/)
+# ======================================================================================
+cbom() {  # cbom <version> <extra-components-json>
+  cat >"$1"
+}
+
+# #67: a KEM-only inventory (base = quantum_ready) behind a legacy TLS 1.0 transport.
+cbom "$TMP/tlsv10.cbom.json" <<'JSON'
+{"bomFormat":"CycloneDX","specVersion":"1.6","version":1,
+ "metadata":{"timestamp":"2026-01-01T00:00:00Z","component":{"type":"platform","name":"h:443"}},
+ "components":[
+  {"type":"cryptographic-asset","name":"MLKEM768","cryptoProperties":{"assetType":"algorithm",
+    "algorithmProperties":{"primitive":"kem","nistQuantumSecurityLevel":3}}},
+  {"type":"cryptographic-asset","name":"legacy-tls","cryptoProperties":{"assetType":"protocol",
+    "protocolProperties":{"type":"tls","version":"TLSv1.0"}}}]}
+JSON
+
+# #68: RSA key transport (pke) alongside a safe ML-KEM.
+cbom "$TMP/rsa_pke.cbom.json" <<'JSON'
+{"bomFormat":"CycloneDX","specVersion":"1.6","version":1,
+ "metadata":{"timestamp":"2026-01-01T00:00:00Z","component":{"type":"platform","name":"h:443"}},
+ "components":[
+  {"type":"cryptographic-asset","name":"RSA","cryptoProperties":{"assetType":"algorithm",
+    "algorithmProperties":{"primitive":"pke","nistQuantumSecurityLevel":0}}},
+  {"type":"cryptographic-asset","name":"MLKEM768","cryptoProperties":{"assetType":"algorithm",
+    "algorithmProperties":{"primitive":"kem","nistQuantumSecurityLevel":3}}}]}
+JSON
+
+# honest-failure control: modern KEM-only, no legacy transport -> quantum_ready (not over-flagged).
+cbom "$TMP/allsafe.cbom.json" <<'JSON'
+{"bomFormat":"CycloneDX","specVersion":"1.6","version":1,
+ "metadata":{"timestamp":"2026-01-01T00:00:00Z","component":{"type":"platform","name":"h:443"}},
+ "components":[
+  {"type":"cryptographic-asset","name":"MLKEM1024","cryptoProperties":{"assetType":"algorithm",
+    "algorithmProperties":{"primitive":"kem","nistQuantumSecurityLevel":5}}}]}
+JSON
+
+# #64: a clean qureddy scan (zero findings).
+cat >"$TMP/empty.scan.json" <<'JSON'
+{"schema":"qureddy.scan.v1","target":{"locator":"tls://h:443","scheme":"tls","host":"h","port":443},
+ "scan":{"completed_at":"2026-01-01T00:00:00Z"},"findings":[],"evidence":[]}
+JSON
+
+echo '{"bomFormat":"NotCycloneDX","specVersion":"1.6"}' >"$TMP/bad.cbom.json"   # wrong bomFormat
+echo '{"schema":"qureddy.scan.v1","scan":{}}' >"$TMP/bad.scan.json"            # missing target
+printf '{ this is not json ' >"$TMP/notjson.json"
+
+# ======================================================================================
+echo
+echo "mint-oscal regression harness  (CLI: $MINT)"
+echo "======================================================================================"
+
+echo "-- help / version / discovery --"
+expect_exit 0 "--version"                        -- --version
+stdout_has "BreachSAFE Mint-OSCAL" "--version banner" -- --version
+expect_exit 0 "-V"                               -- -V
+expect_exit 0 "--help"                           -- --help
+expect_exit 0 "-h"                               -- -h
+expect_exit 0 "(no args) prints help"            --
+expect_exit 0 "bare 'help' word"                 -- help
+expect_exit 0 "poam --help"                      -- poam --help
+expect_exit 0 "poam generate --help"             -- poam generate --help
+stdout_has "EXIT CODES:" "generate --help has EXIT CODES section" -- poam generate --help
+stdout_has "(planned)" "root help labels stub models planned" -- --help
+
+echo "-- happy paths --"
+expect_exit 0 "cbom file"                        -- poam generate --from cbom "$EX/example.cbom.json"
+stdout_valid_json "cbom -> valid JSON on stdout" -- poam generate --from cbom "$EX/example.cbom.json"
+stdout_has "plan-of-action-and-milestones" "cbom -> POA&M root" -- poam generate --from cbom "$EX/example.cbom.json"
+expect_exit 0 "qureddy file"                     -- poam generate --from qureddy "$EX/example.scan.json"
+expect_exit 0 "--extension breachsafe"           -- poam generate --from cbom "$EX/example.cbom.json" --extension breachsafe
+stdout_has "provenance" "extension stamps provenance" -- poam generate --from cbom "$EX/example.cbom.json" --extension breachsafe
+expect_exit 0 "--validate (cbom)"                -- poam generate --from cbom "$EX/example.cbom.json" --validate
+expect_exit 0 "qureddy + ext + validate"         -- poam generate --from qureddy "$EX/example.scan.json" --extension breachsafe --validate
+expect_exit 0 "--to json explicit"               -- poam generate --from cbom "$EX/example.cbom.json" --to json
+# stdin (the flagship pipe)
+if cat "$EX/example.cbom.json" | $MINT poam generate --from cbom - >/dev/null 2>&1; then _ok "stdin '-' pipe (exit 0)"; else _no "stdin '-' pipe"; fi
+
+echo "-- error paths (clean exit, no traceback) --"
+expect_exit 2 "unknown --from"                   -- poam generate --from nope "$EX/example.cbom.json"
+expect_exit 2 "missing file"                     -- poam generate --from cbom "$TMP/does-not-exist.json"
+expect_exit 2 "invalid JSON"                     -- poam generate --from cbom "$TMP/notjson.json"
+expect_exit 2 "malformed CBOM (bomFormat)"       -- poam generate --from cbom "$TMP/bad.cbom.json"
+expect_exit 2 "malformed qureddy (no target)"    -- poam generate --from qureddy "$TMP/bad.scan.json"
+expect_exit 3 "--to xml without oscal-cli"       -- poam generate --from cbom "$EX/example.cbom.json" --to xml
+expect_exit 3 "stub model 'ar' -> not-implemented" -- ar generate --from cbom "$EX/example.cbom.json"
+
+echo "-- honest-failure regression guards --"
+readiness_is classically_weak true  "#67 legacy TLS 'TLSv1.0' string caps at classically_weak" "$TMP/tlsv10.cbom.json"
+readiness_is transitional_hybrid false "#68 RSA key transport (pke) is scored (not quantum_ready)" "$TMP/rsa_pke.cbom.json"
+readiness_is quantum_ready false "control: modern KEM-only is not over-flagged" "$TMP/allsafe.cbom.json"
+
+echo "-- #64 zero-finding scan --"
+expect_exit 0 "zero-finding scan mints a POA&M"  -- poam generate --from qureddy "$TMP/empty.scan.json"
+stdout_has "No findings" "zero-finding -> honest 'No findings' item" -- poam generate --from qureddy "$TMP/empty.scan.json"
+expect_exit 0 "zero-finding scan --validate clean" -- poam generate --from qureddy "$TMP/empty.scan.json" --validate
+
+echo "-- determinism + never-raises --"
+h1="$($MINT poam generate --from cbom "$EX/example.cbom.json" 2>/dev/null | shasum | cut -d' ' -f1)"
+h2="$($MINT poam generate --from cbom "$EX/example.cbom.json" 2>/dev/null | shasum | cut -d' ' -f1)"
+[ "$h1" = "$h2" ] && _ok "byte-deterministic across runs ($h1)" || _no "non-deterministic ($h1 != $h2)"
+$MINT poam generate --from cbom "$TMP/bad.cbom.json" >/dev/null 2>"$TMP/e"
+if grep -q "Traceback" "$TMP/e"; then _no "malformed input leaked a Python traceback"; else _ok "malformed input never leaks a traceback"; fi
+
+echo "-- NIST oscal-cli Layer-1 conformance (optional) --"
+if command -v oscal-cli >/dev/null 2>&1; then
+  $MINT poam generate --from cbom "$EX/example.cbom.json" 2>/dev/null >"$TMP/poam.json"
+  out="$(oscal-cli poam validate "$TMP/poam.json" 2>&1)"
+  if echo "$out" | grep -q "is valid" && ! echo "$out" | grep -q "is invalid"; then
+    _ok "oscal-cli reports the minted POA&M valid"
+  else _no "oscal-cli did NOT report the minted POA&M valid"; fi
+else
+  echo "  SKIP  oscal-cli not on PATH (install to enable authoritative Layer-1 gate)"
+fi
+
+echo "======================================================================================"
+printf "  %d passed, %d failed\n" "$pass" "$fail"
+[ "$fail" -eq 0 ] && { echo "  OK"; exit 0; } || { echo "  FAILURES"; exit "$fail"; }
