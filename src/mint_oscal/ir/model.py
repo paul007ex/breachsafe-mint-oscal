@@ -67,6 +67,10 @@ class Finding:
     control_ids: tuple[str, ...]
     risk_statement: str
     evidence: tuple[Evidence, ...] = ()
+    posture: dict[str, str] = field(default_factory=dict)
+    """structured crypto-posture facts (readiness, algorithm, nistQuantumSecurityLevel,
+    cert-signature) for observation props; supplied by the adapter, never invented by
+    the emitter."""
 
 
 @dataclass(frozen=True)

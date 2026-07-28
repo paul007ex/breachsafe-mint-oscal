@@ -14,9 +14,19 @@ from typing import Any
 
 OSCAL_VERSION = "1.1.2"
 
+# Custom (non-core) props MUST carry this namespace. OSCAL constrains prop names in
+# the default core namespace (http://csrc.nist.gov/ns/oscal) to an allowed set, so an
+# unnamespaced custom prop like "severity" fails oscal-cli validation. Everything mint
+# emits that is not a core OSCAL prop rides in this namespace.
+BREACHSAFE_NS = "https://breachsafe.ai/ns/oscal"
 
-def prop(name: str, value: str, *, ns: str | None = None) -> dict[str, Any]:
-    """Build one OSCAL ``prop`` object."""
+
+def prop(name: str, value: str, *, ns: str | None = BREACHSAFE_NS) -> dict[str, Any]:
+    """Build one OSCAL ``prop`` object.
+
+    Defaults to the BreachSAFE namespace; pass ``ns=None`` only for a genuine core
+    OSCAL prop whose name is in the allowed core set.
+    """
     out: dict[str, Any] = {"name": name, "value": value}
     if ns is not None:
         out["ns"] = ns
@@ -24,7 +34,7 @@ def prop(name: str, value: str, *, ns: str | None = None) -> dict[str, Any]:
 
 
 def props_from(mapping: dict[str, str]) -> list[dict[str, Any]]:
-    """Build a list of OSCAL ``prop`` objects from a name->value mapping."""
+    """Build a list of custom (BreachSAFE-namespaced) OSCAL ``prop`` objects."""
     return [prop(name, value) for name, value in mapping.items()]
 
 
@@ -41,6 +51,7 @@ def metadata(
         "last-modified": timestamp,
         "version": version,
         "oscal-version": oscal_version,
+        "props": [prop("oscal-target-version", "1.2.2")],
     }
 
 

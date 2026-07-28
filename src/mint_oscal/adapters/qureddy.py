@@ -41,9 +41,25 @@ def from_scan_v1(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
                 control_ids=controls_for(readiness),
                 risk_statement=risk_statement(readiness),
                 evidence=tuple(_evidence(evidence_by_id, finding.get("evidence_ids", ()))),
+                posture=_posture(finding),
             )
         )
     return findings, subject
+
+
+def _posture(finding: dict[str, Any]) -> dict[str, str]:
+    """Extract structured crypto-posture facts a scan finding may carry.
+
+    Every field is optional; only non-empty values are kept. Scan key names are
+    mapped to their OSCAL prop names (``cert_signature`` -> ``cert-signature``).
+    """
+    facts = {
+        "readiness": finding.get("readiness", ""),
+        "algorithm": finding.get("algorithm", ""),
+        "nistQuantumSecurityLevel": finding.get("nistQuantumSecurityLevel", ""),
+        "cert-signature": finding.get("cert_signature", ""),
+    }
+    return {name: str(value) for name, value in facts.items() if value}
 
 
 def _evidence(by_id: dict[str, Any], evidence_ids: tuple[str, ...]) -> list[Evidence]:
