@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-07-28
+
+### Fixed
+
+- **Single-source readiness vocabulary** (#47): the `breachsafe` provenance extension now
+  reads the canonical readiness set from `mint_oscal.policy.READINESS_VERDICTS` instead of a
+  private copy, so a producer-declared `classically_weak` is recorded as a `conflict:*`
+  (honest attribution) rather than silently dropped. The two vocabularies can no longer drift.
+
 ## [0.1.1] - 2026-07-28
 
 ### Added
@@ -91,6 +100,7 @@ by NIST `oscal-cli` and IBM `trestle`.
   infrastructure, and by independent review; a CI test suite is the immediate follow-on.
 - `ar`/`component-definition` emitters and the `consume` side are stubs.
 
-[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.2
 [0.1.1]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.1
 [0.1.0]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.0
