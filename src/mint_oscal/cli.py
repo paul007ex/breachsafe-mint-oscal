@@ -23,7 +23,7 @@ from mint_oscal.adapters import available_adapters, get_adapter
 from mint_oscal.emitters import available_models
 from mint_oscal.ir import IR
 from mint_oscal.render import render
-from mint_oscal.validate import structural_errors
+from mint_oscal.validate import oscal_cli_available, semantic_errors
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -60,12 +60,21 @@ def main(argv: list[str] | None = None) -> int:
     oscal = convert(ir, shape=args.model, source=args.source.capitalize())
 
     if args.validate:
-        problems = structural_errors(oscal)
+        problems = semantic_errors(oscal)
         if problems:
             for problem in problems:
-                print(f"structural error: {problem}", file=sys.stderr)  # noqa: T201
+                print(f"semantic error: {problem}", file=sys.stderr)  # noqa: T201
             return 1
-        print("structural validation: OK", file=sys.stderr)  # noqa: T201
+        oracle = oscal_cli_available()
+        note = (
+            f"authoritative NIST check available: {oracle} validate"
+            if oracle
+            else "run NIST oscal-cli for authoritative schema conformance"
+        )
+        print(  # noqa: T201
+            f"semantic checks passed (uuid/ref/ns integrity) -- NOT NIST schema validation; {note}",
+            file=sys.stderr,
+        )
 
     sys.stdout.write(render(oscal, fmt=args.fmt))
     sys.stdout.write("\n")
