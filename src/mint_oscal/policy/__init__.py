@@ -71,6 +71,12 @@ def get_policy(name: str = "default") -> Policy:
         ("control-crosswalk", policy.crosswalk),
         ("risk-statements", policy.risk),
     ):
+        # An empty or non-mapping YAML (yaml.safe_load -> None / list) would otherwise reach
+        # ``data.keys()`` and raise a bare AttributeError; fail loud with a clear message so the
+        # invited "copy the pack and swap" path never crashes opaquely.
+        if not isinstance(data, dict):
+            msg = f"policy '{name}' {table}.yaml is not a mapping (got {type(data).__name__})"
+            raise ValueError(msg)
         missing = READINESS_VERDICTS - data.keys()
         if missing:
             msg = f"policy '{name}' {table}.yaml missing readiness keys: {sorted(missing)}"

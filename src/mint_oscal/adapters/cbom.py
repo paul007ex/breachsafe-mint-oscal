@@ -16,6 +16,7 @@ that is not a parseable CycloneDX BOM raises :class:`MalformedCbomError`.
 from __future__ import annotations
 
 import functools
+import re
 import uuid
 from dataclasses import dataclass
 from importlib import resources
@@ -34,13 +35,19 @@ _DATA_PACKAGE = "mint_oscal.adapters.cbom_data"
 # CycloneDX spec versions the parser understands ("1.0".."1.7"); an out-of-range
 # specVersion is rejected up front rather than silently mis-parsed.
 _SUPPORTED_SPEC_VERSIONS = frozenset(v.to_version() for v in SchemaVersion)
-_KEX_PRIMITIVES = frozenset({"key-agree", "kem"})
+# Primitives that establish a shared/transported key -- the quantum-relevant exchange.
+# key-agree (DH/ECDH) and kem (ML-KEM), plus pke: RSA-encrypted **key transport** is classical
+# key establishment and must be scored, not silently dropped as a non-KEX primitive (#68).
+_KEX_PRIMITIVES = frozenset({"key-agree", "kem", "pke"})
 _QUANTIFIERS = frozenset({"all", "some", "none"})
 # Transport protocols that carry a numeric TLS-style version; SSL is handled by name.
 _TLS_LIKE = frozenset({"tls", "dtls"})
 # The floor at or above which a TLS/DTLS version is not, by itself, a weak offering.
 # TLS 1.0/1.1 (< 1.2) are deprecated (RFC 8996); any SSL version is weaker still.
 _WEAK_TLS_FLOOR = 1.2
+# Extracts an embedded major(.minor) version from a protocol string, so a non-bare-decimal
+# encoding ("TLSv1.0", "v1.0", "1.0.0", "1.0 (deprecated)") is still compared against the floor.
+_VER_RE = re.compile(r"\d+(?:\.\d+)?")
 # Readiness verdicts that a weak-protocol offering downgrades to ``classically_weak``.
 # ``quantum_vulnerable`` is already unfavorable and is left as-is (honest-failure, #24/#53).
 _WEAK_DOWNGRADE_FROM = frozenset({"transitional_hybrid", "quantum_ready", "unknown"})
@@ -109,22 +116,34 @@ def _tail(ref: object) -> str:
     return str(ref).rsplit("/", 1)[-1]
 
 
+def _protocol_version(*candidates: str | None) -> float | None:
+    """Return the first embedded major(.minor) version number found in any candidate string."""
+    for candidate in candidates:
+        if isinstance(candidate, str):
+            match = _VER_RE.search(candidate)
+            if match:
+                return float(match.group(0))
+    return None
+
+
 def _is_legacy_protocol(name: str | None, ptype: str | None, version: str | None) -> bool:
     """True if a ``protocol`` component offers a weak/deprecated transport.
 
     Weak means any SSL (all versions are deprecated) or a TLS/DTLS version below 1.2
     (TLS 1.0/1.1, deprecated by RFC 8996). SSL is matched by name because CycloneDX has
-    no ``ssl`` protocol type — an SSLv3 offering carries a version (``3.0``) that a bare
-    numeric compare would read as *newer* than TLS 1.2, so a numeric test alone would miss
-    it. A non-numeric or absent version on a TLS-like protocol is not treated as weak.
+    no ``ssl`` protocol type. The version number is *extracted* from the version field or
+    the name rather than parsed with a bare ``float`` -- a producer may render TLS 1.0 as
+    ``"TLSv1.0"``, ``"v1.0"``, ``"1.0.0"`` or ``"1.0 (deprecated)"``, none of which
+    ``float`` accepts; before this fix a ``ValueError`` was swallowed as *not weak*,
+    reintroducing #53's false-favorable (its real case was literally ``TLSv1``). An SSLv3
+    version (``3.0``) is caught by the SSL name match, not the numeric compare.
     """
     if (name or "").upper().replace(" ", "").startswith("SSL") or ptype == "ssl":
         return True
-    if ptype in _TLS_LIKE and version is not None:
-        try:
-            return float(version) < _WEAK_TLS_FLOOR
-        except ValueError:
-            return False
+    if ptype in _TLS_LIKE:
+        version_num = _protocol_version(version, name)
+        if version_num is not None:
+            return version_num < _WEAK_TLS_FLOOR
     return False
 
 

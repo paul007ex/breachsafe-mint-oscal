@@ -71,6 +71,13 @@ def _crosscheck(derived: str, observations: dict[str, str]) -> str:
     declared = observations.get("readiness")
     if declared not in READINESS_VERDICTS:
         declared = None
+    # ``derived`` is mint's own verdict and is always a recognized token in practice; guard it
+    # too so the delimited ``conflict:producer=X,derived=Y`` provenance can never be corrupted
+    # by an unexpected value bearing a ``,`` or ``=`` (keeps the string round-trip-parseable).
+    # A no-op for every real finding; only a would-be junk derived verdict falls back to
+    # ``derived`` rather than emitting a malformed conflict token (#63).
+    if derived not in READINESS_VERDICTS:
+        return "derived"
     if declared and declared != derived:
         return f"conflict:producer={declared},derived={derived}"
     if declared:

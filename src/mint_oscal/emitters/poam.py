@@ -58,6 +58,35 @@ def _stamp(findings: list[Finding]) -> str:
     return stamps[-1] if stamps else "1970-01-01T00:00:00+00:00"
 
 
+def _relevant_evidence(evidence: Iterable[Any]) -> list[dict[str, Any]]:
+    """Build relevant-evidence entries, omitting ``props`` when empty.
+
+    OSCAL's ``props`` is optional but requires >=1 item when present, so an evidence entry with
+    no props must omit the key rather than emit ``[]`` (which is schema-invalid; #65).
+    """
+    entries: list[dict[str, Any]] = []
+    for item in evidence:
+        entry: dict[str, Any] = {"description": item.description}
+        if item.props:
+            entry["props"] = _common.props_from(item.props)
+        entries.append(entry)
+    return entries
+
+
+def _no_findings_item(subject: Subject) -> dict[str, Any]:
+    """A single, honest poam-item for a scan that produced no findings.
+
+    OSCAL requires >=1 ``poam-item``, so an empty scan (e.g. a fully PQ-ready endpoint) is
+    reported as one truthful summary item -- never fabricated findings, observations, or risks
+    (#64). Deterministic uuid so the same empty scan mints byte-identical output.
+    """
+    return {
+        "uuid": _det("poam-item", "no-findings", subject.id),
+        "title": "No findings",
+        "description": f"No post-quantum cryptographic findings were identified for {subject.id}.",
+    }
+
+
 def emit(ir: IR, *, source: str | None = None, now: str | None = None) -> dict[str, Any]:
     """Emit an OSCAL POA&M from an IR bundle (registry entry point)."""
     return to_poam(
@@ -104,13 +133,7 @@ def to_poam(
         # relevant-evidence is optional and OSCAL requires >=1 item when present, so omit
         # it for an evidence-less finding (e.g. a CBOM carries posture but no probe output).
         if finding.evidence:
-            observation["relevant-evidence"] = [
-                {
-                    "description": item.description,
-                    "props": _common.props_from(item.props),
-                }
-                for item in finding.evidence
-            ]
+            observation["relevant-evidence"] = _relevant_evidence(finding.evidence)
         observation["collected"] = _aware(finding.observed_at)
         observations.append(observation)
         risks.append(
@@ -119,7 +142,10 @@ def to_poam(
                 "title": finding.title,
                 "description": finding.risk_statement,
                 "statement": finding.risk_statement,
-                "status": "open",
+                # Reflect the finding's own status (open|closed), not a hardcoded "open", so a
+                # remediated finding is not minted as an open risk (#66). Both IR values are
+                # valid OSCAL risk-status tokens.
+                "status": finding.status,
             }
         )
         items.append(
@@ -136,19 +162,23 @@ def to_poam(
             }
         )
 
-    return {
-        "plan-of-action-and-milestones": {
-            "uuid": _det("poam", subject.id, timestamp[:10]),
-            "metadata": _common.metadata(
-                f"POA&M - {source} scan of {subject.id}",
-                timestamp=timestamp,
-            ),
-            "system-id": {"identifier-type": "https://ietf.org/rfc/rfc3986", "id": subject.id},
-            "local-definitions": {
-                "inventory-items": [{"uuid": inventory_uuid, "description": subject.description}]
-            },
-            "observations": observations,
-            "risks": risks,
-            "poam-items": items,
-        }
+    # OSCAL requires observations/risks to have >=1 item when present, so omit an empty array
+    # rather than emit a schema-invalid `[]`; poam-items is required (>=1), so an empty scan
+    # gets one honest "no findings" item (#64). Key order follows the metaschema child order.
+    body: dict[str, Any] = {
+        "uuid": _det("poam", subject.id, timestamp[:10]),
+        "metadata": _common.metadata(
+            f"POA&M - {source} scan of {subject.id}",
+            timestamp=timestamp,
+        ),
+        "system-id": {"identifier-type": "https://ietf.org/rfc/rfc3986", "id": subject.id},
+        "local-definitions": {
+            "inventory-items": [{"uuid": inventory_uuid, "description": subject.description}]
+        },
     }
+    if observations:
+        body["observations"] = observations
+    if risks:
+        body["risks"] = risks
+    body["poam-items"] = items or [_no_findings_item(subject)]
+    return {"plan-of-action-and-milestones": body}

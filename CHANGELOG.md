@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-07-28
+
+Multi-agent adversarial review of the modules not touched by 0.1.5 (CBOM adapter, emitters,
+extensions, policy) surfaced two HIGH honest-failure violations and several correctness gaps.
+
+### Fixed
+
+- **Legacy-protocol cap bypassed by non-numeric TLS version strings** (#67, HIGH, honest-failure):
+  `_is_legacy_protocol` compared the version with a bare `float()`, so a producer rendering
+  TLS 1.0 as `"TLSv1.0"`, `"v1.0"`, `"1.0.0"`, `"1.0 (deprecated)"` or `"TLSv1"` raised a
+  `ValueError` that was swallowed as *not weak* — minting the most-favorable `quantum_ready`
+  for a deprecated transport. #53's real case was literally `TLSv1`. The version number is now
+  extracted from the version field or the name, so every encoding of TLS < 1.2 (and SSL, by
+  name) caps at `classically_weak`; modern TLS 1.2/1.3 is unaffected.
+- **RSA key transport silently dropped** (#68, HIGH, honest-failure): `_KEX_PRIMITIVES` was
+  `{key-agree, kem}`, so an algorithm with the `pke` primitive (RSA key transport) was neither
+  scored as key exchange nor caught by the unclassified safety-net — an RSA-key-transport +
+  ML-KEM offering read as `quantum_ready`/high-confidence with RSA absent from the inventory.
+  `pke` is now scored as key establishment: RSA alone → `quantum_vulnerable`, RSA + ML-KEM →
+  `transitional_hybrid`, and RSA appears in `kex-offered`.
+- **Zero-finding POA&M was schema-invalid** (#64): the emitter always wrote
+  `observations`/`risks`/`poam-items`, so an empty scan (e.g. a fully PQ-ready endpoint)
+  emitted `[]` for all three — violating OSCAL's `minItems: 1` (and `poam-items` is required),
+  which `--validate` false-greened. Empty `observations`/`risks` are now omitted, and an empty
+  scan yields one honest "No findings" `poam-item` (never fabricated findings).
+- **`relevant-evidence` props emitted empty** (#65): an evidence entry with no props wrote
+  `props: []`, violating the schema's `minItems: 1`; the key is now omitted when empty (matching
+  the omit-when-empty the emitter already did for `relevant-evidence` itself).
+- **Risk status hardcoded `open`** (#66): the emitter ignored the IR's first-class
+  `Finding.status`, minting a `closed`/remediated finding as an `open` risk. It now reflects
+  `finding.status`.
+- **Provenance string parseability** (#63, defensive): `_crosscheck` embedded the derived
+  verdict raw into the delimited `conflict:producer=X,derived=Y` provenance; `derived` is now
+  guarded to a recognized verdict (a no-op for every real finding) so the string can't be
+  corrupted by an unexpected value bearing `,`/`=`.
+- **Policy pack fails loud on a non-mapping table**: an empty or non-mapping custom-pack YAML
+  (`yaml.safe_load` → `None`/list) reached `data.keys()` and raised a bare `AttributeError`,
+  contradicting the loader's "raises naming the missing keys" contract on the "copy the pack and
+  swap" path it invites. It now raises a clear `ValueError`.
+
 ## [0.1.5] - 2026-07-28
 
 ### Fixed
@@ -194,7 +234,8 @@ by NIST `oscal-cli` and IBM `trestle`.
   infrastructure, and by independent review; a CI test suite is the immediate follow-on.
 - `ar`/`component-definition` emitters and the `consume` side are stubs.
 
-[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.6
 [0.1.5]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.5
 [0.1.4]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.4
 [0.1.3]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.3
