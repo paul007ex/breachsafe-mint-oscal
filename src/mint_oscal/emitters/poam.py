@@ -55,23 +55,33 @@ def to_poam(
     for finding in findings:
         observation_uuid = _det("observation", finding.id)
         risk_uuid = _det("risk", finding.id)
-        observations.append(
+        # OSCAL metaschema observation child order:
+        # description -> props -> methods -> types -> subjects -> relevant-evidence -> collected.
+        observation: dict[str, Any] = {
+            "uuid": observation_uuid,
+            "description": finding.title,
+        }
+        if finding.posture:
+            observation["props"] = _common.props_from(finding.posture)
+        observation.update(
             {
-                "uuid": observation_uuid,
-                "description": finding.title,
                 "methods": ["TEST"],
                 "types": ["finding"],
                 "subjects": [{"subject-uuid": inventory_uuid, "type": "inventory-item"}],
-                "relevant-evidence": [
-                    {
-                        "description": item.description,
-                        "props": _common.props_from(item.props),
-                    }
-                    for item in finding.evidence
-                ],
-                "collected": finding.observed_at,
             }
         )
+        # relevant-evidence is optional and OSCAL requires >=1 item when present, so omit
+        # it for an evidence-less finding (e.g. a CBOM carries posture but no probe output).
+        if finding.evidence:
+            observation["relevant-evidence"] = [
+                {
+                    "description": item.description,
+                    "props": _common.props_from(item.props),
+                }
+                for item in finding.evidence
+            ]
+        observation["collected"] = finding.observed_at
+        observations.append(observation)
         risks.append(
             {
                 "uuid": risk_uuid,

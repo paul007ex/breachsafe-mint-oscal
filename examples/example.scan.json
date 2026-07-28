@@ -1,0 +1,46 @@
+{
+  "schema": "qureddy.scan.v1",
+  "target": {
+    "locator": "tls://example.com:443",
+    "scheme": "tls",
+    "host": "example.com",
+    "port": 443
+  },
+  "scan": {
+    "started_at": "2026-07-28T14:59:41Z",
+    "completed_at": "2026-07-28T15:00:12Z"
+  },
+  "findings": [
+    {
+      "id": "qr-tls-x25519-classical",
+      "title": "Classical X25519 key establishment on TLS endpoint",
+      "description": "The endpoint negotiates X25519 key establishment with no post-quantum hybrid. Captured traffic is exposed to harvest-now-decrypt-later once a cryptographically relevant quantum computer exists.",
+      "severity": "high",
+      "readiness": "quantum_vulnerable",
+      "algorithm": "X25519",
+      "nistQuantumSecurityLevel": "0",
+      "cert_signature": "ecdsa-with-SHA384",
+      "evidence_ids": ["ev-tls-handshake", "ev-cert-chain"]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-tls-handshake",
+      "source": "openssl s_client",
+      "observation_type": "tls-handshake",
+      "probe_result": {
+        "stdout_sha256": "9f2c5b7a1e4d3c8b6a0f2e1d4c7b9a8e5f3d2c1b0a9e8d7c6b5a4f3e2d1c0b9a",
+        "return_code": 0
+      }
+    },
+    {
+      "id": "ev-cert-chain",
+      "source": "openssl x509",
+      "observation_type": "certificate-chain",
+      "probe_result": {
+        "stdout_sha256": "3a1b2c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
+        "return_code": 0
+      }
+    }
+  ]
+}

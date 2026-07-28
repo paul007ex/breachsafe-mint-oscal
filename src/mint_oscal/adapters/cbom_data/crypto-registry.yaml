@@ -1,0 +1,18 @@
+# WHAT each algorithm means. Keys matched case-insensitively (adapter upper-cases).
+# Add rows for new PQC algorithms / a customer's algorithms — never touch code.
+# kind: kex | signature | cipher | hash | kdf ...   quantum_safe: true|false
+X25519:                 { quantum_safe: false, kind: kex }
+CURVE25519-SHA256:      { quantum_safe: false, kind: kex }
+ECDH:                   { quantum_safe: false, kind: kex }
+X25519MLKEM768:         { quantum_safe: true,  nistLevel: 3, kind: kex }
+# NIST PQC security categories (FIPS 203): ML-KEM-768 = cat 3, ML-KEM-1024 = cat 5.
+X25519KYBER768:         { quantum_safe: true,  nistLevel: 3, kind: kex }
+SECP256R1MLKEM768:      { quantum_safe: true,  nistLevel: 3, kind: kex }
+MLKEM768:               { quantum_safe: true,  nistLevel: 3, kind: kex }
+MLKEM1024:              { quantum_safe: true,  nistLevel: 5, kind: kex }
+SNTRUP761X25519-SHA512: { quantum_safe: true,  nistLevel: 1, kind: kex }
+ECDSA-WITH-SHA384:      { quantum_safe: false, kind: signature }
+ECDSA-WITH-SHA256:      { quantum_safe: false, kind: signature }
+SHA256WITHRSA:          { quantum_safe: false, kind: signature }
+ED25519:                { quantum_safe: false, kind: signature }
+ML-DSA-65:              { quantum_safe: true,  nistLevel: 3, kind: signature }

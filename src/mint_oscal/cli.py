@@ -38,11 +38,13 @@ def _build_parser() -> argparse.ArgumentParser:
         generate.add_argument("--from", dest="source", choices=sources, required=True)
         generate.add_argument("report", help="path to the source report JSON")
         generate.add_argument(
-            "--format",
+            "--to",
             dest="fmt",
             default="json",
+            type=str.lower,
             choices=("json", "xml", "yaml"),
-            help="output format (xml/yaml require oscal-cli)",
+            metavar="FORMAT",
+            help="output encoding: JSON|XML|YAML (default JSON; xml/yaml require oscal-cli)",
         )
         generate.add_argument("--validate", action="store_true", help="check internal integrity")
     return parser
