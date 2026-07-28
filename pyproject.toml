@@ -7,7 +7,7 @@ name = "breachsafe-mint-oscal"
 version = "0.0.1"
 description = "Mint NIST OSCAL documents (POA&M, and more) from a source-neutral intermediate representation."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "BreachSAFE" }]
@@ -17,7 +17,6 @@ classifiers = [
   "Intended Audience :: Information Technology",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Topic :: Security",
 ]
@@ -56,7 +55,7 @@ packages = ["src/mint_oscal"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = [
@@ -79,7 +78,7 @@ convention = "google"
 line-ending = "lf"
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 files = ["src"]
 
