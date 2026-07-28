@@ -27,6 +27,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 from mint_oscal import convert
 from mint_oscal._branding import (
@@ -46,13 +47,31 @@ from mint_oscal.render import render
 from mint_oscal.validate import oscal_cli_available, semantic_errors
 
 # Exit-code surface (documented in the --help EXIT CODES section). Distinct codes let a caller
-# tell "your input was bad" (2) from "mint-oscal itself broke" (70, BSD sysexits.h EX_SOFTWARE)
-# instead of lumping an internal fault in with malformed input (#70).
+# tell a usage mistake (4), bad input (2), a missing local dependency (3), and an internal fault
+# (70, BSD sysexits.h EX_SOFTWARE) apart instead of lumping them together.
 _EXIT_OK = 0
 _EXIT_VALIDATION = 1
 _EXIT_INPUT = 2
 _EXIT_NOT_IMPLEMENTED = 3
+_EXIT_USAGE = 4
 _EXIT_INTERNAL = 70
+
+
+class _UsageParser(argparse.ArgumentParser):
+    """ArgumentParser that exits with the usage code (4), distinct from malformed input (2).
+
+    argparse's default ``error()`` exits ``2`` -- the same code mint uses for a malformed
+    source report -- so "you invoked the CLI wrong" (a bad ``--from`` choice, a missing
+    argument, an unknown flag) would be indistinguishable from "your file was bad". Overriding
+    it separates the two. Logging is not configured this early in ``main``, so the diagnostic
+    goes straight to STDERR (STDOUT stays a pure OSCAL channel). ``add_subparsers`` defaults its
+    ``parser_class`` to ``type(self)``, so every subparser inherits this behavior.
+    """
+
+    def error(self, message: str) -> NoReturn:
+        """Print usage + a one-line diagnostic to STDERR and exit with the usage code (4)."""
+        self.print_usage(sys.stderr)
+        self.exit(_EXIT_USAGE, f"{self.prog}: usage error: {message}\n")
 
 # Human-facing display names for a source id (used in the POA&M title); falls back to the
 # raw source so a newly registered adapter still reads sensibly without a code change here.
@@ -103,6 +122,7 @@ def _generate_epilog() -> str:
         "1    --validate found a semantic problem\n"
         "2    input error, or malformed / unrecognized source report\n"
         "3    requested output needs a local dependency (oscal-cli for xml/yaml)\n"
+        "4    usage error (bad flag / argument / choice)\n"
         "70   internal error (mint-oscal itself failed; not your input)\n\n"
         "ENVIRONMENT:\n\n"
         "NO_COLOR   Disable ANSI color in --help (https://no-color.org).\n\n"
@@ -116,7 +136,7 @@ def _build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.Argumen
     Subparsers are ``required=False`` so a bare ``mint-oscal`` or ``mint-oscal <model>``
     prints help (exit 0) instead of erroring; :func:`main` dispatches the missing levels.
     """
-    parser = argparse.ArgumentParser(
+    parser = _UsageParser(
         prog="mint-oscal",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=f"{PROJECT_NAME} {PROJECT_VERSION} -- {DESCRIPTION}.",
@@ -284,8 +304,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911 -- error bounda
     structured logging. This function is the error boundary: it maps the domain errors the
     pure core raises to distinct exit codes and log events without leaking a traceback --
     input/OS errors and malformed/garbage input exit ``2``; not-yet-implemented paths (stub
-    emitters, XML/YAML render) exit ``3``; and any unexpected internal fault exits ``70``
-    (never mislabeled as input). The actual pipeline lives in :func:`_run`.
+    emitters, XML/YAML render) exit ``3``; a usage mistake (bad flag/argument/choice, caught by
+    :class:`_UsageParser`) exits ``4``; and any unexpected internal fault exits ``70`` (never
+    mislabeled as input). The actual pipeline lives in :func:`_run`.
     """
     if argv is None:
         argv = sys.argv[1:]

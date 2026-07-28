@@ -166,8 +166,13 @@ expect_exit 0 "--to json explicit"               -- poam generate --from cbom "$
 # stdin (the flagship pipe)
 if cat "$EX/example.cbom.json" | $MINT poam generate --from cbom - >/dev/null 2>&1; then _ok "stdin '-' pipe (exit 0)"; else _no "stdin '-' pipe"; fi
 
-echo "-- error paths (clean exit, no traceback) --"
-expect_exit 2 "unknown --from"                   -- poam generate --from nope "$EX/example.cbom.json"
+echo "-- usage errors (exit 4, distinct from bad input) --"
+expect_exit 4 "invalid --from choice"            -- poam generate --from nope "$EX/example.cbom.json"
+expect_exit 4 "missing required report arg"      -- poam generate --from cbom
+expect_exit 4 "invalid --to choice"              -- poam generate --from cbom "$EX/example.cbom.json" --to bogus
+expect_exit 4 "invalid --extension choice"       -- poam generate --from cbom "$EX/example.cbom.json" --extension nope
+
+echo "-- input / dependency errors (clean exit, no traceback) --"
 expect_exit 2 "missing file"                     -- poam generate --from cbom "$TMP/does-not-exist.json"
 expect_exit 2 "invalid JSON"                     -- poam generate --from cbom "$TMP/notjson.json"
 expect_exit 2 "malformed CBOM (bomFormat)"       -- poam generate --from cbom "$TMP/bad.cbom.json"

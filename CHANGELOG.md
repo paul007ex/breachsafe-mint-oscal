@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-07-28
+
+### Fixed
+
+- **Usage errors are distinct from bad input** (error-surface parity with BreachSAFE QuReddy):
+  argparse's default `error()` exits `2` -- the same code mint uses for a malformed source
+  report -- so a CLI mistake (an invalid `--from`/`--to`/`--extension` choice, a missing
+  argument, an unknown flag) was indistinguishable from "your file was bad". A `_UsageParser`
+  now routes every usage error to a distinct **exit 4** with a clean one-line
+  `mint-oscal ...: usage error: <detail>` diagnostic on STDERR (STDOUT stays pure). The exit
+  surface is now `0` ok / `1` validate-fail / `2` input / `3` local-dependency / `4` usage /
+  `70` internal, documented in `--help` and covered by `scripts/regression.sh` (41 checks).
+
 ## [0.1.9] - 2026-07-28
 
 ### Fixed
@@ -323,7 +336,8 @@ by NIST `oscal-cli` and IBM `trestle`.
   infrastructure, and by independent review; a CI test suite is the immediate follow-on.
 - `ar`/`component-definition` emitters and the `consume` side are stubs.
 
-[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.9...HEAD
+[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.10...HEAD
+[0.1.10]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.10
 [0.1.9]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.9
 [0.1.8]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.8
 [0.1.7]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.7
