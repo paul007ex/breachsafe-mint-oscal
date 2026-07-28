@@ -7,8 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-07-28
+
+### Added
+
+- **Native OSCAL-structural + BreachSAFE-domain `--validate`** (#59): the Layer-2 validator
+  registry grows from 6 to 11 checks, re-deriving in-process the OSCAL POA&M rules that matter
+  most — required fields, the UUID and (full leap-year-aware, timezone-mandatory)
+  dateTime-with-timezone datatypes, and the risk-status / observation-method / observation-type
+  enums — mapped 1:1 to `oscal_poam_schema.json`, plus the BreachSAFE-namespace domain
+  vocabularies (readiness, mapping-confidence, severity, provenance, control-id,
+  nistQuantumSecurityLevel) sourced from the single-source policy pack. NIST `oscal-cli` remains
+  the authoritative Layer-1 oracle; these run in-process and are necessary but **not** sufficient
+  for schema conformance (callers must not report them as such). The impossible date `2026-02-30`
+  and a naive tz-less timestamp are both caught by the verbatim datatype pattern.
+
 ### Fixed
 
+- **`semantic_errors()` never raises on malformed input** (#60): a document that is not a POA&M
+  (or whose `observations`/`risks`/`poam-items`/`methods`/`props` arrive as a scalar, or whose
+  root is `None`/a list) is now reported as a problem string rather than surfacing a bare
+  `KeyError`/`TypeError`/`AttributeError`. Non-list containers are flagged structurally. The
+  validator always returns a `list[str]`.
+- **`--validate` result visible at default verbosity** (#55): the semantic-check summary logs at
+  `WARNING`, not `INFO`, so a `--validate` run's outcome is no longer silently suppressed at the
+  default log level.
 - **Legacy/weak protocols downgrade readiness** (#53): the CBOM adapter now scores plain
   `protocol` components (not just key exchange). A weak transport offering — any SSL, or a
   TLS/DTLS version below 1.2 (TLS 1.0/1.1, RFC 8996) — caps the verdict at `classically_weak`
@@ -16,6 +39,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   downgrade. Previously a live cloudflare.com CBOM offering TLSv1/TLSv1.1 minted the favorable
   `transitional_hybrid`/`low` despite the producer's own `classically_weak`; it now reads
   `classically_weak`/`medium` (SC-13, SC-12). Modern-only CBOMs are unchanged.
+- **Typed errors on all nested-shape malformations** (#54): the CBOM adapter raises
+  `MalformedCbomError` (not a bare `KeyError`/`TypeError`) when a nested component/property is
+  the wrong shape, so malformed input yields a clean one-line diagnostic + non-zero exit.
+
+### Changed
+
+- **CI automatic triggers disabled** (#46): GitHub Actions execution is blocked on this repo by
+  billing, so `push`/`pull_request` runs only produced noise; the pipeline is retained and
+  runnable on demand (`workflow_dispatch`), re-enabled in one edit once billing is restored.
 
 ## [0.1.2] - 2026-07-28
 
@@ -110,7 +142,8 @@ by NIST `oscal-cli` and IBM `trestle`.
   infrastructure, and by independent review; a CI test suite is the immediate follow-on.
 - `ar`/`component-definition` emitters and the `consume` side are stubs.
 
-[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.3
 [0.1.2]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.2
 [0.1.1]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.1
 [0.1.0]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.0

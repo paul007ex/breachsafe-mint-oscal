@@ -1,9 +1,11 @@
 name: CI
 
+# Automatic triggers are disabled: GitHub Actions execution is blocked on this repo by
+# billing (#46), so push/pull_request runs only produce noise (failed/queued jobs with no
+# steps). The pipeline is kept intact and runnable on demand via the Actions tab; re-enable
+# the push/pull_request triggers below in one edit once billing is restored.
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
