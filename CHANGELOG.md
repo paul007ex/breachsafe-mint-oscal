@@ -7,22 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-28
+
+### Added
+
+- **Versioned policy pack** (#10, closes #5): severity, the SP 800-53 control crosswalk, and
+  risk statements now live as loadable YAML under `mint_oscal/policy/default/` (replacing the
+  hardcoded tables and the dead, never-loaded `sp800-53r5.yaml`). The loader fails loudly if a
+  pack omits any emittable readiness verdict. Behavior-preserving for all current outputs.
+- **NIST oscal-cli conformance CI gate** (#17): CI mints a POA&M and asserts oscal-cli reports
+  it `is valid` (with a negative-control fixture), asserting on the verdict string since
+  oscal-cli exits 0 even on invalid input. (Test-count/coverage + golden gates remain deferred
+  to the test suite, #6/#41.)
+
 ### Fixed
 
-- **UTC timestamp normalization** (#39): the POA&M emitter now converts every observation
-  timestamp to UTC (`+00:00`), so the document timestamp (lexical max of ISO strings) is the
-  true chronological latest even across mixed-offset inputs.
+- **UTC timestamp normalization** (#39): the emitter converts every observation timestamp to
+  UTC (`+00:00`), so the document timestamp (lexical max) is the true chronological latest even
+  across mixed-offset inputs.
 - **CycloneDX specVersion validation** (#38): the CBOM adapter rejects an unsupported
-  `specVersion` with `MalformedCbomError` (supported set derived from
-  `cyclonedx.schema.SchemaVersion`) instead of attempting to parse it.
-- **QuReddy typed error** (#21): the `qureddy.scan.v1` adapter validates the envelope shape
-  and raises a new `MalformedScanError` on malformed input, mirroring the CBOM adapter, rather
-  than leaking a bare `KeyError`/`TypeError`.
+  `specVersion` with `MalformedCbomError` (supported set from `cyclonedx.schema.SchemaVersion`).
+- **QuReddy typed errors** (#21, #44): the `qureddy.scan.v1` adapter validates its envelope —
+  including the evidence list — and raises `MalformedScanError` on malformed input instead of
+  leaking a bare `KeyError`/`TypeError`.
+- **CI pipeline** (#43): tolerate `pytest`'s exit-5 on an empty suite until it lands (#6); run
+  gitleaks via the pinned release binary + a build/clean-install leak-guard. (Actions execution
+  itself is blocked by repo billing — #46 — not the workflow.)
 
 ### Changed
 
-- **POA&M title casing** (#13): source display names in the title now read `CBOM`/`QuReddy`
-  via a display-name map instead of `str.capitalize()` (`Cbom`/`Qureddy`).
+- **POA&M title casing** (#13): title source names read `CBOM`/`QuReddy` via a display map
+  instead of `str.capitalize()`.
 
 ## [0.1.0] - 2026-07-28
 
@@ -76,5 +91,6 @@ by NIST `oscal-cli` and IBM `trestle`.
   infrastructure, and by independent review; a CI test suite is the immediate follow-on.
 - `ar`/`component-definition` emitters and the `consume` side are stubs.
 
-[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.1
 [0.1.0]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.0
