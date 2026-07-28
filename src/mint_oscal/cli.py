@@ -142,9 +142,9 @@ def _validate_epilog() -> str:
         "# Validate mint's own output in a pipeline.\n"
         "mint-oscal poam generate --from cbom scan.cbom.json | mint-oscal poam validate -\n\n"
         "EXIT CODES:\n\n"
-        "0    no semantic problems found\n"
-        "1    one or more semantic problems (reported on STDERR)\n"
-        "2    input error, or not valid JSON\n\n"
+        "0    valid: no semantic problems found\n"
+        "1    invalid: one or more semantic problems (reported on STDERR)\n"
+        "2    input error: not valid JSON, or not a POA&M document\n\n"
         "NOTE:\n\n"
         "Pure-Python Layer-2 semantic checks (uuid/ref/ns integrity + OSCAL structural +\n"
         "datatypes + BreachSAFE domain vocab). No oscal-cli or trestle required. Necessary but\n"
@@ -359,6 +359,14 @@ def _validate(args: argparse.Namespace, log: BoundLog) -> int:
     verdict and any problems go to STDERR so the exit code is the machine signal.
     """
     document = json.loads(_read_source(args.document))
+    # A document that is not a POA&M at all (no plan-of-action-and-milestones root) is the wrong
+    # *input*, not a POA&M with a semantic problem -- report it as an input error (exit 2), the
+    # same code `generate` uses for bad input, rather than a validation failure (exit 1) (#72).
+    if not isinstance(document, dict) or not isinstance(
+        document.get("plan-of-action-and-milestones"), dict
+    ):
+        log.error("not_a_poam", document=args.document)
+        return _EXIT_INPUT
     scope = "uuid/ref/ns + OSCAL structural + BreachSAFE domain -- NOT NIST schema validation"
     problems = semantic_errors(document)
     if problems:

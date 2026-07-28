@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.12] - 2026-07-28
+
+### Fixed
+
+- **`validate` now catches empty required arrays** (#73): differential-testing `semantic_errors`
+  against **trestle** (`PlanOfActionAndMilestones.parse_obj`) surfaced that `required_fields`
+  checked *presence*, not `minItems`, so an empty `poam-items: []` (schema `minItems: 1`, and
+  `poam-items` is required) passed. A new `cardinality` validator flags an empty `poam-items`
+  and empty-when-present `observations`/`risks`. (trestle's own structural parse *misses* this,
+  so mint is now stronger here; the differential also confirmed mint already catches several
+  things trestle-parse misses -- timezone-required datetimes, cross-ref resolution, uuid
+  uniqueness, the BreachSAFE domain layer -- and that the #62 open-vocab decision matches
+  trestle + the schema `anyOf`.) Exhaustive `additionalProperties`/unknown-field detection is a
+  documented deliberate non-goal (version-brittle; Layer-1, owned by oscal-cli).
+- **`poam validate` exit code for a non-POA&M input** (#72): a document that is not a POA&M at
+  all (no `plan-of-action-and-milestones` root) is the wrong *input*, so it now exits `2` (input
+  error) -- consistent with `generate` -- rather than `1` (a POA&M with a semantic problem).
+  `1` is reserved for an actual POA&M that fails validation.
+
 ## [0.1.11] - 2026-07-28
 
 ### Added
@@ -349,7 +368,8 @@ by NIST `oscal-cli` and IBM `trestle`.
   infrastructure, and by independent review; a CI test suite is the immediate follow-on.
 - `ar`/`component-definition` emitters and the `consume` side are stubs.
 
-[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.11...HEAD
+[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.12...HEAD
+[0.1.12]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.12
 [0.1.11]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.11
 [0.1.10]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.10
 [0.1.9]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.9

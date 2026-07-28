@@ -203,7 +203,11 @@ $MINT poam generate --from cbom "$EX/example.cbom.json" 2>/dev/null >"$TMP/good.
 expect_exit 0 "validate a valid POA&M"           -- poam validate "$TMP/good.poam.json"
 expect_exit 1 "validate a broken POA&M -> exit 1" -- poam validate "$EX/broken.poam.json"
 stderr_has "semantic_error" "broken POA&M reports the problem" -- poam validate "$EX/broken.poam.json"
-expect_exit 1 "validate a non-POA&M doc -> exit 1" -- poam validate "$TMP/bad.cbom.json"
+# #73: empty poam-items (schema minItems 1) is caught by the cardinality validator.
+"$PY" -c 'import json,sys;d=json.load(open(sys.argv[1]));d["plan-of-action-and-milestones"]["poam-items"]=[];json.dump(d,open(sys.argv[2],"w"))' "$TMP/good.poam.json" "$TMP/empty-items.poam.json"
+expect_exit 1 "validate empty poam-items -> exit 1 (minItems)" -- poam validate "$TMP/empty-items.poam.json"
+# #72: a non-POA&M document is an INPUT error (2), not a validation failure (1).
+expect_exit 2 "validate a non-POA&M doc -> exit 2 (input)" -- poam validate "$TMP/bad.cbom.json"
 expect_exit 2 "validate a missing file -> exit 2" -- poam validate "$TMP/does-not-exist.json"
 expect_exit 4 "validate with no document arg -> usage 4" -- poam validate
 # the pipe: generate | validate -

@@ -13,6 +13,14 @@ string shape, not closed enum membership, so a conformant out-of-enum value is n
 false-rejected. Running these in-process is necessary but **not** sufficient for NIST
 conformance -- so callers must not report it as such. The small Validator-registry design is
 borrowed from IBM ``compliance-trestle`` (pattern only, no dependency; ADR-0005).
+
+Deliberate non-goal: exhaustive ``additionalProperties: false`` / unknown-field detection.
+A hardcoded per-object allow-list would be version-brittle -- a field valid in a newer OSCAL
+minor would be false-rejected, which violates the honest-failure principle (better to miss an
+unknown field than to reject a conformant document). Unknown-field conformance is Layer 1,
+owned by ``oscal-cli`` (differential-tested vs trestle, #73). What this module *does* add over
+trestle's structural parse: timezone-required datetimes, cross-reference resolution, global
+uuid uniqueness, and the BreachSAFE domain layer.
 """
 
 from __future__ import annotations
@@ -255,6 +263,24 @@ def required_fields(document: dict[str, Any]) -> list[str]:
     return out
 
 
+def cardinality(document: dict[str, Any]) -> list[str]:
+    """OSCAL arrays that require >=1 item are non-empty (schema ``minItems: 1``).
+
+    ``required_fields`` only checks *presence*; an empty ``poam-items: []`` (required, minItems 1)
+    or an empty ``observations``/``risks`` (minItems 1 when present) would otherwise pass. The
+    #64 emitter fix stops *mint* producing these, but the ``validate`` verb runs on external
+    documents that can. (Differential-tested vs trestle, #73.)
+    """
+    p = _poam(document)
+    out: list[str] = []
+    if isinstance(p.get("poam-items"), list) and not p["poam-items"]:
+        out.append("poam-items must have at least one item (minItems 1)")
+    for key in ("observations", "risks"):
+        if isinstance(p.get(key), list) and not p[key]:
+            out.append(f"{key} must have at least one item when present (minItems 1)")
+    return out
+
+
 def datatypes(document: dict[str, Any]) -> list[str]:
     """Every uuid matches the UUID datatype; every dateTime-with-timezone field is tz-aware/real."""
     out = [
@@ -349,6 +375,7 @@ _VALIDATORS = (
     props_namespaced,
     # A -- OSCAL POA&M structural (1:1 with the schema)
     required_fields,
+    cardinality,
     datatypes,
     risk_status,
     observation_enums,
