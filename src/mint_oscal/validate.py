@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 BreachSAFE
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Semantic (Layer-2) validation of an emitted OSCAL document.
 
 Layer 1 -- authoritative *schema/shape* conformance -- is delegated to the NIST

@@ -8,14 +8,14 @@ version = "0.0.1"
 description = "Mint NIST OSCAL documents (POA&M, and more) from a source-neutral intermediate representation."
 readme = "README.md"
 requires-python = ">=3.12"
-license = "Apache-2.0"
+license = "PolyForm-Noncommercial-1.0.0"
 license-files = ["LICENSE"]
 authors = [{ name = "BreachSAFE" }]
 keywords = ["oscal", "nist", "compliance", "poam", "sp800-53", "pqc"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Information Technology",
-  "License :: OSI Approved :: Apache Software License",
+  "License :: Other/Proprietary License",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.12",
   "Topic :: Security",

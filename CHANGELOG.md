@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **License: Apache-2.0 → PolyForm Noncommercial 1.0.0** (ADR-0007). The project is now
+  **source-available, not open source**: read/run/evaluate/self-host/modify for any
+  noncommercial purpose; commercial use requires a separate license (see `NOTICE`).
+- Require Python 3.12 (was 3.11); CI runs on 3.12 only.
+
+### Fixed
+
+- Deterministic `metadata.last-modified` derived from the source observation time, not
+  wall-clock — same input now yields a byte-identical POA&M (#4).
+- `--validate` no longer false-greens: replaced the shallow structural check with a
+  Layer-2 semantic validator registry (uuid uniqueness, observation/risk/subject
+  reference resolution, prop namespacing) and honest messaging that points at `oscal-cli`
+  as the authoritative schema oracle (#3, ADR-0005).
+
 ## [0.0.1] - Unreleased
 
 ### Added

@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 BreachSAFE
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """CLI: turn a security-tool report into an OSCAL document.
 
 NIST ``oscal-cli``-aligned shape -- the OSCAL model is the first token, the verb

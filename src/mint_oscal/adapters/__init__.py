@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 BreachSAFE
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Adapter discovery: source name -> callable building IR from a source document.
 
 Adapters are discovered through the ``mint_oscal.adapters`` entry-point group, so

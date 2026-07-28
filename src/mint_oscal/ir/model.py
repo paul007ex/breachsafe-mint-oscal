@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 BreachSAFE
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """The source-neutral intermediate representation (IR).
 
 Every source adapter (QuReddy JSON, Prowler, OCSF, ...) normalizes into these

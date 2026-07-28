@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 BreachSAFE
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Bundled, file-driven crypto classification data for the CBOM adapter.
 
 ``crypto-registry.yaml`` and ``readiness-rules.yaml`` are read (not imported) via

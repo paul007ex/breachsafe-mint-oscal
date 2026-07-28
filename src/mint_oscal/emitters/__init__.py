@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 BreachSAFE
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Emitter registry: OSCAL model name -> emitter callable.
 
 Every emitter exposes ``emit(ir, **params) -> dict``. Register a new OSCAL target

@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 BreachSAFE
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Source-neutral intermediate representation (IR) for mint-oscal.
 
 Re-exports the IR dataclasses so callers can ``from mint_oscal.ir import Finding``.
