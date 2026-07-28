@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`breachsafe` overlay adapter** (`--from breachsafe`, ADR-0008): an opt-in
+  progressive enhancement over the vendor-neutral `cbom` flagship. It composes
+  `from_cbom` and, when a producer declares the optional `breachsafe:v1:*` facts in
+  CycloneDX `properties[]`, records a `provenance` posture prop
+  (`derived | producer-confirmed | conflict:producer=X,derived=Y`) and carries an
+  `evidence-sha256`. Crypto facts stay derived from `cryptoProperties`; on a readiness
+  conflict our derivation stays authoritative. `cbom` and `qureddy` are unchanged (#28).
+
 ### Changed
 
 - **License: Apache-2.0 → PolyForm Noncommercial 1.0.0** (ADR-0007). The project is now

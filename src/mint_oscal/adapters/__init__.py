@@ -4,9 +4,11 @@
 
 Adapters are discovered through the ``mint_oscal.adapters`` entry-point group, so
 a third party ships an adapter as its own distribution without editing this
-package (ADR-0004: agnostic core, ports & adapters). ``qureddy`` (native scan JSON)
-and ``cbom`` (generic CycloneDX CBOM, ADR-0006) are bundled here as a convenience
-and are always available even from a source checkout.
+package (ADR-0004: agnostic core, ports & adapters). ``qureddy`` (native scan JSON),
+``cbom`` (vendor-neutral CycloneDX CBOM, ADR-0006), and ``breachsafe`` (the same CBOM
+path overlaid with the optional ``breachsafe:v1`` producer-facts extension, ADR-0008)
+are bundled here as a convenience and are always available even from a source
+checkout.
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ _ENTRY_POINT_GROUP = "mint_oscal.adapters"
 _BUILTINS = {
     "qureddy": "mint_oscal.adapters.qureddy:from_scan_v1",
     "cbom": "mint_oscal.adapters.cbom:from_cbom",
+    "breachsafe": "mint_oscal.adapters.breachsafe.cbom:from_breachsafe_cbom",
 }
 
 
@@ -37,8 +40,8 @@ def _load_builtin(target: str) -> Adapter:
 def get_adapter(name: str) -> Adapter:
     """Return the adapter registered under ``name``.
 
-    Entry-point adapters win; the bundled ``qureddy``/``cbom`` adapters are the
-    fallback so they resolve even before the package is installed.
+    Entry-point adapters win; the bundled ``qureddy``/``cbom``/``breachsafe`` adapters
+    are the fallback so they resolve even before the package is installed.
 
     Raises:
         KeyError: if no adapter is registered under ``name``.
