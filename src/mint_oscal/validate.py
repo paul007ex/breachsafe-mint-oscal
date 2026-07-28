@@ -377,10 +377,10 @@ def semantic_errors(document: dict[str, Any]) -> list[str]:
     for check in _VALIDATORS:
         try:
             problems.extend(check(document))
-        except Exception as exc:
-            # Fail-closed boundary: a validator fault on hostile input is a reported problem,
-            # not a propagated crash -- this is what makes the never-raises contract hold even
-            # if an inner guard is ever missed.
+        except Exception as exc:  # noqa: BLE001 -- deliberate fail-closed boundary (see below)
+            # A validator fault on hostile input is a reported problem, not a propagated crash:
+            # this is what makes the never-raises contract hold even if an inner guard is ever
+            # missed. The blind catch is intentional and scoped to one validator call.
             problems.append(f"validator {check.__name__} failed on malformed input: {exc}")
     return problems
 

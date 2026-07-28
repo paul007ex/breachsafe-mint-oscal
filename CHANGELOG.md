@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-07-28
+
+Internal hardening — behavior-identical (every CLI exit path 0/1/2/3 and all source/format
+paths verified unchanged), no user-facing change.
+
+### Changed
+
+- **Lint ruleset aligned with (and a superset of) BreachSAFE QuReddy**: added `N` (naming),
+  `TCH`, `PL` (pylint incl. complexity ceilings), `PT`, `RET`, `ARG`, `DTZ` (timezone-aware
+  datetime), `ERA` (no commented-out code), `INP`, **`BLE` (blind-except)**, and `SLF`. This
+  makes the anti-pattern discipline lint-*enforced* rather than review-enforced — in particular
+  `BLE` now requires every `except Exception` to be a deliberate, justified boundary. The two
+  fail-closed boundaries (`semantic_errors`, the CLI adapter/enricher boundary) carry an
+  explicit `# noqa: BLE001` documenting why. `ruff` + `mypy --strict` are green across all 29
+  modules under the stricter rules.
+- **`cli.main` split into `main` + `_run`**: the pipeline (read → adapt → enrich → mint →
+  validate → render) moved into `_run`, leaving `main` as the thin error boundary that maps
+  domain errors to exit codes. Improves cohesion and drops the function under the complexity
+  ceilings.
+- Named the internal-exit-code magic value in `_help`; `__version__` re-export no longer trips
+  the naming rule; added a `BoundLog` logger-type alias so the CLI annotates against
+  `mint_oscal.logging` rather than structlog internals.
+
 ## [0.1.7] - 2026-07-28
 
 Closes the never-raises boundary gap (#69): the honest-failure contract now holds by
@@ -271,7 +294,8 @@ by NIST `oscal-cli` and IBM `trestle`.
   infrastructure, and by independent review; a CI test suite is the immediate follow-on.
 - `ar`/`component-definition` emitters and the `consume` side are stubs.
 
-[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.8
 [0.1.7]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.7
 [0.1.6]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.6
 [0.1.5]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.5

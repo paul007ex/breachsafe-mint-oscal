@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "breachsafe-mint-oscal"
-version = "0.1.7"
+version = "0.1.8"
 description = "Mint NIST OSCAL documents (POA&M, and more) from a source-neutral intermediate representation."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -65,21 +65,36 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
+# Aligned with (and a superset of) BreachSAFE QuReddy's ruleset: same strict base plus
+# ANN (annotations) and T20 (no stray print) which this repo additionally enforces. The
+# QuReddy extras — N/TCH/PL/PT/RET/ARG/DTZ/ERA/INP/BLE/SLF — make the anti-pattern
+# discipline lint-enforced rather than review-enforced (notably BLE: an `except Exception`
+# must be deliberate and carry a justified noqa).
 select = [
   "E", "W", "F", "I", "B", "C4", "T20", "SIM", "S", "UP", "PTH", "RUF", "ANN", "D",
+  "N", "TCH", "PL", "PT", "RET", "ARG", "DTZ", "ERA", "INP", "BLE", "SLF",
 ]
 # D203/D211 and D212/D213 are mutually exclusive one-blank-line/summary-line
 # conventions; pick one of each.
-ignore = ["D203", "D213"]
+# TC001/TC002/TC003 (move type-only imports into an `if TYPE_CHECKING:` block) are an
+# import-time micro-optimization that adds boilerplate for no correctness benefit on a small
+# CLI; `from __future__ import annotations` already makes the annotations lazy. QuReddy ignores
+# TC002/TC003 for the same reason. The substantive TCH checks stay active.
+ignore = ["D203", "D213", "TC001", "TC002", "TC003"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
+[tool.ruff.lint.pylint]
+# Function-size ceiling: PLR0915 counts statements as a proxy for non-comment lines.
+max-statements = 50
+
 [tool.ruff.lint.per-file-ignores]
-# Tests may use asserts (S101) and other test-only patterns; they are owned by the tester.
-"tests/**" = ["S", "ANN", "D"]
-# Operational scripts are allowed to print.
-"scripts/**" = ["T20"]
+# Tests may use asserts (S101), magic numbers, unused fixture args, and need no docstrings;
+# they are owned by the tester.
+"tests/**" = ["S", "ANN", "D", "PLR2004", "ARG"]
+# Operational scripts are standalone CLIs (print is fine; not an importable package).
+"scripts/**" = ["T20", "INP001"]
 
 [tool.ruff.format]
 line-ending = "lf"

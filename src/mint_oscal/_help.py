@@ -20,6 +20,8 @@ _COMMENT = re.compile(r"^(\s*)(#.*)$")
 _COMMAND = re.compile(r"^(\s*)((?:mint-oscal|qureddy)\b.*)$")
 _EXIT_CODE = re.compile(r"^(\d+)(\s+)(.*)$")
 _ENV_VAR = re.compile(r"^([A-Z][A-Z0-9_]*)(\s{2,})(.*)$")
+# Exit codes at or above this are internal errors (BSD sysexits.h EX_SOFTWARE = 70).
+_INTERNAL_EXIT_FLOOR = 70
 
 
 def _style(text: str, code: str) -> str:
@@ -31,7 +33,7 @@ def _exit_code_color(code: str) -> str:
     """Color an exit code by severity: 0 green, >=70 red (internal), else yellow (routine)."""
     if code == "0":
         return "32"
-    if int(code) >= 70:
+    if int(code) >= _INTERNAL_EXIT_FLOOR:
         return "31"
     return "33"
 

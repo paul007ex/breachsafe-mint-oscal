@@ -41,7 +41,7 @@ from mint_oscal.adapters import available_adapters, get_adapter
 from mint_oscal.emitters import available_models
 from mint_oscal.extensions import apply_extensions, available_extensions
 from mint_oscal.ir import IR
-from mint_oscal.logging import configure_logging, get_logger
+from mint_oscal.logging import BoundLog, configure_logging, get_logger
 from mint_oscal.render import render
 from mint_oscal.validate import oscal_cli_available, semantic_errors
 
@@ -202,13 +202,77 @@ def _build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.Argumen
     return parser, model_parsers
 
 
-def main(argv: list[str] | None = None) -> int:
+def _run(args: argparse.Namespace, log: BoundLog) -> int:
+    """Read the source report, mint the OSCAL document to STDOUT, and return an exit code.
+
+    The pipeline proper; :func:`main` owns the top-level error-to-exit-code mapping. STDOUT
+    carries only the minted OSCAL document.
+    """
+    raw = sys.stdin.read() if args.report == "-" else Path(args.report).read_text(encoding="utf-8")
+    document = json.loads(raw)
+    try:
+        adapter = get_adapter(args.source)
+    except KeyError:
+        log.error("unknown_source", source=args.source)
+        return 2
+    try:
+        findings, subject = adapter(document)
+        # Extensions are orthogonal to the source (ADR-0008): the adapter yields the
+        # vendor-neutral IR, then each opt-in enricher refines it from producer facts in the
+        # same document. An enricher fault surfaces through this boundary as a clean non-zero.
+        findings, subject = apply_extensions(findings, subject, args.extensions, document=document)
+    except Exception as exc:  # noqa: BLE001 -- deliberate adapter/enricher error boundary
+        # Any adapter or enricher fault on unshaped/malformed input is surfaced as a clean
+        # one-line diagnostic + exit 2, never leaked as a traceback.
+        log.error("malformed_input", source=args.source, error=str(exc))
+        return 2
+    ir = IR(findings=tuple(findings), subject=subject, source=args.source)
+    oscal = convert(ir, shape=args.model, source=_SOURCE_DISPLAY.get(args.source, args.source))
+    # Surfaced at -v (INFO); STDOUT stays a pure OSCAL channel. Gives `-v/-vv` real output
+    # (a run summary + the applied extensions) instead of leaving the flags as no-ops.
+    log.info(
+        "minted_document",
+        model=args.model,
+        source=args.source,
+        subject=subject.id,
+        findings=len(ir.findings),
+        extensions=args.extensions,
+    )
+
+    if args.validate:
+        problems = semantic_errors(oscal)
+        if problems:
+            for problem in problems:
+                log.error("semantic_error", problem=problem)
+            return 1
+        oracle = oscal_cli_available()
+        note = (
+            f"authoritative NIST check available: {oracle} validate"
+            if oracle
+            else "run NIST oscal-cli for authoritative schema conformance"
+        )
+        # --validate is an explicit request, so its result must be visible at the default level
+        # (WARNING) -- not INFO, which is suppressed -- so the user sees the outcome AND the
+        # "not authoritative" caveat. `-q` still silences it (it raises the floor to ERROR).
+        log.warning(
+            "semantic_checks_passed",
+            scope="uuid/ref/ns integrity -- NOT NIST schema validation",
+            note=note,
+        )
+
+    sys.stdout.write(render(oscal, fmt=args.fmt))
+    sys.stdout.write("\n")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911 -- error boundary: N domain errors -> exit codes
     """Entry point: read a source report, emit an OSCAL document to STDOUT.
 
     STDOUT carries only the minted OSCAL document; all diagnostics go to STDERR via
-    structured logging. Domain errors from the pure core are mapped to non-zero exit
-    codes without leaking a traceback: input/OS errors and malformed/garbage input
-    exit ``2``; not-yet-implemented paths (stub emitters, XML/YAML render) exit ``3``.
+    structured logging. This function is the error boundary: it maps the domain errors the
+    pure core raises to distinct exit codes and log events without leaking a traceback --
+    input/OS errors and malformed/garbage input exit ``2``; not-yet-implemented paths (stub
+    emitters, XML/YAML render) exit ``3``. The actual pipeline lives in :func:`_run`.
     """
     if argv is None:
         argv = sys.argv[1:]
@@ -230,67 +294,7 @@ def main(argv: list[str] | None = None) -> int:
     log = get_logger("mint_oscal.cli")
 
     try:
-        raw = (
-            sys.stdin.read()
-            if args.report == "-"
-            else Path(args.report).read_text(encoding="utf-8")
-        )
-        document = json.loads(raw)
-        try:
-            adapter = get_adapter(args.source)
-        except KeyError:
-            log.error("unknown_source", source=args.source)
-            return 2
-        try:
-            findings, subject = adapter(document)
-            # Extensions are orthogonal to the source (ADR-0008): the adapter yields the
-            # vendor-neutral IR, then each opt-in enricher refines it from producer facts in
-            # the same document. An enricher fault surfaces through this boundary as a clean
-            # non-zero, never a traceback.
-            findings, subject = apply_extensions(
-                findings, subject, args.extensions, document=document
-            )
-        except Exception as exc:  # any adapter: unshaped/malformed input, surfaced not leaked
-            log.error("malformed_input", source=args.source, error=str(exc))
-            return 2
-        ir = IR(findings=tuple(findings), subject=subject, source=args.source)
-        oscal = convert(ir, shape=args.model, source=_SOURCE_DISPLAY.get(args.source, args.source))
-        # Surfaced at -v (INFO); STDOUT stays a pure OSCAL channel. Gives `-v/-vv` real output
-        # (a run summary + the applied extensions) instead of leaving the flags as no-ops.
-        log.info(
-            "minted_document",
-            model=args.model,
-            source=args.source,
-            subject=subject.id,
-            findings=len(ir.findings),
-            extensions=args.extensions,
-        )
-
-        if args.validate:
-            problems = semantic_errors(oscal)
-            if problems:
-                for problem in problems:
-                    log.error("semantic_error", problem=problem)
-                return 1
-            oracle = oscal_cli_available()
-            note = (
-                f"authoritative NIST check available: {oracle} validate"
-                if oracle
-                else "run NIST oscal-cli for authoritative schema conformance"
-            )
-            # --validate is an explicit request, so its result must be visible at the
-            # default level (WARNING) -- not INFO, which is suppressed -- so the user
-            # actually sees the outcome AND the "not authoritative" caveat. `-q` still
-            # silences it (it raises the floor to ERROR).
-            log.warning(
-                "semantic_checks_passed",
-                scope="uuid/ref/ns integrity -- NOT NIST schema validation",
-                note=note,
-            )
-
-        sys.stdout.write(render(oscal, fmt=args.fmt))
-        sys.stdout.write("\n")
-        return 0
+        return _run(args, log)
     except (FileNotFoundError, OSError) as exc:
         log.error("input_error", report=args.report, error=str(exc))
         return 2

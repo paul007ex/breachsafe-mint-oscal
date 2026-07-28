@@ -22,6 +22,10 @@ from typing import Any, TextIO
 import structlog
 from structlog.typing import FilteringBoundLogger
 
+# Public alias for the bound logger type get_logger returns, so callers annotate against
+# mint_oscal.logging instead of reaching into structlog's typing module.
+BoundLog = FilteringBoundLogger
+
 
 def configure_logging(
     *,
