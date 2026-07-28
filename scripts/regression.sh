@@ -139,7 +139,15 @@ expect_exit 0 "-V"                               -- -V
 expect_exit 0 "--help"                           -- --help
 expect_exit 0 "-h"                               -- -h
 expect_exit 0 "(no args) prints help"            --
+# #70: an incomplete invocation keeps STDOUT a pure OSCAL channel (help -> STDERR), exit 0.
+$MINT >"$TMP/o" 2>"$TMP/e"; noargs=$?
+if [ "$noargs" -eq 0 ] && [ ! -s "$TMP/o" ] && grep -q "usage: mint-oscal" "$TMP/e"; then
+  _ok "#70 no-args: help on STDERR, STDOUT empty, exit 0"
+else _no "#70 no-args (exit=$noargs, stdout-bytes=$(wc -c <"$TMP/o"|tr -d ' '))"; fi
 expect_exit 0 "bare 'help' word"                 -- help
+# explicit help request writes to STDOUT (it is the requested output)
+if $MINT help 2>/dev/null | grep -q "usage: mint-oscal"; then _ok "explicit 'help' -> STDOUT"
+else _no "explicit 'help' not on STDOUT"; fi
 expect_exit 0 "poam --help"                      -- poam --help
 expect_exit 0 "poam generate --help"             -- poam generate --help
 stdout_has "EXIT CODES:" "generate --help has EXIT CODES section" -- poam generate --help

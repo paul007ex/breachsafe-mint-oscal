@@ -45,6 +45,15 @@ from mint_oscal.logging import BoundLog, configure_logging, get_logger
 from mint_oscal.render import render
 from mint_oscal.validate import oscal_cli_available, semantic_errors
 
+# Exit-code surface (documented in the --help EXIT CODES section). Distinct codes let a caller
+# tell "your input was bad" (2) from "mint-oscal itself broke" (70, BSD sysexits.h EX_SOFTWARE)
+# instead of lumping an internal fault in with malformed input (#70).
+_EXIT_OK = 0
+_EXIT_VALIDATION = 1
+_EXIT_INPUT = 2
+_EXIT_NOT_IMPLEMENTED = 3
+_EXIT_INTERNAL = 70
+
 # Human-facing display names for a source id (used in the POA&M title); falls back to the
 # raw source so a newly registered adapter still reads sensibly without a code change here.
 _SOURCE_DISPLAY = {"cbom": "CBOM", "qureddy": "QuReddy"}
@@ -90,10 +99,11 @@ def _generate_epilog() -> str:
         "# XML output (requires oscal-cli on PATH).\n"
         "mint-oscal poam generate --from cbom scan.cbom.json --to xml\n\n"
         "EXIT CODES:\n\n"
-        "0   OSCAL document minted\n"
-        "1   --validate found a semantic problem\n"
-        "2   input error, or malformed / unrecognized source report\n"
-        "3   requested output needs a local dependency (oscal-cli for xml/yaml)\n\n"
+        "0    OSCAL document minted\n"
+        "1    --validate found a semantic problem\n"
+        "2    input error, or malformed / unrecognized source report\n"
+        "3    requested output needs a local dependency (oscal-cli for xml/yaml)\n"
+        "70   internal error (mint-oscal itself failed; not your input)\n\n"
         "ENVIRONMENT:\n\n"
         "NO_COLOR   Disable ANSI color in --help (https://no-color.org).\n\n"
         f"Project: {PROJECT_URL}"
@@ -214,18 +224,20 @@ def _run(args: argparse.Namespace, log: BoundLog) -> int:
         adapter = get_adapter(args.source)
     except KeyError:
         log.error("unknown_source", source=args.source)
-        return 2
+        return _EXIT_INPUT
     try:
         findings, subject = adapter(document)
         # Extensions are orthogonal to the source (ADR-0008): the adapter yields the
         # vendor-neutral IR, then each opt-in enricher refines it from producer facts in the
-        # same document. An enricher fault surfaces through this boundary as a clean non-zero.
+        # same document.
         findings, subject = apply_extensions(findings, subject, args.extensions, document=document)
-    except Exception as exc:  # noqa: BLE001 -- deliberate adapter/enricher error boundary
-        # Any adapter or enricher fault on unshaped/malformed input is surfaced as a clean
-        # one-line diagnostic + exit 2, never leaked as a traceback.
+    except ValueError as exc:
+        # Adapters raise a typed domain error (MalformedCbomError/MalformedScanError, both
+        # ValueError subclasses) for malformed/unshaped input -> clean exit 2. A non-ValueError
+        # escaping here is an internal fault, NOT bad input, so it deliberately propagates to
+        # main's internal-error boundary (exit 70) instead of being mislabeled malformed (#70).
         log.error("malformed_input", source=args.source, error=str(exc))
-        return 2
+        return _EXIT_INPUT
     ir = IR(findings=tuple(findings), subject=subject, source=args.source)
     oscal = convert(ir, shape=args.model, source=_SOURCE_DISPLAY.get(args.source, args.source))
     # Surfaced at -v (INFO); STDOUT stays a pure OSCAL channel. Gives `-v/-vv` real output
@@ -244,7 +256,7 @@ def _run(args: argparse.Namespace, log: BoundLog) -> int:
         if problems:
             for problem in problems:
                 log.error("semantic_error", problem=problem)
-            return 1
+            return _EXIT_VALIDATION
         oracle = oscal_cli_available()
         note = (
             f"authoritative NIST check available: {oracle} validate"
@@ -262,7 +274,7 @@ def _run(args: argparse.Namespace, log: BoundLog) -> int:
 
     sys.stdout.write(render(oscal, fmt=args.fmt))
     sys.stdout.write("\n")
-    return 0
+    return _EXIT_OK
 
 
 def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911 -- error boundary: N domain errors -> exit codes
@@ -272,7 +284,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911 -- error bounda
     structured logging. This function is the error boundary: it maps the domain errors the
     pure core raises to distinct exit codes and log events without leaking a traceback --
     input/OS errors and malformed/garbage input exit ``2``; not-yet-implemented paths (stub
-    emitters, XML/YAML render) exit ``3``. The actual pipeline lives in :func:`_run`.
+    emitters, XML/YAML render) exit ``3``; and any unexpected internal fault exits ``70``
+    (never mislabeled as input). The actual pipeline lives in :func:`_run`.
     """
     if argv is None:
         argv = sys.argv[1:]
@@ -280,16 +293,24 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911 -- error bounda
     # No arguments, an incomplete invocation (a model with no verb), or the bare `help`
     # word all print the relevant help to STDOUT and exit 0 -- running the tool with nothing
     # to do shows what it can do; it is not treated as an error.
-    if not argv or argv[0] == "help":
+    # An explicit help request (the bare `help` word; `--help`/`-h` are handled by argparse
+    # itself) prints to STDOUT and exits 0 -- it is the output the user asked for.
+    if argv and argv[0] == "help":
         parser.print_help()
-        return 0
+        return _EXIT_OK
+    # An incomplete invocation (no command, or a model with no verb) is not a data-producing
+    # run: its help goes to STDERR so STDOUT stays a pure OSCAL channel (#70), and it still
+    # exits 0 -- running the tool with nothing to do shows what it can do, it is not an error.
+    if not argv:
+        parser.print_help(sys.stderr)
+        return _EXIT_OK
     args = parser.parse_args(argv)
     if args.model is None:
-        parser.print_help()
-        return 0
+        parser.print_help(sys.stderr)
+        return _EXIT_OK
     if getattr(args, "verb", None) is None:
-        model_parsers[args.model].print_help()
-        return 0
+        model_parsers[args.model].print_help(sys.stderr)
+        return _EXIT_OK
     configure_logging(verbosity=args.verbose, json_logs=args.json_logs, quiet=args.quiet)
     log = get_logger("mint_oscal.cli")
 
@@ -297,16 +318,19 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911 -- error bounda
         return _run(args, log)
     except (FileNotFoundError, OSError) as exc:
         log.error("input_error", report=args.report, error=str(exc))
-        return 2
+        return _EXIT_INPUT
     except json.JSONDecodeError as exc:
         log.error("invalid_json", report=args.report, error=str(exc))
-        return 2
-    except KeyError as exc:
-        log.error("unknown_selector", model=args.model, error=str(exc))
-        return 2
+        return _EXIT_INPUT
     except NotImplementedError as exc:
         log.error("not_implemented", model=args.model, fmt=args.fmt, error=str(exc))
-        return 3
+        return _EXIT_NOT_IMPLEMENTED
+    except Exception as exc:  # noqa: BLE001 -- top-level internal-error boundary
+        # Any unexpected fault is mint's own bug, not the user's input: report it honestly as an
+        # internal error with a distinct exit code (70, EX_SOFTWARE), never a leaked traceback,
+        # and never mislabeled as malformed input (#70).
+        log.error("internal_error", error=str(exc), error_type=type(exc).__name__)
+        return _EXIT_INTERNAL
 
 
 if __name__ == "__main__":

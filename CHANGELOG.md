@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-07-28
+
+### Fixed
+
+- **Internal errors are no longer mislabeled as bad input** (#70): the CLI boundary caught every
+  exception as `malformed_input`/exit 2, so a genuine internal fault (an unexpected `TypeError`,
+  `KeyError`, …) was indistinguishable from a malformed source report. The adapter boundary now
+  catches only the typed domain error (`MalformedCbomError`/`MalformedScanError`, both
+  `ValueError`) → exit 2; any other fault propagates to a new top-level boundary that reports it
+  as `internal_error` with a distinct **exit 70** (BSD `sysexits.h` EX_SOFTWARE) — never a leaked
+  traceback, never mislabeled as input. The over-broad `except KeyError` → `unknown_selector`
+  mapping (unreachable for its stated purpose; it only ever caught internal `KeyError`s) is
+  removed. The exit-code surface (`0`/`1`/`2`/`3`/`70`) is now named constants and documented in
+  `--help`.
+- **No-args help no longer pollutes the STDOUT data channel** (#70): an *incomplete* invocation
+  (no command, or a model with no verb) writes its help to **STDERR** (still exit 0), keeping
+  STDOUT a pure OSCAL channel; an *explicit* `help` / `--help` request still writes to STDOUT
+  (it is the requested output).
+
 ### Added
 
 - **Black-box CLI regression harness** (`scripts/regression.sh`): drives the real console entry
@@ -304,7 +323,8 @@ by NIST `oscal-cli` and IBM `trestle`.
   infrastructure, and by independent review; a CI test suite is the immediate follow-on.
 - `ar`/`component-definition` emitters and the `consume` side are stubs.
 
-[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.9...HEAD
+[0.1.9]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.9
 [0.1.8]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.8
 [0.1.7]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.7
 [0.1.6]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.6
