@@ -1,0 +1,91 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "breachsafe-mint-oscal"
+version = "0.0.1"
+description = "Mint NIST OSCAL documents (POA&M, and more) from a source-neutral intermediate representation."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "BreachSAFE" }]
+keywords = ["oscal", "nist", "compliance", "poam", "sp800-53", "pqc"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Information Technology",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Security",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/breachsafe/breachsafe-mint-oscal"
+Changelog = "https://github.com/breachsafe/breachsafe-mint-oscal/blob/main/CHANGELOG.md"
+Issues = "https://github.com/breachsafe/breachsafe-mint-oscal/issues"
+
+[project.scripts]
+mint-oscal = "mint_oscal.cli:main"
+
+[project.entry-points."mint_oscal.adapters"]
+qureddy = "mint_oscal.adapters.qureddy:from_scan_v1"
+
+[project.optional-dependencies]
+# XML/YAML output is produced by shelling out to an external `oscal-cli` (ADR-0005),
+# not by an in-tree serializer, so this group is intentionally empty: it documents
+# the requirement and reserves the extra name.
+xml = []
+dev = [
+  "ruff",
+  "mypy",
+  "pytest",
+  "pytest-randomly",
+  "coverage[toml]",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mint_oscal"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+  "E", "W", "F", "I", "B", "C4", "T20", "SIM", "S", "UP", "PTH", "RUF", "ANN", "D",
+]
+# D203/D211 and D212/D213 are mutually exclusive one-blank-line/summary-line
+# conventions; pick one of each.
+ignore = ["D203", "D213"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Tests may use asserts (S101) and other test-only patterns; they are owned by the tester.
+"tests/**" = ["S", "ANN", "D"]
+# Operational scripts are allowed to print.
+"scripts/**" = ["T20"]
+
+[tool.ruff.format]
+line-ending = "lf"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p randomly -ra"
+
+[tool.coverage.run]
+source = ["mint_oscal"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true

@@ -1,0 +1,33 @@
+# DRAFT - UNREVIEWED - needs conformance sign-off (R-CTRL-01)
+#
+# Crosswalk: cryptographic-posture readiness verdict -> NIST SP 800-53r5 controls.
+# This is reviewable source data, NOT an authored compliance decision. Do not ship
+# an emitter driven by this table until R-CTRL-01 sign-off is recorded.
+#
+# schema (informal):
+#   <readiness>:
+#     primary:    [<control-id>, ...]   # the anchor control
+#     supporting: [<control-id>, ...]   # controls that also apply in this case
+#     rationale:  <one line>
+---
+version: sp800-53r5
+status: draft-unreviewed
+readiness:
+  quantum_vulnerable:
+    primary: [SC-13]
+    supporting: [SC-12]
+    rationale: >
+      Cryptographic protection (SC-13) is the anchor; classical key establishment
+      implicates key management (SC-12). Harvest-now-decrypt-later exposure.
+  classically_weak:
+    primary: [SC-13]
+    supporting: [SC-12]
+    rationale: >
+      A weak or deprecated primitive is a cryptographic-protection defect (SC-13);
+      key establishment quality (SC-12) supports.
+  transitional_hybrid:
+    primary: [SC-13]
+    supporting: []
+    rationale: >
+      PQ-hybrid negotiated; cryptographic protection (SC-13) remains the frame for
+      residual classical elements.

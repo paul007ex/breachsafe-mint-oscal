@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plan-of-action-and-milestones xmlns="http://csrc.nist.gov/ns/oscal/1.0"
+    uuid="2b1c9e2a-0000-4a1a-9c3d-1c3d5e7a9b0f">
+  <metadata>
+    <title>POA&amp;M - QuReddy scan of tls://example.com:443</title>
+    <last-modified>2026-07-27T03:21:54Z</last-modified>
+    <version>0.1.0</version>
+    <!-- declared 1.1.2 so every validator (incl. older oscal-cli / Trestle) accepts it;
+         our tooling targets 1.2.2, recorded below so we never lose that intent. -->
+    <oscal-version>1.1.2</oscal-version>
+    <prop ns="https://breachsafe.ai/ns/oscal" name="oscal-target-version" value="1.2.2"/>
+    <prop ns="https://breachsafe.ai/ns/oscal" name="generator" value="qureddy"/>
+    <prop ns="https://breachsafe.ai/ns/oscal" name="generator-version" value="0.2.12"/>
+    <role id="prepared-by"><title>Prepared By</title></role>
+    <party uuid="9b0e6f2d-1a2b-4c3d-8e4f-5a6b7c8d9e0f" type="organization">
+      <name>BreachSAFE</name>
+    </party>
+    <responsible-party role-id="prepared-by">
+      <party-uuid>9b0e6f2d-1a2b-4c3d-8e4f-5a6b7c8d9e0f</party-uuid>
+    </responsible-party>
+  </metadata>
+  <system-id identifier-type="https://ietf.org/rfc/rfc3986">tls://example.com:443</system-id>
+  <local-definitions>
+    <inventory-item uuid="1ba52638-9f53-5101-a074-0e4b7ba1c108">
+      <description><p>TLS endpoint example.com:443</p></description>
+    </inventory-item>
+  </local-definitions>
+  <observation uuid="aa1d5f56-b098-5ca1-b342-b568add3bb7f">
+    <title>Classical key exchange negotiated (quantum-vulnerable)</title>
+    <description><p>TLS 1.3 control probe negotiated classical X25519; the certificate
+      signature is ecdsa-with-SHA384. Neither is post-quantum.</p></description>
+    <prop ns="https://breachsafe.ai/ns/oscal" name="readiness" value="quantum_vulnerable"/>
+    <prop ns="https://breachsafe.ai/ns/oscal" name="algorithm" value="X25519"/>
+    <prop ns="https://breachsafe.ai/ns/oscal" name="nistQuantumSecurityLevel" value="0"/>
+    <prop ns="https://breachsafe.ai/ns/oscal" name="cert-signature" value="ecdsa-with-SHA384"/>
+    <prop ns="https://breachsafe.ai/ns/oscal" name="command-sha256" value="81e11081862953f8e83315321fb56d5cb066ac6d2669bf99599a757f94bc173a"/>
+    <prop ns="https://breachsafe.ai/ns/oscal" name="stdout-sha256" value="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"/>
+    <method>TEST</method>
+    <type>finding</type>
+    <subject subject-uuid="1ba52638-9f53-5101-a074-0e4b7ba1c108" type="inventory-item"/>
+    <relevant-evidence href="https://evidence.example/example.cbom.json">
+      <description><p>CycloneDX CBOM for this endpoint (crypto inventory and posture).
+        Optional companion; the POA&amp;M stands alone without it.</p></description>
+    </relevant-evidence>
+    <collected>2026-07-27T03:21:53Z</collected>
+  </observation>
+  <risk uuid="e39a0d15-d7ad-5eb3-9963-eb9f77aed0f0">
+    <title>Harvest-now-decrypt-later exposure on TLS key establishment</title>
+    <description><p>Classical key exchange provides no protection against a future
+      cryptographically relevant quantum computer capturing today's traffic.</p></description>
+    <statement><p>Recorded traffic is exposed to retrospective decryption.</p></statement>
+    <status>open</status>
+  </risk>
+  <poam-item uuid="a0f838ed-4bdb-5914-98b0-2f93f4113de1">
+    <title>Migrate TLS key exchange to PQ-hybrid (X25519MLKEM768)</title>
+    <description><p>Endpoint offers classical-only key exchange on the control path.</p></description>
+    <prop ns="https://breachsafe.ai/ns/oscal" name="control" value="sc-13"/>
+    <prop ns="https://breachsafe.ai/ns/oscal" name="control" value="sc-12"/>
+    <prop ns="https://breachsafe.ai/ns/oscal" name="sc-13_odp.02" value="CNSA 2.0 PQC required"/>
+    <prop ns="https://breachsafe.ai/ns/oscal" name="severity" value="medium"/>
+    <related-observation observation-uuid="aa1d5f56-b098-5ca1-b342-b568add3bb7f"/>
+    <associated-risk risk-uuid="e39a0d15-d7ad-5eb3-9963-eb9f77aed0f0"/>
+    <remarks>
+      <p>Control association (SC-13 primary, SC-12 supporting) reflects an
+      organization-defined parameter requiring post-quantum cryptography (CNSA 2.0).
+      The scan observes a classical key exchange; whether that constitutes a control
+      deficiency depends on the organization's ODP, which is asserted here, not
+      derived by the scanner.</p>
+    </remarks>
+  </poam-item>
+</plan-of-action-and-milestones>

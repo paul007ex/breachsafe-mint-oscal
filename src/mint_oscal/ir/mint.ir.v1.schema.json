@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://breachsafe.dev/schemas/mint.ir.v1.schema.json",
+  "title": "mint.ir.v1",
+  "description": "Source-neutral intermediate representation consumed by mint-oscal emitters (ADR-0004).",
+  "type": "object",
+  "required": ["schema", "subject", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "mint.ir.v1"
+    },
+    "source": {
+      "type": "string",
+      "description": "Name of the adapter that produced this bundle."
+    },
+    "subject": {
+      "$ref": "#/$defs/subject"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    }
+  },
+  "$defs": {
+    "subject": {
+      "type": "object",
+      "required": ["id", "kind", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "description": "OSCAL locus: inventory-item | component | location."
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["description"],
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "description",
+        "severity",
+        "status",
+        "observed_at",
+        "control_ids",
+        "risk_statement"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low", "info"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["open", "closed"]
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "control_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "risk_statement": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        }
+      }
+    }
+  }
+}
