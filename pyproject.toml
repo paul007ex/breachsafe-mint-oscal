@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "breachsafe-mint-oscal"
-version = "0.1.4"
+version = "0.1.5"
 description = "Mint NIST OSCAL documents (POA&M, and more) from a source-neutral intermediate representation."
 readme = "README.md"
 requires-python = ">=3.12"

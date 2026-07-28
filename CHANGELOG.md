@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-07-28
+
+### Fixed
+
+- **`--validate` no longer diverges from `oscal_poam_schema.json`** (#62): an adversarial
+  review found the native validator was both too strict and too loose. Corrected against the
+  schema:
+  - **Open vocabularies are no longer closed** (false-red): `risk-status`, `observation.methods`
+    and `observation.types` are `anyOf[token/string, enum]` — any well-formed token/string is
+    schema-legal and the enum is a suggestion. They are now validated by token/string *shape*,
+    not closed-enum membership, so a conformant value like `status: under-review` is accepted
+    (as `oscal-cli` accepts it) while empty/whitespace/non-token junk is still caught.
+  - **`ns`-less standard props are no longer flagged** (false-red): OSCAL's `ns` is optional
+    (absent ⇒ core namespace). `props_namespaced` now only flags a prop that reuses a
+    BreachSAFE-reserved name *outside* the BreachSAFE namespace, not every core `ns`-less prop.
+  - **Every dateTime-with-timezone field is checked** (false-green): `datatypes` previously only
+    validated `metadata.last-modified` and observation `collected`, so a naive `metadata.published`
+    (or `expires`/`deadline`) passed. It now validates all five dateTime-tz fields wherever they
+    appear.
+  - **`semantic_errors()` never raises on malformed input**: an unhashable value (e.g.
+    `risk.status: []`) flowing into a set-membership test raised a bare `TypeError`; all
+    membership/`Counter` sites now guard type first and report a problem string.
+- **`severity` prop validated against the finding-severity vocabulary** (found while fixing #62):
+  the `severity` domain check compared against `policy.severity.values()` (the readiness→severity
+  lookup table, only `{info, low, medium}`), false-rejecting a legitimate `high`/`critical`. It now
+  validates against the canonical IR `finding.severity` enum `{info, low, medium, high, critical}`,
+  so a real `qureddy … --extension breachsafe --validate` run passes.
+
 ## [0.1.4] - 2026-07-28
 
 ### Added
@@ -166,7 +194,8 @@ by NIST `oscal-cli` and IBM `trestle`.
   infrastructure, and by independent review; a CI test suite is the immediate follow-on.
 - `ar`/`component-definition` emitters and the `consume` side are stubs.
 
-[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.5
 [0.1.4]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.4
 [0.1.3]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.3
 [0.1.2]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.2

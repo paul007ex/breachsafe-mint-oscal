@@ -6,11 +6,13 @@ Layer 1 -- authoritative *schema/shape* conformance -- is delegated to the NIST
 ``oscal-cli`` oracle (see :func:`oscal_cli_available` and ADR-0005). This module adds the
 cross-cutting invariants a JSON schema cannot express, plus a native, in-process
 re-derivation of the OSCAL POA&M rules that matter most (required fields, the UUID and
-dateTime-with-timezone datatypes, and the risk-status / observation enums) mapped 1:1 to
-``oscal_poam_schema.json``, and the BreachSAFE-namespace domain vocabularies. Running
-these in-process is necessary but **not** sufficient for NIST conformance -- so callers
-must not report it as such. The small Validator-registry design is borrowed from IBM
-``compliance-trestle`` (pattern only, no dependency; ADR-0005).
+dateTime-with-timezone datatypes, and the *shape* of the open risk-status / observation
+vocabularies) grounded in ``oscal_poam_schema.json``, and the BreachSAFE-namespace domain
+vocabularies. The open ``anyOf[token/string, enum]`` vocabularies are validated by token/
+string shape, not closed enum membership, so a conformant out-of-enum value is not
+false-rejected. Running these in-process is necessary but **not** sufficient for NIST
+conformance -- so callers must not report it as such. The small Validator-registry design is
+borrowed from IBM ``compliance-trestle`` (pattern only, no dependency; ADR-0005).
 """
 
 from __future__ import annotations
@@ -23,7 +25,7 @@ from collections.abc import Iterator
 from typing import Any
 
 from mint_oscal.emitters._common import BREACHSAFE_NS
-from mint_oscal.policy import READINESS_VERDICTS, get_policy
+from mint_oscal.policy import READINESS_VERDICTS
 
 _PROP_NS_KEY = "ns"
 
@@ -45,29 +47,42 @@ _DT_TZ_RE = re.compile(
     r"(Z|(-((0[0-9]|1[0-2]):00|0[39]:30)|\+((0[0-9]|1[0-4]):00|(0[34569]|10):30|(0[58]|12):45)))$"
 )
 
-# --- Controlled vocabularies (verbatim allowed-values) -----------------------------------
-# OSCAL risk-status allowed-values (POA&M metaschema).
-_RISK_STATUS = frozenset(
-    {
-        "open",
-        "investigating",
-        "remediating",
-        "deviation-requested",
-        "deviation-approved",
-        "closed",
-    }
-)
-# OSCAL observation.methods / observation.types allowed-values.
-_OBS_METHODS = frozenset({"EXAMINE", "INTERVIEW", "TEST", "UNKNOWN"})
-_OBS_TYPES = frozenset(
-    {"ssp-statement-issue", "control-objective", "mitigation", "finding", "discovery", "historic"}
-)
+# --- Open-vocabulary shape checks --------------------------------------------------------
+# risk-status, observation.methods and observation.types are OPEN vocabularies in the schema
+# (anyOf[TokenDatatype|StringDatatype, enum]): any well-formed token/string is schema-legal and
+# the listed enum is a *suggested*, not closed, set. We validate the value's SHAPE -- rejecting
+# empty/whitespace/non-token junk -- instead of closing the set, which would false-reject
+# conformant documents that oscal-cli accepts. These are Python-re-safe approximations of the
+# metaschema patterns (which use \p{} classes `re` cannot compile).
+_TOKEN_RE = re.compile(r"^[^\W\d][\w.\-]*$")  # NCName-ish: starts with a letter/_, no colon/space
+_STRING_RE = re.compile(r"^\S(.*\S)?$")  # non-empty, no leading/trailing whitespace
+# POA&M fields typed DateTimeWithTimezoneDatatype; validated wherever they appear. (The generic
+# `date` field -- only under the rare metadata `action` -- is omitted to avoid false-reds on
+# unrelated `date` keys.)
+_DATETIME_TZ_FIELDS = ("last-modified", "published", "collected", "expires", "deadline")
+# BreachSAFE severity vocabulary: the IR ``finding.severity`` enum (mint.ir.v1.schema.json),
+# which is what the emitter writes into the ``severity`` prop. NOT ``policy.severity.values()``
+# -- that is the readiness->severity lookup table, whose value set is only a subset (info/low/
+# medium) and would false-reject a legitimate ``high``/``critical`` finding severity.
+_SEVERITY = frozenset({"critical", "high", "medium", "low", "info"})
 # BreachSAFE mapping-confidence vocabulary.
 _CONFIDENCE = frozenset({"high", "partial", "not-applicable"})
 # BreachSAFE provenance grammar (see extensions.breachsafe).
 _PROV_RE = re.compile(r"^(derived|producer-confirmed|conflict:producer=.+,derived=.+)$")
 # NIST control identifier shape, e.g. SC-13.
 _CONTROL_RE = re.compile(r"^[A-Z]{2}-\d+$")
+# BreachSAFE custom prop names -- these carry our domain vocabulary and must live in the
+# BreachSAFE ns, never the core OSCAL namespace (`ns` itself is optional in OSCAL).
+_BREACHSAFE_PROP_NAMES = frozenset(
+    {
+        "readiness",
+        "mapping-confidence",
+        "severity",
+        "provenance",
+        "control-id",
+        "nistQuantumSecurityLevel",
+    }
+)
 
 
 def _find(obj: object, key: str) -> list[Any]:
@@ -112,6 +127,16 @@ def _is_uuid(value: object) -> bool:
     return True
 
 
+def _is_token(value: object) -> bool:
+    """Return True if ``value`` is a well-formed OSCAL TokenDatatype (NCName-ish string)."""
+    return isinstance(value, str) and _TOKEN_RE.match(value) is not None
+
+
+def _is_string(value: object) -> bool:
+    """Return True if ``value`` is a well-formed OSCAL StringDatatype (non-empty, no edge space)."""
+    return isinstance(value, str) and _STRING_RE.match(value) is not None
+
+
 def uuid_syntax(document: dict[str, Any]) -> list[str]:
     """Every uuid is a syntactically valid UUID."""
     return [f"invalid uuid: {value!r}" for value in _find(document, "uuid") if not _is_uuid(value)]
@@ -119,7 +144,9 @@ def uuid_syntax(document: dict[str, Any]) -> list[str]:
 
 def unique_uuids(document: dict[str, Any]) -> list[str]:
     """Every uuid in the document is unique."""
-    counts = Counter(_find(document, "uuid"))
+    # Only count string uuids -- a malformed (unhashable) uuid value would blow up ``Counter``
+    # and is already reported by :func:`uuid_syntax`.
+    counts = Counter(u for u in _find(document, "uuid") if isinstance(u, str))
     return [f"duplicate uuid: {value}" for value, n in sorted(counts.items()) if n > 1]
 
 
@@ -150,16 +177,24 @@ def subject_refs(document: dict[str, Any]) -> list[str]:
 
 
 def props_namespaced(document: dict[str, Any]) -> list[str]:
-    """Every props group is an array and every custom prop carries an ns."""
+    """Props groups are arrays; BreachSAFE custom props live in the BreachSAFE namespace.
+
+    OSCAL's ``ns`` is optional -- an absent ``ns`` means the core OSCAL namespace, which is
+    valid -- so a standard ns-less prop (e.g. ``marking``) is NOT flagged. Only a prop that
+    reuses a BreachSAFE-reserved name outside the BreachSAFE namespace is a problem: that would
+    smuggle our domain vocabulary into the core namespace.
+    """
     out: list[str] = []
     for group in _find(document, "props"):
         if not isinstance(group, list):
             out.append(f"props must be an array, got {type(group).__name__}")
             continue
         out += [
-            f"prop without ns: {prop.get('name')!r}"
+            f"BreachSAFE prop {prop.get('name')!r} not in the BreachSAFE namespace"
             for prop in group
-            if isinstance(prop, dict) and _PROP_NS_KEY not in prop
+            if isinstance(prop, dict)
+            and prop.get("name") in _BREACHSAFE_PROP_NAMES
+            and prop.get(_PROP_NS_KEY) != BREACHSAFE_NS
         ]
     return out
 
@@ -196,36 +231,37 @@ def required_fields(document: dict[str, Any]) -> list[str]:
 
 
 def datatypes(document: dict[str, Any]) -> list[str]:
-    """Every uuid matches the UUID datatype; last-modified/collected are dateTime-with-timezone."""
+    """Every uuid matches the UUID datatype; every dateTime-with-timezone field is tz-aware/real."""
     out = [
         f"invalid uuid datatype: {u!r}"
         for u in _find(document, "uuid")
         if isinstance(u, str) and not _UUID_RE.match(u)
     ]
-    p = _poam(document)
-    metadata = p.get("metadata", {})
-    lm = metadata.get("last-modified") if isinstance(metadata, dict) else None
-    if isinstance(lm, str) and not _DT_TZ_RE.match(lm):
-        out.append(f"last-modified not dateTime-with-timezone: {lm}")
-    out += [
-        f"collected not dateTime-with-timezone: {c}"
-        for c in _find(p.get("observations", []), "collected")
-        if isinstance(c, str) and not _DT_TZ_RE.match(c)
-    ]
+    for field in _DATETIME_TZ_FIELDS:
+        out += [
+            f"{field} not dateTime-with-timezone: {v}"
+            for v in _find(document, field)
+            if isinstance(v, str) and not _DT_TZ_RE.match(v)
+        ]
     return out
 
 
-def risk_status_enum(document: dict[str, Any]) -> list[str]:
-    """Every risk.status is an OSCAL risk-status token."""
+def risk_status(document: dict[str, Any]) -> list[str]:
+    """Every risk.status is a well-formed token (risk-status is an OPEN anyOf vocabulary)."""
     return [
-        f"invalid risk status: {r.get('status')!r}"
+        f"risk status not a valid token: {r.get('status')!r}"
         for r in _as_list(_poam(document).get("risks"))
-        if isinstance(r, dict) and r.get("status") not in _RISK_STATUS
+        if isinstance(r, dict) and not _is_token(r.get("status"))
     ]
 
 
 def observation_enums(document: dict[str, Any]) -> list[str]:
-    """observation.methods and .types use OSCAL-allowed tokens."""
+    """observation.methods (StringDatatype) and .types (TokenDatatype) are OPEN anyOf vocabularies.
+
+    Any well-formed string/token is schema-legal (the OSCAL enum is a suggestion, not a closed
+    set), so we validate shape, not enum membership -- closing them would reject documents
+    oscal-cli accepts. The non-string guard also keeps a malformed value from crashing.
+    """
     out: list[str] = []
     for o in _as_list(_poam(document).get("observations")):
         if not isinstance(o, dict):
@@ -233,14 +269,14 @@ def observation_enums(document: dict[str, Any]) -> list[str]:
         if not (isinstance(o.get("methods"), list) and o["methods"]):
             out.append(f"observation methods must be a non-empty array: {o.get('methods')!r}")
         out += [
-            f"invalid observation method: {m!r}"
+            f"observation method not a valid string: {m!r}"
             for m in _as_list(o.get("methods"))
-            if m not in _OBS_METHODS
+            if not _is_string(m)
         ]
         out += [
-            f"invalid observation type: {t!r}"
+            f"observation type not a valid token: {t!r}"
             for t in _as_list(o.get("types"))
-            if t not in _OBS_TYPES
+            if not _is_token(t)
         ]
     return out
 
@@ -259,21 +295,22 @@ def _bs_props(document: dict[str, Any]) -> Iterator[tuple[Any, Any]]:
 
 def domain_vocabulary(document: dict[str, Any]) -> list[str]:
     """Every BreachSAFE prop value is within its declared vocabulary."""
-    severities = set(get_policy().severity.values())
     out: list[str] = []
     for name, val in _bs_props(document):
-        v = val or ""
-        if name == "readiness" and val not in READINESS_VERDICTS:
+        # A non-string value (incl. an unhashable list/dict) fails every check below and is
+        # reported, never crashes a set-membership test or a regex match.
+        s = val if isinstance(val, str) else None
+        if name == "readiness" and not (s is not None and s in READINESS_VERDICTS):
             out.append(f"readiness not in vocabulary: {val!r}")
-        elif name == "mapping-confidence" and val not in _CONFIDENCE:
+        elif name == "mapping-confidence" and not (s is not None and s in _CONFIDENCE):
             out.append(f"mapping-confidence invalid: {val!r}")
-        elif name == "severity" and val not in severities:
+        elif name == "severity" and not (s is not None and s in _SEVERITY):
             out.append(f"severity invalid: {val!r}")
-        elif name == "provenance" and not _PROV_RE.match(v):
+        elif name == "provenance" and not (s is not None and _PROV_RE.match(s)):
             out.append(f"provenance malformed: {val!r}")
-        elif name == "nistQuantumSecurityLevel" and not v.isdigit():
+        elif name == "nistQuantumSecurityLevel" and not (s is not None and s.isdigit()):
             out.append(f"nistQuantumSecurityLevel not a non-neg int: {val!r}")
-        elif name == "control-id" and not _CONTROL_RE.match(v):
+        elif name == "control-id" and not (s is not None and _CONTROL_RE.match(s)):
             out.append(f"control-id malformed: {val!r}")
     return out
 
@@ -288,7 +325,7 @@ _VALIDATORS = (
     # A -- OSCAL POA&M structural (1:1 with the schema)
     required_fields,
     datatypes,
-    risk_status_enum,
+    risk_status,
     observation_enums,
     # B -- BreachSAFE domain
     domain_vocabulary,
