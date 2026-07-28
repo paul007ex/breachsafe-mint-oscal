@@ -47,18 +47,26 @@ built-in validation. We evaluated it empirically rather than by reputation (`/tm
 | Fact | Value | Source |
 | --- | --- | --- |
 | Provenance | **IBM Corp**, not NIST (`gen_oscal.py`-generated models) | package source header |
-| Latest version | **4.2.0**, released **2024-12-19** (~18 months stale) | PyPI |
+| Latest version | **4.2.0**, released **2026-07-02**; **11 releases in 2026** (3.11→4.0→4.1→4.2) — **actively maintained** | PyPI JSON |
 | OSCAL modelled | **1.2.1**, hard-locked `OSCAL_VERSION_REGEX = ^1\.2\.[0-1]$` | `trestle/oscal/__init__.py` |
-| NIST latest | **1.2.2** (2026-04-30) — trestle **cannot represent it** | usnistgov/OSCAL |
+| NIST latest | **1.2.2** (2026-04-30) — trestle **cannot represent it** (regex forbids `1.2.2`) | usnistgov/OSCAL |
 | Dependency weight | **42 packages / 54 MB** | `pip install` on py3.12 |
-| 1.2.2 committed? | No due date; "Next OSCAL Version Update" milestone holds pydantic-v2/task issues, **not** a 1.2.2 bump | IBM issue tracker |
-| Repo liveness | pushed daily, but recent commits are **dependabot bumps only**; no feature release in 18 months | GitHub API |
+| 1.2.2 committed? | No committed date; "Next OSCAL Version Update" milestone holds pydantic-v2/task issues, **not** a 1.2.2 bump | IBM issue tracker |
 | Build works? | Yes — `oscal_serialize_json()` produced a POA&M that `oscal-cli` validated, byte-identical across runs, custom `ns` props preserved | `/tmp` pressure test |
 
-The decisive facts: trestle **can** build valid, deterministic OSCAL, but it is **single-vendor,
-in maintenance mode, and its version regex forbids the current NIST 1.2.2**. Adopting it would
-subordinate our OSCAL-version ceiling to IBM's (uncommitted) release cadence, in exchange for
-typed-model convenience we can obtain more cheaply.
+The decisive facts: trestle is **actively maintained** (a dozen 2026 releases) and **can** build
+valid, deterministic OSCAL — so this is **not** a maintenance-risk rejection. It is rejected on
+two grounds: (1) **version sovereignty** — its `OSCAL_VERSION_REGEX` pins 1.2.1 and *forbids* the
+current NIST **1.2.2**, so adopting it subordinates our OSCAL-version ceiling to IBM's cadence
+(fast, but not ours), and (2) **dependency weight** — 42 packages against a 2-runtime-dep
+minimalist tool with a legal-grade supply-chain story. The typed-model convenience is obtainable
+more cheaply (see Decision).
+
+> **Correction (2026-07-28):** an earlier draft of this ADR claimed trestle was "released
+> 2024-12-19 (~18 months stale), maintenance mode, dependabot-only." That was a bad PyPI-fetch
+> summarization and is **factually false** — trestle shipped 4.2.0 on 2026-07-02 with 11 releases
+> in 2026. The "unmaintained" argument is struck; the decision stands on version sovereignty and
+> dependency weight alone.
 
 Separately, `oscal-cli` (the metaschema-framework community tool) validates **any** NIST
 version including 1.2.2, and is already our evidence-grade oracle.
@@ -305,9 +313,11 @@ else is architecture we wrote from scratch, credited here.**
 ## Alternatives considered
 
 - **A — Adopt trestle (rejected).** Typed models fix shape-by-construction and give AR/Component
-  for free. Rejected because it is single-vendor, ~18 months without a release, 42 deps, and its
-  version regex **forbids the current NIST 1.2.2** — subordinating our version ceiling to an
-  uncommitted IBM roadmap. Convenience did not justify surrendering version sovereignty.
+  for free, and it is **actively maintained** (11 releases in 2026). Rejected on two grounds: it
+  adds **42 dependencies** to a 2-runtime-dep tool, and its version regex **forbids the current
+  NIST 1.2.2** — subordinating our version ceiling to IBM's cadence (fast, but not ours).
+  Convenience did not justify surrendering version sovereignty or the minimalist supply chain. The
+  maintenance concern raised in an earlier draft was **factually wrong and withdrawn**.
 - **B — Schema-only in-process (rejected).** Bundle the OSCAL JSON schema and validate against it
   in-process. Rejected: re-implements what `oscal-cli` already does authoritatively, still misses
   semantic invariants (uuid/ref), and re-introduces a version-pinning burden.
