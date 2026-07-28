@@ -27,7 +27,6 @@ from pathlib import Path
 
 from mint_oscal import convert
 from mint_oscal.adapters import available_adapters, get_adapter
-from mint_oscal.adapters.cbom import MalformedCbomError
 from mint_oscal.emitters import available_models
 from mint_oscal.ir import IR
 from mint_oscal.logging import configure_logging, get_logger
@@ -102,7 +101,16 @@ def main(argv: list[str] | None = None) -> int:
             else Path(args.report).read_text(encoding="utf-8")
         )
         document = json.loads(raw)
-        findings, subject = get_adapter(args.source)(document)
+        try:
+            adapter = get_adapter(args.source)
+        except KeyError:
+            log.error("unknown_source", source=args.source)
+            return 2
+        try:
+            findings, subject = adapter(document)
+        except Exception as exc:  # any adapter: unshaped/malformed input, surfaced not leaked
+            log.error("malformed_input", source=args.source, error=str(exc))
+            return 2
         ir = IR(findings=tuple(findings), subject=subject, source=args.source)
         oscal = convert(ir, shape=args.model, source=args.source.capitalize())
 
@@ -133,11 +141,8 @@ def main(argv: list[str] | None = None) -> int:
     except json.JSONDecodeError as exc:
         log.error("invalid_json", report=args.report, error=str(exc))
         return 2
-    except MalformedCbomError as exc:
-        log.error("malformed_cbom", source=args.source, error=str(exc))
-        return 2
     except KeyError as exc:
-        log.error("unknown_selector", model=args.model, source=args.source, error=str(exc))
+        log.error("unknown_selector", model=args.model, error=str(exc))
         return 2
     except NotImplementedError as exc:
         log.error("not_implemented", model=args.model, fmt=args.fmt, error=str(exc))
