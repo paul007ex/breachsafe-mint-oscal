@@ -95,7 +95,12 @@ def _config() -> tuple[dict[str, Any], list[dict[str, Any]]]:
 
 
 def _det(*parts: str) -> str:
-    """Deterministic id from stable inputs (reproducible IR, and thus OSCAL uuids)."""
+    """Deterministic id from stable inputs (reproducible IR, and thus OSCAL uuids).
+
+    Every caller passes only strings that have been shape-guarded upstream (subject id,
+    readiness, inventory fingerprint), so an untrusted non-str never reaches the ``join``
+    here -- it is rejected as a typed :class:`MalformedCbomError` at its source instead.
+    """
     return str(uuid.uuid5(_NAMESPACE, "|".join(parts)))
 
 
@@ -142,6 +147,11 @@ def _inventory(
     weak_protocols: set[str] = set()
 
     def add(name: str, primitive: str | None = None, level: int | None = None) -> None:
+        # ``name`` may come straight from an untrusted component name (typed str, but the
+        # parser will surface whatever JSON supplied); a non-str would leak a bare
+        # ``AttributeError`` from ``.upper()``.
+        if not isinstance(name, str):
+            raise MalformedCbomError(f"component name must be a string, got {type(name).__name__}")
         key = name.upper()
         prev = canon.get(key)
         if prev is None:
@@ -154,6 +164,12 @@ def _inventory(
         cp = comp.crypto_properties
         if cp is None:
             continue
+        # assetType is what selects the branch below; a null one would leak a bare
+        # ``AttributeError`` from ``.value``. Guard it as a typed malformation.
+        if cp.asset_type is None:
+            raise MalformedCbomError(
+                f"assetType must be present on crypto component {comp.name!r}, got null"
+            )
         kind = cp.asset_type.value
         if kind == "algorithm" and comp.name:
             ap = cp.algorithm_properties
@@ -282,6 +298,10 @@ def from_cbom(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
             "not a CycloneDX BOM (expected bomFormat=CycloneDX and specVersion)"
         )
     spec_version = document["specVersion"]
+    # An unhashable specVersion (e.g. a list) would leak a bare ``TypeError`` from the
+    # ``in`` membership test below; assert it is a string first.
+    if not isinstance(spec_version, str):
+        raise MalformedCbomError(f"specVersion must be a string, got {type(spec_version).__name__}")
     if spec_version not in _SUPPORTED_SPEC_VERSIONS:
         supported = ", ".join(sorted(_SUPPORTED_SPEC_VERSIONS))
         raise MalformedCbomError(
@@ -297,6 +317,14 @@ def from_cbom(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
         str(bom.serial_number) if bom.serial_number else None
     )
     subject_id = name or "unknown-subject"
+    # subject_id is a _det part here and, via Subject.id, a _det part in the emitter too; a
+    # non-str metadata component name would leak a bare TypeError from str.join. Guard it as
+    # a typed malformation (contained honestly at the adapter, not silently coerced into a
+    # nonsense subject id that would mint a confident-but-wrong POA&M).
+    if not isinstance(subject_id, str):
+        raise MalformedCbomError(
+            f"metadata.component.name must be a string, got {type(subject_id).__name__}"
+        )
     subject = Subject(
         id=subject_id,
         kind="inventory-item",
