@@ -31,6 +31,28 @@ def _require(container: dict[str, Any], key: str, where: str) -> Any:  # noqa: A
     return container[key]
 
 
+def _index_evidence(evidence: Any) -> dict[str, Any]:  # noqa: ANN401
+    """Index evidence records by ``id``, asserting the shape of untrusted input.
+
+    ``evidence`` must be a list of objects, each carrying an ``id``; anything else
+    fails with one typed :class:`MalformedScanError` naming the offending field,
+    never a bare ``KeyError``/``TypeError`` leaking through the CLI boundary.
+    """
+    if not isinstance(evidence, list):
+        raise MalformedScanError(
+            f"malformed qureddy.scan.v1: 'evidence' must be a list, got {type(evidence).__name__}"
+        )
+    by_id: dict[str, Any] = {}
+    for index, item in enumerate(evidence):
+        if not isinstance(item, dict):
+            raise MalformedScanError(
+                f"malformed qureddy.scan.v1: evidence[{index}] must be an object, "
+                f"got {type(item).__name__}"
+            )
+        by_id[_require(item, "id", f"evidence[{index}].id")] = item
+    return by_id
+
+
 def from_scan_v1(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
     """Convert one ``qureddy.scan.v1`` document into IR findings and their subject.
 
@@ -59,7 +81,7 @@ def from_scan_v1(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
     if not isinstance(scan, dict):
         raise MalformedScanError("malformed qureddy.scan.v1: 'scan' must be an object")
     collected = _require(scan, "completed_at", "scan.completed_at")
-    evidence_by_id = {item["id"]: item for item in document.get("evidence", [])}
+    evidence_by_id = _index_evidence(document.get("evidence", []))
 
     findings: list[Finding] = []
     for finding in document.get("findings", []):
