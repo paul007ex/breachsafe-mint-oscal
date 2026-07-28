@@ -1,0 +1,113 @@
+{
+  "plan-of-action-and-milestones": {
+    "metadata": {
+      "title": "POA&M - CBOM scan of example.com:443",
+      "last-modified": "2026-07-28T15:00:12+00:00",
+      "version": "0.1.0",
+      "oscal-version": "1.1.2",
+      "props": [
+        {
+          "name": "oscal-target-version",
+          "value": "1.2.2",
+          "ns": "https://breachsafe.ai/ns/oscal"
+        }
+      ]
+    },
+    "system-id": {
+      "identifier-type": "https://ietf.org/rfc/rfc3986",
+      "id": "example.com:443"
+    },
+    "local-definitions": {
+      "inventory-items": [
+        {
+          "uuid": "b1b856b3-b020-57ed-9792-cbf4550ed355",
+          "description": "cryptographic subject example.com:443"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "uuid": "3283c065-f9bd-5c05-8f65-1144f8b434f5",
+        "description": "Cryptographic posture: transitional_hybrid",
+        "props": [
+          {
+            "name": "readiness",
+            "value": "transitional_hybrid",
+            "ns": "https://breachsafe.ai/ns/oscal"
+          },
+          {
+            "name": "kex-offered",
+            "value": "X25519, X25519MLKEM768",
+            "ns": "https://breachsafe.ai/ns/oscal"
+          },
+          {
+            "name": "cert-signature",
+            "value": "ecdsa-with-SHA384",
+            "ns": "https://breachsafe.ai/ns/oscal"
+          },
+          {
+            "name": "nistQuantumSecurityLevel",
+            "value": "3",
+            "ns": "https://breachsafe.ai/ns/oscal"
+          },
+          {
+            "name": "mapping-confidence",
+            "value": "high",
+            "ns": "https://breachsafe.ai/ns/oscal"
+          }
+        ],
+        "methods": [
+          "TEST"
+        ],
+        "types": [
+          "finding"
+        ],
+        "subjects": [
+          {
+            "subject-uuid": "b1b856b3-b020-57ed-9792-cbf4550ed355",
+            "type": "inventory-item"
+          }
+        ],
+        "collected": "2026-07-28T15:00:12+00:00"
+      }
+    ],
+    "risks": [
+      {
+        "uuid": "9193a2ce-57d9-57c9-b9cf-d0b0349600ae",
+        "title": "Cryptographic posture: transitional_hybrid",
+        "description": "PQ-hybrid key exchange is negotiated; residual classical elements remain (for example a classical certificate signature).",
+        "statement": "PQ-hybrid key exchange is negotiated; residual classical elements remain (for example a classical certificate signature).",
+        "status": "open"
+      }
+    ],
+    "poam-items": [
+      {
+        "uuid": "4d5de36f-37b1-5f0a-aee1-9bd0df0dbff0",
+        "title": "Cryptographic posture: transitional_hybrid",
+        "description": "KEX offered: X25519, X25519MLKEM768; cert signature: ecdsa-with-SHA384.",
+        "props": [
+          {
+            "name": "control-id",
+            "value": "SC-13",
+            "ns": "https://breachsafe.ai/ns/oscal"
+          },
+          {
+            "name": "severity",
+            "value": "low",
+            "ns": "https://breachsafe.ai/ns/oscal"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "3283c065-f9bd-5c05-8f65-1144f8b434f5"
+          }
+        ],
+        "related-risks": [
+          {
+            "risk-uuid": "9193a2ce-57d9-57c9-b9cf-d0b0349600ae"
+          }
+        ]
+      }
+    ]
+  }
+}
