@@ -31,6 +31,37 @@ def _require(container: dict[str, Any], key: str, where: str) -> Any:  # noqa: A
     return container[key]
 
 
+def _list(value: Any, where: str) -> list[Any]:  # noqa: ANN401
+    """Return ``value`` if it is a list, else raise a typed error naming the field."""
+    if not isinstance(value, list):
+        raise MalformedScanError(
+            f"malformed qureddy.scan.v1: {where} must be a list, got {type(value).__name__}"
+        )
+    return value
+
+
+def _dict(value: Any, where: str) -> dict[str, Any]:  # noqa: ANN401
+    """Return ``value`` if it is an object, else raise a typed error naming the field."""
+    if not isinstance(value, dict):
+        raise MalformedScanError(
+            f"malformed qureddy.scan.v1: {where} must be an object, got {type(value).__name__}"
+        )
+    return value
+
+
+def _str(value: Any, where: str) -> str:  # noqa: ANN401
+    """Return ``value`` if it is a string, else raise a typed error naming the field.
+
+    Guards untrusted values before they are used as mapping keys (``by_id``,
+    ``crosswalk``): a list/dict there would leak a bare ``TypeError: unhashable type``.
+    """
+    if not isinstance(value, str):
+        raise MalformedScanError(
+            f"malformed qureddy.scan.v1: {where} must be a string, got {type(value).__name__}"
+        )
+    return value
+
+
 def _index_evidence(evidence: Any) -> dict[str, Any]:  # noqa: ANN401
     """Index evidence records by ``id``, asserting the shape of untrusted input.
 
@@ -49,7 +80,11 @@ def _index_evidence(evidence: Any) -> dict[str, Any]:  # noqa: ANN401
                 f"malformed qureddy.scan.v1: evidence[{index}] must be an object, "
                 f"got {type(item).__name__}"
             )
-        by_id[_require(item, "id", f"evidence[{index}].id")] = item
+        item_id = _require(item, "id", f"evidence[{index}].id")
+        # ``id`` becomes a dict key below, so it must be a hashable scalar: a list/dict here
+        # would otherwise leak a bare ``TypeError: unhashable type`` (the #48 guard only
+        # asserts the item is an object, not that its ``id`` is usable as a key).
+        by_id[_str(item_id, f"evidence[{index}].id")] = item
     return by_id
 
 
@@ -84,10 +119,12 @@ def from_scan_v1(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
     evidence_by_id = _index_evidence(document.get("evidence", []))
 
     findings: list[Finding] = []
-    for finding in document.get("findings", []):
+    for finding in _list(document.get("findings", []), "findings"):
         if not isinstance(finding, dict):
             raise MalformedScanError("malformed qureddy.scan.v1: each finding must be an object")
-        readiness = finding.get("readiness", "")
+        # ``readiness`` flows into controls_for/risk_statement, which use it as a crosswalk
+        # key; a dict there would leak a bare ``TypeError: unhashable type``.
+        readiness = _str(finding.get("readiness", ""), "findings[].readiness")
         title = _require(finding, "title", "findings[].title")
         findings.append(
             Finding(
@@ -100,7 +137,7 @@ def from_scan_v1(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
                 observed_at=collected,
                 control_ids=controls_for(readiness),
                 risk_statement=risk_statement(readiness),
-                evidence=tuple(_evidence(evidence_by_id, finding.get("evidence_ids", ()))),
+                evidence=tuple(_evidence(evidence_by_id, finding.get("evidence_ids", []))),
                 posture=_posture(finding),
             )
         )
@@ -122,12 +159,17 @@ def _posture(finding: dict[str, Any]) -> dict[str, str]:
     return {name: str(value) for name, value in facts.items() if value}
 
 
-def _evidence(by_id: dict[str, Any], evidence_ids: tuple[str, ...]) -> list[Evidence]:
-    """Build IR evidence from the referenced probe results (hashes only, never excerpts)."""
+def _evidence(by_id: dict[str, Any], evidence_ids: Any) -> list[Evidence]:  # noqa: ANN401
+    """Build IR evidence from the referenced probe results (hashes only, never excerpts).
+
+    ``evidence_ids`` is untrusted: a scalar there (instead of a list) or an unhashable
+    element (list/dict) would leak a bare ``TypeError``, and a non-object ``probe_result``
+    a bare ``AttributeError`` -- each becomes one typed :class:`MalformedScanError` instead.
+    """
     out: list[Evidence] = []
-    for evidence_id in evidence_ids:
-        record = by_id.get(evidence_id, {})
-        probe = record.get("probe_result") or {}
+    for evidence_id in _list(evidence_ids, "findings[].evidence_ids"):
+        record = by_id.get(_str(evidence_id, "findings[].evidence_ids[]"), {})
+        probe = _dict(record.get("probe_result") or {}, "evidence[].probe_result")
         props = {
             "observation_type": record.get("observation_type", ""),
             "stdout_sha256": probe.get("stdout_sha256", ""),
