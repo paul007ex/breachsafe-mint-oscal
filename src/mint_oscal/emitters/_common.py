@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Shared OSCAL building blocks used by more than one emitter.
 
-Metadata, party, and property constructs recur across every OSCAL model
+Metadata and property constructs recur across every OSCAL model
 (POA&M, Assessment Results, Component Definition). Centralizing them here keeps
 those shapes identical across emitters and gives one place to adjust when the
 target ``oscal-version`` moves.
@@ -53,8 +53,3 @@ def metadata(
         "oscal-version": oscal_version,
         "props": [prop("oscal-target-version", "1.2.2")],
     }
-
-
-def party(uuid: str, name: str, *, party_type: str = "organization") -> dict[str, Any]:
-    """Build an OSCAL ``party`` object (for metadata ``parties``)."""
-    return {"uuid": uuid, "type": party_type, "name": name}

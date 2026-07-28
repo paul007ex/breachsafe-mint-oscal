@@ -19,12 +19,12 @@ def emit(ir: IR, **params: Any) -> dict[str, Any]:  # noqa: ANN401
 
     Not yet implemented. AR requires a REQUIRED ``import-ap`` per the OSCAL AR
     metaschema; that assessment-plan reference is a program input. See ADR-0004
-    and the P1 tier (UC-ASSESS).
+    and the P1 tier (UC-2).
 
     Raises:
         NotImplementedError: always, until the AR emitter lands.
     """
     raise NotImplementedError(
         "ar.emit: Assessment Results emitter needs a REQUIRED import-ap "
-        "(program input) before it can be authored (ADR-0004, UC-ASSESS, P1)"
+        "(program input) before it can be authored (ADR-0004, UC-2, P1)"
     )

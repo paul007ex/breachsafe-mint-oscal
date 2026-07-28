@@ -26,7 +26,7 @@ control-mapping requirements below.
 | R-ARCH-01 | Sources and targets are decoupled through a neutral intermediate representation (IR). | Constraint | Must | N→IR→M design | New source needs no emitter change and vice-versa. | Inspection | Designed |
 | R-ARCH-02 | Adding a source = one new adapter registered in a single place. | Functional | Must | `cli._ADAPTERS` registry | Register in `_ADAPTERS` only; emitters untouched. | Inspection | Designed |
 | R-ARCH-03 | Adding a target = one new emitter; adapters untouched. | Functional | Must | `emitters/` package | New emitter consumes IR only. | Inspection | Designed |
-| R-ARCH-04 | IR is frozen, source/target-agnostic (Finding/Subject/Evidence/Risk). | Constraint | Must | `ir.py` frozen dataclasses | Dataclasses frozen; no source field names leak past adapter. | Inspection | Built |
+| R-ARCH-04 | IR is frozen, source/target-agnostic (Finding/Subject/Evidence). | Constraint | Must | `ir.py` frozen dataclasses | Dataclasses frozen; no source field names leak past adapter. | Inspection | Built |
 
 ## SRC — Sources (input adapters)
 
@@ -112,8 +112,8 @@ control-mapping requirements below.
 
 | ID | Requirement | Type | Priority | Grounding / Source | Acceptance Criteria | Verify | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| R-PKG-01 | Installable: pyproject.toml, `__init__` files, README, LICENSE (Apache-2.0). | Non-functional | Must | package skeleton | `pip install .` succeeds; entry point runs. | Demo | OPEN |
-| R-PKG-02 | Python 3.11+ (matches type-hint syntax used). | Constraint | Should | `from __future__` / `X|None` | CI runs on 3.11+. | Test | OPEN |
+| R-PKG-01 | Installable: pyproject.toml, `__init__` files, README, LICENSE (PolyForm-Noncommercial-1.0.0). | Non-functional | Must | package skeleton | `pip install .` succeeds; entry point runs. | Demo | Built |
+| R-PKG-02 | Python 3.12+ (matches type-hint syntax used). | Constraint | Should | `from __future__` / `X|None` | CI runs on 3.12. | Test | Built |
 | R-PKG-03 | No runtime dependency on the NIST toolchain (validation is optional/external). | Constraint | Must | `validate.py shutil.which` | Library imports + emits with zero external tools. | Test | Built |
 | R-PKG-04 | Deterministic, side-effect-free core; I/O only at the CLI edge. | Non-functional | Should | emitters/adapters pure | Core functions do no I/O. | Inspection | Built |
 

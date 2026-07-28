@@ -84,7 +84,7 @@ engine); **composable CLI** for orchestrators (TAO, Osmedeus). Both hit the same
 | Validate / convert OSCAL | 🔁 delegates | ✅ | ✅ | ✅ | ✅ |
 | Composable filter | ✅ | ✅ | ~ | ✅ | ~ |
 | Deterministic → git-diffable | ✅ | n/a | ✅ | n/a | ? |
-| License | Apache-2.0 | public domain | Apache-2.0 | Apache-2.0 | commercial |
+| License | PolyForm-NC-1.0.0 | public domain | Apache-2.0 | Apache-2.0 | commercial |
 
 **Niche:** no open tool converts scanner findings — least of all PQC posture — *into*
 OSCAL. oscal-cli/oscalkit only transform existing OSCAL; Trestle authors/manages it.

@@ -2,7 +2,7 @@
 
 Mint NIST OSCAL documents from security-tool findings.
 
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![License: PolyForm-Noncommercial-1.0.0](https://img.shields.io/badge/License-PolyForm--Noncommercial--1.0.0-blue.svg)](LICENSE)
 ![Status: pre-alpha](https://img.shields.io/badge/status-pre--alpha-orange.svg)
 
 `mint-oscal` converts security-tool findings — starting with post-quantum crypto
@@ -43,7 +43,7 @@ sources emit the published `mint.ir.v1` contract directly.
 
 ## Install
 
-Requires Python 3.11+. Not yet on PyPI; install from source:
+Requires Python 3.12+. Not yet on PyPI; install from source:
 
 ```bash
 pip install .
@@ -126,7 +126,8 @@ internal target **1.2.2** as a prop. Validated with `oscal-cli` 3.2.0.
 ## Contributing, security, license
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and
-[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Licensed under [Apache-2.0](LICENSE).
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Source-available under
+[PolyForm-Noncommercial-1.0.0](LICENSE).
 
 ## Relationship to prior work
 

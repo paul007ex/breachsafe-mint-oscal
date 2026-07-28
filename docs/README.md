@@ -6,7 +6,7 @@ converts security-tool findings into NIST OSCAL documents.
 It is built on an **N sources → neutral IR → M OSCAL shapes** architecture:
 
 - **Sources (adapters):** QuReddy scan JSON first; later Prowler, OCSF, CycloneDX CBOM.
-- **Neutral IR:** frozen dataclasses `Finding` / `Subject` / `Evidence` / `Risk`,
+- **Neutral IR:** frozen dataclasses `Finding` / `Subject` / `Evidence`,
   source- and target-agnostic.
 - **Targets (emitters):** OSCAL POA&M (flagship, prototyped and validated),
   Assessment Results (SAR), Component Definition.
@@ -48,14 +48,14 @@ git-diffable.
 | Area | State | Notes |
 | --- | --- | --- |
 | POA&M emitter | **Built** | Prototype v2 validated clean against `oscal-cli 3.2.0`. |
-| Neutral IR (`Finding/Subject/Evidence/Risk`) | **Built** | Frozen, source/target-agnostic. |
+| Neutral IR (`Finding/Subject/Evidence`) | **Built** | Frozen, source/target-agnostic. |
 | QuReddy adapter | **Built** | Live scan → IR findings + subject. |
 | Determinism (uuid5) | **Built** | Re-run yields identical uuids. |
 | Structural validator | **Built** | No network/toolchain needed. |
 | Assessment Results (SAR) emitter | **Designed** | Required fields **NEEDS CONFIRM** from metaschema. |
 | Component Definition emitter | **Designed** | Required fields **NEEDS CONFIRM** from metaschema. |
 | Prowler / OCSF / CBOM adapters | **Backlog** | Roadmap. |
-| Packaging (`R-PKG-01`) | **OPEN** | pyproject / entry point / LICENSE not yet shipped. |
+| Packaging (`R-PKG-01`) | **Built** | pyproject, `mint-oscal` entry point, and LICENSE all shipped. |
 | Control crosswalk (`R-CTRL-01`) | **OPEN** | Draft only; needs cited human conformance review. |
 | Primary target (ADR-0001) | **Proposed** | SAR canonical + POA&M derived. |
 | CLI shape (ADR-0002) | **Proposed** | Model-first + composable filter. |

@@ -7,6 +7,6 @@ Re-exports the IR dataclasses so callers can ``from mint_oscal.ir import Finding
 
 from __future__ import annotations
 
-from mint_oscal.ir.model import IR, Evidence, Finding, Risk, Subject
+from mint_oscal.ir.model import IR, Evidence, Finding, Subject
 
-__all__ = ["IR", "Evidence", "Finding", "Risk", "Subject"]
+__all__ = ["IR", "Evidence", "Finding", "Subject"]

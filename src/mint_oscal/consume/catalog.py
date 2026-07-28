@@ -16,12 +16,12 @@ def control_text(catalog: dict[str, Any], control_id: str) -> str:
     """Return the prose statement for ``control_id`` from an OSCAL catalog.
 
     Not yet implemented. Part of the catalog-consume path (P2). See ADR-0004 and
-    UC-COMPONENT.
+    UC-3.
 
     Raises:
         NotImplementedError: always, until catalog consumption lands.
     """
     raise NotImplementedError(
         "catalog.control_text: reading OSCAL catalog control prose is not "
-        "implemented yet (ADR-0004, UC-COMPONENT, P2)"
+        "implemented yet (ADR-0004, UC-3, P2)"
     )
