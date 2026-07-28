@@ -9,6 +9,7 @@ inputs and are left as caller-supplied fields, not fabricated here.
 
 from __future__ import annotations
 
+import datetime
 import uuid
 from collections.abc import Iterable
 from typing import Any
@@ -26,15 +27,31 @@ def _det(*parts: str) -> str:
     return str(uuid.uuid5(_NAMESPACE, "|".join(parts)))
 
 
+def _aware(timestamp: str) -> str:
+    """Return an ISO-8601 timestamp guaranteed to carry a timezone.
+
+    OSCAL's ``dateTime-with-timezone`` datatype (which oscal-cli enforces at parse time)
+    rejects a naive timestamp, so a timezone-less input is interpreted as UTC. Unparseable
+    strings are returned unchanged for the semantic layer / oscal-cli to flag.
+    """
+    try:
+        parsed = datetime.datetime.fromisoformat(timestamp)
+    except ValueError:
+        return timestamp
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=datetime.UTC)
+    return parsed.isoformat()
+
+
 def _stamp(findings: list[Finding]) -> str:
     """Deterministic document timestamp: the latest observation time.
 
     Using the findings' own ``observed_at`` (rather than wall-clock ``now()``) makes the
-    same input produce a byte-identical POA&M. Adapters emit normalised UTC isoformat, so
-    the lexical max is the chronological max. Falls back to the Unix epoch when no finding
-    carries an observation time, keeping the output deterministic in that edge case too.
+    same input produce a byte-identical POA&M; each is normalised to a timezone-aware
+    isoformat (OSCAL requires it), so the lexical max is the chronological max. Falls back
+    to the Unix epoch when no finding carries an observation time.
     """
-    stamps = sorted(f.observed_at for f in findings if f.observed_at)
+    stamps = sorted(_aware(f.observed_at) for f in findings if f.observed_at)
     return stamps[-1] if stamps else "1970-01-01T00:00:00+00:00"
 
 
@@ -91,7 +108,7 @@ def to_poam(
                 }
                 for item in finding.evidence
             ]
-        observation["collected"] = finding.observed_at
+        observation["collected"] = _aware(finding.observed_at)
         observations.append(observation)
         risks.append(
             {

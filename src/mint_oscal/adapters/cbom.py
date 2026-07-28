@@ -15,7 +15,6 @@ that is not a parseable CycloneDX BOM raises :class:`MalformedCbomError`.
 
 from __future__ import annotations
 
-import datetime
 import functools
 import uuid
 from dataclasses import dataclass
@@ -208,6 +207,10 @@ def _readiness(algos: dict[str, tuple[str | None, int | None]]) -> _Readiness:
             ),
             "unknown",
         )
+        # honest-failure invariant: an unclassified algorithm means we cannot claim the
+        # most-favorable posture (a hidden KEX could be classical) -- never read unknown as ready.
+        if readiness == "quantum_ready" and unclassified:
+            readiness = "unknown"
     return _Readiness(
         readiness=readiness,
         kex=sorted(kex_names),
@@ -252,7 +255,11 @@ def from_cbom(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
     algos, sigs = _inventory(bom)
     facts = _readiness(algos)
     readiness = facts.readiness
-    timestamp = (bom.metadata.timestamp or datetime.datetime.now(datetime.UTC)).isoformat()
+    # Read the timestamp from the RAW document: cyclonedx-python-lib auto-fills
+    # bom.metadata.timestamp with wall-clock now() when the CBOM omits it, which would make
+    # output non-deterministic. Absent -> a deterministic epoch; the emitter makes it
+    # timezone-aware (OSCAL requires it).
+    timestamp = (document.get("metadata") or {}).get("timestamp") or "1970-01-01T00:00:00+00:00"
 
     if facts.unclassified:
         confidence = "partial"  # something crypto-relevant we could not classify
@@ -270,8 +277,9 @@ def from_cbom(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
     if facts.unclassified:
         posture["unclassified-algorithms"] = ", ".join(facts.unclassified)
 
+    inventory_fp = ";".join(sorted(algos)) + "|" + ";".join(sorted(sigs))
     finding = Finding(
-        id=_det("cbom-finding", subject_id, readiness),
+        id=_det("cbom-finding", subject_id, readiness, inventory_fp),
         title=f"Cryptographic posture: {readiness}",
         description=(
             f"KEX offered: {posture['kex-offered']}; cert signature: {posture['cert-signature']}."
