@@ -36,6 +36,14 @@ _DATA_PACKAGE = "mint_oscal.adapters.cbom_data"
 _SUPPORTED_SPEC_VERSIONS = frozenset(v.to_version() for v in SchemaVersion)
 _KEX_PRIMITIVES = frozenset({"key-agree", "kem"})
 _QUANTIFIERS = frozenset({"all", "some", "none"})
+# Transport protocols that carry a numeric TLS-style version; SSL is handled by name.
+_TLS_LIKE = frozenset({"tls", "dtls"})
+# The floor at or above which a TLS/DTLS version is not, by itself, a weak offering.
+# TLS 1.0/1.1 (< 1.2) are deprecated (RFC 8996); any SSL version is weaker still.
+_WEAK_TLS_FLOOR = 1.2
+# Readiness verdicts that a weak-protocol offering downgrades to ``classically_weak``.
+# ``quantum_vulnerable`` is already unfavorable and is left as-is (honest-failure, #24/#53).
+_WEAK_DOWNGRADE_FROM = frozenset({"transitional_hybrid", "quantum_ready", "unknown"})
 
 
 class MalformedCbomError(ValueError):
@@ -53,6 +61,7 @@ class _Readiness:
     kex: list[str]
     unclassified: list[str]
     level: str
+    legacy_protocols: list[str]
 
 
 @functools.lru_cache(maxsize=1)
@@ -95,19 +104,42 @@ def _tail(ref: object) -> str:
     return str(ref).rsplit("/", 1)[-1]
 
 
-def _inventory(bom: Bom) -> tuple[dict[str, tuple[str | None, int | None]], set[str]]:
+def _is_legacy_protocol(name: str | None, ptype: str | None, version: str | None) -> bool:
+    """True if a ``protocol`` component offers a weak/deprecated transport.
+
+    Weak means any SSL (all versions are deprecated) or a TLS/DTLS version below 1.2
+    (TLS 1.0/1.1, deprecated by RFC 8996). SSL is matched by name because CycloneDX has
+    no ``ssl`` protocol type — an SSLv3 offering carries a version (``3.0``) that a bare
+    numeric compare would read as *newer* than TLS 1.2, so a numeric test alone would miss
+    it. A non-numeric or absent version on a TLS-like protocol is not treated as weak.
+    """
+    if (name or "").upper().replace(" ", "").startswith("SSL") or ptype == "ssl":
+        return True
+    if ptype in _TLS_LIKE and version is not None:
+        try:
+            return float(version) < _WEAK_TLS_FLOOR
+        except ValueError:
+            return False
+    return False
+
+
+def _inventory(
+    bom: Bom,
+) -> tuple[dict[str, tuple[str | None, int | None]], set[str], list[str]]:
     """Collect the crypto inventory from the typed CBOM.
 
     Returns a mapping of algorithm name -> (producer-declared ``primitive``,
-    producer-declared ``nistQuantumSecurityLevel``) and the set of certificate
-    signature names. Names are deduped case-insensitively: a cipher-suite bom-ref
-    (``crypto/algorithm/x25519``) and a standalone algorithm asset (``X25519``) name
-    the same algorithm, so they are folded together, preferring the proper-case
-    display and keeping any producer declaration. ``related-crypto-material`` is
-    skipped explicitly — its key/secret values must never reach emitted output.
+    producer-declared ``nistQuantumSecurityLevel``), the set of certificate signature
+    names, and the sorted display names of any weak/legacy transport protocols offered
+    (see :func:`_is_legacy_protocol`). Names are deduped case-insensitively: a cipher-suite
+    bom-ref (``crypto/algorithm/x25519``) and a standalone algorithm asset (``X25519``)
+    name the same algorithm, so they are folded together, preferring the proper-case
+    display and keeping any producer declaration. ``related-crypto-material`` is skipped
+    explicitly — its key/secret values must never reach emitted output.
     """
     canon: dict[str, tuple[str, str | None, int | None]] = {}
     sigs: set[str] = set()
+    weak_protocols: set[str] = set()
 
     def add(name: str, primitive: str | None = None, level: int | None = None) -> None:
         key = name.upper()
@@ -131,9 +163,15 @@ def _inventory(bom: Bom) -> tuple[dict[str, tuple[str | None, int | None]], set[
                 ap.nist_quantum_security_level if ap else None,
             )
         elif kind == "protocol" and cp.protocol_properties:
-            for suite in cp.protocol_properties.cipher_suites or []:
+            pp = cp.protocol_properties
+            for suite in pp.cipher_suites or []:
                 for ref in suite.algorithms or []:
                     add(_tail(ref))
+            ptype = pp.type.value if pp.type else None
+            if _is_legacy_protocol(comp.name, ptype, pp.version):
+                # a plain protocol-version component (no cipherSuites) still scores the
+                # verdict: a legacy TLS/SSL offering is a weak posture on its own (#53).
+                weak_protocols.add(comp.name or f"{ptype or 'protocol'} {pp.version or '?'}")
         elif kind == "certificate" and cp.certificate_properties:
             ref = cp.certificate_properties.signature_algorithm_ref
             if ref:
@@ -141,10 +179,12 @@ def _inventory(bom: Bom) -> tuple[dict[str, tuple[str | None, int | None]], set[
         elif kind == "related-crypto-material":
             continue  # never read key/secret material into an emitted document
     algos = {display: (primitive, level) for display, primitive, level in canon.values()}
-    return algos, sigs
+    return algos, sigs, sorted(weak_protocols)
 
 
-def _readiness(algos: dict[str, tuple[str | None, int | None]]) -> _Readiness:
+def _readiness(
+    algos: dict[str, tuple[str | None, int | None]], weak_protocols: list[str]
+) -> _Readiness:
     """Classify the inventory (producer-declared first, registry fallback) and derive readiness.
 
     ``primitive`` decides whether an algorithm is key exchange (``key-agree``/``kem``)
@@ -152,8 +192,10 @@ def _readiness(algos: dict[str, tuple[str | None, int | None]]) -> _Readiness:
     when the CBOM omits them. A key exchange whose quantum-safety cannot be established
     (and any wholly unrecognised algorithm) is left ``unclassified`` rather than assumed
     classical, and the verdict is only computed over the KEX we could classify. The
-    declarative rules then pick the verdict; an omitted quantifier means "any". The
-    verdict is KEX-centric: certificate signatures are inventoried but do not score it.
+    declarative rules then pick the verdict; an omitted quantifier means "any". The KEX
+    picture is the primary signal (certificate signatures are inventoried but do not score
+    it), but a weak transport offering (legacy TLS/SSL) caps the verdict: honest-failure
+    means a favorable KEX cannot excuse a deprecated protocol still on the wire (#53).
     """
     registry, rules = _config()
     kex_names: list[str] = []
@@ -207,11 +249,18 @@ def _readiness(algos: dict[str, tuple[str | None, int | None]]) -> _Readiness:
         # most-favorable posture (a hidden KEX could be classical) -- never read unknown as ready.
         if readiness == "quantum_ready" and unclassified:
             readiness = "unknown"
+    # honest-failure cap: a legacy TLS/SSL offering means the posture cannot be more
+    # favorable than classically_weak, regardless of how strong the KEX looks. Applied
+    # last so it also covers the not-yet-scored `unknown` case; an already-unfavorable
+    # `quantum_vulnerable` is left alone (it outranks classically_weak).
+    if weak_protocols and readiness in _WEAK_DOWNGRADE_FROM:
+        readiness = "classically_weak"
     return _Readiness(
         readiness=readiness,
         kex=sorted(kex_names),
         unclassified=sorted(unclassified),
         level=str(min(levels)) if levels else "0",
+        legacy_protocols=weak_protocols,
     )
 
 
@@ -254,8 +303,8 @@ def from_cbom(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
         description=f"cryptographic subject {subject_id}",
     )
 
-    algos, sigs = _inventory(bom)
-    facts = _readiness(algos)
+    algos, sigs, weak_protocols = _inventory(bom)
+    facts = _readiness(algos, weak_protocols)
     readiness = facts.readiness
     # Read the timestamp from the RAW document: cyclonedx-python-lib auto-fills
     # bom.metadata.timestamp with wall-clock now() when the CBOM omits it, which would make
@@ -278,8 +327,16 @@ def from_cbom(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
     }
     if facts.unclassified:
         posture["unclassified-algorithms"] = ", ".join(facts.unclassified)
+    if facts.legacy_protocols:
+        posture["legacy-protocols"] = ", ".join(facts.legacy_protocols)
 
-    inventory_fp = ";".join(sorted(algos)) + "|" + ";".join(sorted(sigs))
+    inventory_fp = (
+        ";".join(sorted(algos))
+        + "|"
+        + ";".join(sorted(sigs))
+        + "|"
+        + ";".join(facts.legacy_protocols)
+    )
     finding = Finding(
         id=_det("cbom-finding", subject_id, readiness, inventory_fp),
         title=f"Cryptographic posture: {readiness}",
