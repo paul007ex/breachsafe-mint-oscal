@@ -21,7 +21,10 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Security",
 ]
-dependencies = []
+dependencies = [
+  "cyclonedx-python-lib>=11,<12",
+  "PyYAML>=6",
+]
 
 [project.urls]
 Homepage = "https://github.com/breachsafe/breachsafe-mint-oscal"
@@ -33,6 +36,7 @@ mint-oscal = "mint_oscal.cli:main"
 
 [project.entry-points."mint_oscal.adapters"]
 qureddy = "mint_oscal.adapters.qureddy:from_scan_v1"
+cbom = "mint_oscal.adapters.cbom:from_cbom"
 
 [project.optional-dependencies]
 # XML/YAML output is produced by shelling out to an external `oscal-cli` (ADR-0005),

@@ -1,0 +1,9 @@
+# Inventory -> readiness verdict. Declarative; first matching rule wins.
+# quantifiers over the KEX algorithms observed: all | some | none (an omitted
+# quantifier means "any" — the adapter does not care about that dimension).
+rules:
+  - { kex_quantum_safe: some, kex_classical: some, readiness: transitional_hybrid }
+  - { kex_quantum_safe: all,                        readiness: quantum_ready }
+  - { kex_quantum_safe: none,                       readiness: quantum_vulnerable }
+# (the adapter short-circuits to `unknown` when NO kex algorithms are present at all,
+#  e.g. a software CBOM with no TLS/SSH negotiation)
