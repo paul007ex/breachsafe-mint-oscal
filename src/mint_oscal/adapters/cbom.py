@@ -31,6 +31,7 @@ from mint_oscal.ir import Finding, Subject
 _NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "https://breachsafe.ai/ns/oscal/cbom")
 _DATA_PACKAGE = "mint_oscal.adapters.cbom_data"
 _KEX_PRIMITIVES = frozenset({"key-agree", "kem"})
+_QUANTIFIERS = frozenset({"all", "some", "none"})
 
 # Readiness -> POA&M severity. The CBOM finding is about quantum readiness of the key
 # establishment, so a still-classical exchange is a real, but not urgent, exposure.
@@ -61,11 +62,32 @@ class _Readiness:
 
 @functools.lru_cache(maxsize=1)
 def _config() -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    """Load and cache the crypto registry and readiness rules from bundled data."""
+    """Load, validate, and cache the crypto registry and readiness rules from bundled data.
+
+    Rules are evaluated first-match-wins (order is significant), so a malformed rule must
+    fail loudly at load rather than silently mis-map: an unknown quantifier is rejected
+    here instead of being treated as "any" at match time.
+
+    Raises:
+        ValueError: if a readiness rule uses an unknown quantifier.
+    """
     data = resources.files(_DATA_PACKAGE)
     registry = yaml.safe_load((data / "crypto-registry.yaml").read_text(encoding="utf-8"))
-    rules = yaml.safe_load((data / "readiness-rules.yaml").read_text(encoding="utf-8"))["rules"]
-    return cast("dict[str, Any]", registry), cast("list[dict[str, Any]]", rules)
+    rules = cast(
+        "list[dict[str, Any]]",
+        yaml.safe_load((data / "readiness-rules.yaml").read_text(encoding="utf-8"))["rules"],
+    )
+    for rule in rules:
+        for field in ("kex_quantum_safe", "kex_classical"):
+            value = rule.get(field)
+            if value is not None and value not in _QUANTIFIERS:
+                allowed = sorted(_QUANTIFIERS)
+                msg = (
+                    f"readiness rule has invalid {field}={value!r}; "
+                    f"expected one of {allowed} or omit it"
+                )
+                raise ValueError(msg)
+    return cast("dict[str, Any]", registry), rules
 
 
 def _det(*parts: str) -> str:
@@ -115,8 +137,7 @@ def _inventory(bom: Bom) -> tuple[dict[str, tuple[str | None, int | None]], set[
             )
         elif kind == "protocol" and cp.protocol_properties:
             for suite in cp.protocol_properties.cipher_suites or []:
-                refs = list(suite.algorithms or []) + list(getattr(suite, "tls_groups", None) or [])
-                for ref in refs:
+                for ref in suite.algorithms or []:
                     add(_tail(ref))
         elif kind == "certificate" and cp.certificate_properties:
             ref = cp.certificate_properties.signature_algorithm_ref
@@ -133,9 +154,11 @@ def _readiness(algos: dict[str, tuple[str | None, int | None]]) -> _Readiness:
 
     ``primitive`` decides whether an algorithm is key exchange (``key-agree``/``kem``)
     and ``nistQuantumSecurityLevel`` decides quantum-safety; the registry supplies both
-    when the CBOM omits them. An algorithm known to neither is left ``unclassified``
-    rather than assumed classical. The declarative rules then pick the verdict; an
-    omitted quantifier means "any".
+    when the CBOM omits them. A key exchange whose quantum-safety cannot be established
+    (and any wholly unrecognised algorithm) is left ``unclassified`` rather than assumed
+    classical, and the verdict is only computed over the KEX we could classify. The
+    declarative rules then pick the verdict; an omitted quantifier means "any". The
+    verdict is KEX-centric: certificate signatures are inventoried but do not score it.
     """
     registry, rules = _config()
     kex_names: list[str] = []
@@ -154,16 +177,21 @@ def _readiness(algos: dict[str, tuple[str | None, int | None]]) -> _Readiness:
         else:
             safe = None
             level = 0
-        if entry is None and declared_primitive is None and declared_level is None:
-            unclassified.append(name)
         if is_kex:
             kex_names.append(name)
-            kex_safe.append(bool(safe))
-            if safe and level:
-                levels.append(level)
+            if safe is None:
+                # a key exchange whose quantum-safety we cannot establish: report it
+                # honestly as unclassified (partial confidence), never assume classical.
+                unclassified.append(name)
+            else:
+                kex_safe.append(safe)
+                if safe and level:
+                    levels.append(level)
+        elif entry is None and declared_primitive is None and declared_level is None:
+            unclassified.append(name)  # a non-KEX algorithm we do not recognize at all
 
     readiness = "unknown"
-    if kex_names:
+    if kex_safe:  # only judge over the KEX we could actually classify
         total, safe_count = len(kex_safe), sum(kex_safe)
         quantum_safe = {"all": safe_count == total, "some": safe_count > 0, "none": safe_count == 0}
         classical = {
@@ -194,11 +222,20 @@ def from_cbom(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
     Raises:
         MalformedCbomError: if ``document`` is not a parseable CycloneDX BOM.
     """
+    # cyclonedx-python-lib parses permissively — it does NOT reject a non-CycloneDX or
+    # shapeless dict — so assert the shape ourselves first, or a garbage document would
+    # mint a confident-but-wrong POA&M instead of failing loudly.
+    if (
+        not isinstance(document, dict)
+        or document.get("bomFormat") != "CycloneDX"
+        or "specVersion" not in document
+    ):
+        raise MalformedCbomError(
+            "not a CycloneDX BOM (expected bomFormat=CycloneDX and specVersion)"
+        )
     try:
-        bom = Bom.from_json(document)  # type: ignore[attr-defined]  # lib parses + validates shape
-    except MalformedCbomError:
-        raise
-    except Exception as exc:  # any parse failure is one domain error, not a leak
+        bom = Bom.from_json(document)  # type: ignore[attr-defined]  # shape asserted above
+    except Exception as exc:  # any parse failure becomes one domain error, never a leak
         raise MalformedCbomError(str(exc)) from exc
 
     component = bom.metadata.component
@@ -217,12 +254,18 @@ def from_cbom(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
     readiness = facts.readiness
     timestamp = (bom.metadata.timestamp or datetime.datetime.now(datetime.UTC)).isoformat()
 
+    if facts.unclassified:
+        confidence = "partial"  # something crypto-relevant we could not classify
+    elif readiness == "unknown":
+        confidence = "not-applicable"  # no key exchange was observed to assess
+    else:
+        confidence = "high"
     posture = {
         "readiness": readiness,
         "kex-offered": ", ".join(facts.kex) or "none-observed",
         "cert-signature": ", ".join(sorted(sigs)) or "none-observed",
         "nistQuantumSecurityLevel": facts.level,
-        "mapping-confidence": "partial" if facts.unclassified else "high",
+        "mapping-confidence": confidence,
     }
     if facts.unclassified:
         posture["unclassified-algorithms"] = ", ".join(facts.unclassified)

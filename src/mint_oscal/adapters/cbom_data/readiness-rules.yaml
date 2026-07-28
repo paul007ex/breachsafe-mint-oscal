@@ -1,6 +1,8 @@
-# Inventory -> readiness verdict. Declarative; first matching rule wins.
-# quantifiers over the KEX algorithms observed: all | some | none (an omitted
-# quantifier means "any" — the adapter does not care about that dimension).
+# Inventory -> readiness verdict. Declarative; FIRST MATCHING RULE WINS, so ORDER IS
+# SIGNIFICANT — list most-specific rules first (a rule that constrains both dimensions
+# before one that constrains fewer). quantifiers over the KEX algorithms observed:
+# all | some | none (an omitted quantifier means "any" — the adapter does not care about
+# that dimension). Unknown quantifiers are rejected at load (adapters/cbom.py::_config).
 rules:
   - { kex_quantum_safe: some, kex_classical: some, readiness: transitional_hybrid }
   - { kex_quantum_safe: all,                        readiness: quantum_ready }
