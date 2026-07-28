@@ -38,6 +38,12 @@ mint-oscal = "mint_oscal.cli:main"
 qureddy = "mint_oscal.adapters.qureddy:from_scan_v1"
 cbom = "mint_oscal.adapters.cbom:from_cbom"
 
+# Extensions are orthogonal to source adapters (ADR-0008): opt-in enrichers that refine
+# the neutral IR from producer-declared facts. breachsafe is the bundled cross-check;
+# it is NOT a --from source.
+[project.entry-points."mint_oscal.extensions"]
+breachsafe = "mint_oscal.extensions.breachsafe:enrich"
+
 [project.optional-dependencies]
 # XML/YAML output is produced by shelling out to an external `oscal-cli` (ADR-0005),
 # not by an in-tree serializer, so this group is intentionally empty: it documents

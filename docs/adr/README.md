@@ -12,3 +12,4 @@ linkage) are tracked as stubs in [`requirements.xlsx`](../requirements.xlsx) →
 | [0002](0002-cli-shape.md) | CLI shape | Proposed |
 | [0003](0003-naming.md) | Package naming | Accepted |
 | [0006](0006-cbom-first-ingestion.md) | File-driven CycloneDX-CBOM ingestion | Proposed |
+| [0008](0008-source-extension-model.md) | Source × extension model (`breachsafe:v1` enricher) | Proposed |

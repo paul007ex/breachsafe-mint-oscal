@@ -10,6 +10,9 @@ second::
 
 Source is selected explicitly (``--from``); adapters (prowler, ocsf, ...) register
 through the ``mint_oscal.adapters`` entry-point group without touching the CLI.
+Source and extension are orthogonal (ADR-0008): ``--from`` picks a vendor-neutral
+adapter, while the repeatable ``--extension`` runs opt-in enrichers (e.g. ``breachsafe``)
+on the derived IR — registered through the ``mint_oscal.extensions`` entry-point group.
 
 The CLI is the only boundary that logs and exits: it reads input (a file path, or
 STDIN when the report argument is ``-``), configures structured logging to STDERR so
@@ -28,6 +31,7 @@ from pathlib import Path
 from mint_oscal import convert
 from mint_oscal.adapters import available_adapters, get_adapter
 from mint_oscal.emitters import available_models
+from mint_oscal.extensions import apply_extensions, available_extensions
 from mint_oscal.ir import IR
 from mint_oscal.logging import configure_logging, get_logger
 from mint_oscal.render import render
@@ -39,11 +43,25 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="mint-oscal")
     models = parser.add_subparsers(dest="model", required=True)
     sources = sorted(available_adapters())
+    extensions = sorted(available_extensions())
     for model in available_models():
         model_parser = models.add_parser(model, help=f"OSCAL {model}")
         verbs = model_parser.add_subparsers(dest="verb", required=True)
         generate = verbs.add_parser("generate", help=f"generate an OSCAL {model}")
         generate.add_argument("--from", dest="source", choices=sources, required=True)
+        generate.add_argument(
+            "--extension",
+            dest="extensions",
+            action="append",
+            default=[],
+            choices=extensions,
+            metavar="NAME",
+            help=(
+                "run an opt-in enricher on the IR after the source adapter; repeatable "
+                "(e.g. --extension breachsafe). Source and extension are orthogonal: "
+                "--from stays vendor-neutral, --extension adds producer cross-checks"
+            ),
+        )
         generate.add_argument(
             "report",
             help="path to the source report JSON, or '-' to read it from STDIN",
@@ -108,6 +126,13 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         try:
             findings, subject = adapter(document)
+            # Extensions are orthogonal to the source (ADR-0008): the adapter yields the
+            # vendor-neutral IR, then each opt-in enricher refines it from producer facts in
+            # the same document. An enricher fault surfaces through this boundary as a clean
+            # non-zero, never a traceback.
+            findings, subject = apply_extensions(
+                findings, subject, args.extensions, document=document
+            )
         except Exception as exc:  # any adapter: unshaped/malformed input, surfaced not leaked
             log.error("malformed_input", source=args.source, error=str(exc))
             return 2
