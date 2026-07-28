@@ -53,3 +53,6 @@ dmypy.json
 # Local env files
 .env
 .env.*
+
+# Local NIST/OSCAL reference material (grounding only — never committed)
+/reference/
