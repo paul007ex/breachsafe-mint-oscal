@@ -73,6 +73,7 @@ class _UsageParser(argparse.ArgumentParser):
         self.print_usage(sys.stderr)
         self.exit(_EXIT_USAGE, f"{self.prog}: usage error: {message}\n")
 
+
 # Human-facing display names for a source id (used in the POA&M title); falls back to the
 # raw source so a newly registered adapter still reads sensibly without a code change here.
 _SOURCE_DISPLAY = {"cbom": "CBOM", "qureddy": "QuReddy"}
@@ -86,6 +87,8 @@ _MODEL_BLURB = {
     "component-definition": "Component Definition",
 }
 _PLANNED_MODELS = {"ar", "component-definition"}
+# Models that have a native Layer-2 validator (a `validate` verb); POA&M is the only one today.
+_VALIDATABLE_MODELS = {"poam"}
 
 
 def _root_epilog() -> str:
@@ -96,8 +99,8 @@ def _root_epilog() -> str:
         "mint-oscal poam generate --from cbom scan.cbom.json\n\n"
         "# Pipe a QuReddy scan straight through (the flagship pipe).\n"
         "qureddy scan tls example.com --format cbom | mint-oscal poam generate --from cbom -\n\n"
-        "# Add the BreachSAFE producer cross-check, then validate.\n"
-        "mint-oscal poam generate --from cbom scan.cbom.json --extension breachsafe --validate\n\n"
+        "# Validate an existing POA&M (yours or another tool's) -- no oscal-cli / trestle needed.\n"
+        "mint-oscal poam validate their-poam.json\n\n"
         "MORE HELP:\n\n"
         "mint-oscal <model> generate --help   # full options, examples, exit codes\n"
         "mint-oscal --version                 # show version\n\n"
@@ -128,6 +131,56 @@ def _generate_epilog() -> str:
         "NO_COLOR   Disable ANSI color in --help (https://no-color.org).\n\n"
         f"Project: {PROJECT_URL}"
     )
+
+
+def _validate_epilog() -> str:
+    """Brand epilog for `mint-oscal poam validate --help`: examples, exit codes, the caveat."""
+    return colorize_help(
+        "EXAMPLES:\n\n"
+        "# Validate a POA&M someone else produced -- no oscal-cli or trestle needed.\n"
+        "mint-oscal poam validate their-poam.json\n\n"
+        "# Validate mint's own output in a pipeline.\n"
+        "mint-oscal poam generate --from cbom scan.cbom.json | mint-oscal poam validate -\n\n"
+        "EXIT CODES:\n\n"
+        "0    no semantic problems found\n"
+        "1    one or more semantic problems (reported on STDERR)\n"
+        "2    input error, or not valid JSON\n\n"
+        "NOTE:\n\n"
+        "Pure-Python Layer-2 semantic checks (uuid/ref/ns integrity + OSCAL structural +\n"
+        "datatypes + BreachSAFE domain vocab). No oscal-cli or trestle required. Necessary but\n"
+        "NOT sufficient for full NIST schema conformance; run oscal-cli for that.\n\n"
+        f"Project: {PROJECT_URL}"
+    )
+
+
+def _add_logging_args(parser: argparse.ArgumentParser) -> None:
+    """Add the shared -v/-q/--json-logs logging flags (STDERR only) to a verb parser."""
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        action="count",
+        default=0,
+        help="increase log verbosity (-v INFO, -vv DEBUG); logs go to STDERR",
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        dest="quiet",
+        action="store_true",
+        help="suppress warnings and below (only errors are logged)",
+    )
+    parser.add_argument(
+        "--json-logs",
+        dest="json_logs",
+        action="store_true",
+        help="emit logs as newline-delimited JSON instead of console text",
+    )
+
+
+def _read_source(path: str) -> str:
+    """Read the input document from a file path, or from STDIN when ``path`` is ``-``."""
+    return sys.stdin.read() if path == "-" else Path(path).read_text(encoding="utf-8")
 
 
 def _build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.ArgumentParser]]:
@@ -208,27 +261,28 @@ def _build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.Argumen
                 "validation; run oscal-cli for that. Exit 1 on any problem"
             ),
         )
-        generate.add_argument(
-            "-v",
-            "--verbose",
-            dest="verbose",
-            action="count",
-            default=0,
-            help="increase log verbosity (-v INFO, -vv DEBUG); logs go to STDERR",
-        )
-        generate.add_argument(
-            "-q",
-            "--quiet",
-            dest="quiet",
-            action="store_true",
-            help="suppress warnings and below (only errors are logged)",
-        )
-        generate.add_argument(
-            "--json-logs",
-            dest="json_logs",
-            action="store_true",
-            help="emit logs as newline-delimited JSON instead of console text",
-        )
+        _add_logging_args(generate)
+
+        # A `validate` verb for models that have a native Layer-2 validator (POA&M today):
+        # take in an *existing* OSCAL document and check it -- pure Python, no oscal-cli/trestle.
+        if model in _VALIDATABLE_MODELS:
+            validate = verbs.add_parser(
+                "validate",
+                help=f"validate an existing OSCAL {blurb}",
+                formatter_class=argparse.RawDescriptionHelpFormatter,
+                description=(
+                    f"Validate an existing OSCAL {blurb} document with pure-Python Layer-2 "
+                    "semantic checks (uuid/ref/ns integrity, OSCAL structural + datatypes, "
+                    "BreachSAFE domain vocab). No oscal-cli or trestle required; necessary but "
+                    "not sufficient for full NIST schema conformance. Exit 1 on any problem."
+                ),
+                epilog=_validate_epilog(),
+            )
+            validate.add_argument(
+                "document",
+                help=f"path to the OSCAL {blurb} JSON to validate, or '-' to read it from STDIN",
+            )
+            _add_logging_args(validate)
     return parser, model_parsers
 
 
@@ -238,8 +292,7 @@ def _run(args: argparse.Namespace, log: BoundLog) -> int:
     The pipeline proper; :func:`main` owns the top-level error-to-exit-code mapping. STDOUT
     carries only the minted OSCAL document.
     """
-    raw = sys.stdin.read() if args.report == "-" else Path(args.report).read_text(encoding="utf-8")
-    document = json.loads(raw)
+    document = json.loads(_read_source(args.report))
     try:
         adapter = get_adapter(args.source)
     except KeyError:
@@ -297,6 +350,32 @@ def _run(args: argparse.Namespace, log: BoundLog) -> int:
     return _EXIT_OK
 
 
+def _validate(args: argparse.Namespace, log: BoundLog) -> int:
+    """Validate an existing OSCAL POA&M document (Layer-2 semantic checks); return an exit code.
+
+    The standalone validator: it takes in a document the caller already has (their own, or
+    another tool's output) rather than re-checking what mint just minted. Pure Python -- no
+    oscal-cli or trestle needed. Exit 1 if any problem, 0 if clean. STDOUT is left empty; the
+    verdict and any problems go to STDERR so the exit code is the machine signal.
+    """
+    document = json.loads(_read_source(args.document))
+    scope = "uuid/ref/ns + OSCAL structural + BreachSAFE domain -- NOT NIST schema validation"
+    problems = semantic_errors(document)
+    if problems:
+        for problem in problems:
+            log.error("semantic_error", problem=problem)
+        log.warning("invalid", document=args.document, problems=len(problems), scope=scope)
+        return _EXIT_VALIDATION
+    oracle = oscal_cli_available()
+    note = (
+        f"authoritative NIST check available: {oracle} validate"
+        if oracle
+        else "run NIST oscal-cli for authoritative NIST schema conformance"
+    )
+    log.warning("valid", document=args.document, scope=scope, note=note)
+    return _EXIT_OK
+
+
 def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911 -- error boundary: N domain errors -> exit codes
     """Entry point: read a source report, emit an OSCAL document to STDOUT.
 
@@ -335,16 +414,22 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911 -- error bounda
     configure_logging(verbosity=args.verbose, json_logs=args.json_logs, quiet=args.quiet)
     log = get_logger("mint_oscal.cli")
 
+    # The input path is `report` for generate, `document` for validate; use whichever exists so
+    # the error handlers work for both verbs (a hardcoded `args.report` would AttributeError in
+    # the handler on the validate path and leak a traceback).
+    src = getattr(args, "report", None) or getattr(args, "document", "-")
     try:
-        return _run(args, log)
+        return _validate(args, log) if args.verb == "validate" else _run(args, log)
     except (FileNotFoundError, OSError) as exc:
-        log.error("input_error", report=args.report, error=str(exc))
+        log.error("input_error", report=src, error=str(exc))
         return _EXIT_INPUT
     except json.JSONDecodeError as exc:
-        log.error("invalid_json", report=args.report, error=str(exc))
+        log.error("invalid_json", report=src, error=str(exc))
         return _EXIT_INPUT
     except NotImplementedError as exc:
-        log.error("not_implemented", model=args.model, fmt=args.fmt, error=str(exc))
+        log.error(
+            "not_implemented", model=args.model, fmt=getattr(args, "fmt", None), error=str(exc)
+        )
         return _EXIT_NOT_IMPLEMENTED
     except Exception as exc:  # noqa: BLE001 -- top-level internal-error boundary
         # Any unexpected fault is mint's own bug, not the user's input: report it honestly as an

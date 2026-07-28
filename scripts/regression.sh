@@ -198,6 +198,19 @@ stdout_valid_json "-vv keeps STDOUT a pure OSCAL channel"            -- "${CB[@]
 stderr_lacks "semantic_checks_passed" "-q suppresses the --validate WARNING" -- "${CB[@]}" --validate -q
 stderr_ndjson "--json-logs emits NDJSON on STDERR"                   -- "${CB[@]}" -v --json-logs
 
+echo "-- standalone validator: poam validate <file> (no oscal-cli/trestle) --"
+$MINT poam generate --from cbom "$EX/example.cbom.json" 2>/dev/null >"$TMP/good.poam.json"
+expect_exit 0 "validate a valid POA&M"           -- poam validate "$TMP/good.poam.json"
+expect_exit 1 "validate a broken POA&M -> exit 1" -- poam validate "$EX/broken.poam.json"
+stderr_has "semantic_error" "broken POA&M reports the problem" -- poam validate "$EX/broken.poam.json"
+expect_exit 1 "validate a non-POA&M doc -> exit 1" -- poam validate "$TMP/bad.cbom.json"
+expect_exit 2 "validate a missing file -> exit 2" -- poam validate "$TMP/does-not-exist.json"
+expect_exit 4 "validate with no document arg -> usage 4" -- poam validate
+# the pipe: generate | validate -
+if $MINT poam generate --from cbom "$EX/example.cbom.json" 2>/dev/null | $MINT poam validate - >/dev/null 2>&1
+then _ok "generate | validate - (pipe, exit 0)"; else _no "generate | validate - pipe"; fi
+expect_exit 0 "poam validate --help"             -- poam validate --help
+
 echo "-- usage errors (exit 4, distinct from bad input) --"
 expect_exit 4 "invalid --from choice"            -- poam generate --from nope "$EX/example.cbom.json"
 expect_exit 4 "missing required report arg"      -- poam generate --from cbom

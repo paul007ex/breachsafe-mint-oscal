@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-07-28
+
+### Added
+
+- **`mint-oscal poam validate <file>`** — a standalone, pure-Python POA&M validator. It takes in
+  an *existing* OSCAL POA&M (a file, or `-` for STDIN) -- yours or another tool's -- and runs the
+  Layer-2 semantic checks (uuid/ref/ns integrity, OSCAL structural + datatypes, BreachSAFE domain
+  vocab), reporting each problem on STDERR and exiting `1` on any problem, `0` if clean. **No
+  oscal-cli or trestle required**, so anyone can lint a POA&M without the Java toolchain (still
+  necessary-but-not-sufficient for full NIST schema conformance). Composes with the pipe:
+  `mint-oscal poam generate --from cbom scan.cbom.json | mint-oscal poam validate -`. The existing
+  `generate --validate` flag (validate-what-you-just-minted) is unchanged.
+
 ## [0.1.10] - 2026-07-28
 
 ### Fixed
@@ -336,7 +349,8 @@ by NIST `oscal-cli` and IBM `trestle`.
   infrastructure, and by independent review; a CI test suite is the immediate follow-on.
 - `ar`/`component-definition` emitters and the `consume` side are stubs.
 
-[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.10...HEAD
+[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.11...HEAD
+[0.1.11]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.11
 [0.1.10]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.10
 [0.1.9]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.9
 [0.1.8]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.8
