@@ -27,6 +27,7 @@ from cyclonedx.schema import SchemaVersion
 
 from mint_oscal.controls.nist import controls_for, risk_statement
 from mint_oscal.ir import Finding, Subject
+from mint_oscal.policy import get_policy
 
 _NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "https://breachsafe.ai/ns/oscal/cbom")
 _DATA_PACKAGE = "mint_oscal.adapters.cbom_data"
@@ -35,15 +36,6 @@ _DATA_PACKAGE = "mint_oscal.adapters.cbom_data"
 _SUPPORTED_SPEC_VERSIONS = frozenset(v.to_version() for v in SchemaVersion)
 _KEX_PRIMITIVES = frozenset({"key-agree", "kem"})
 _QUANTIFIERS = frozenset({"all", "some", "none"})
-
-# Readiness -> POA&M severity. The CBOM finding is about quantum readiness of the key
-# establishment, so a still-classical exchange is a real, but not urgent, exposure.
-_SEVERITY = {
-    "quantum_vulnerable": "medium",
-    "transitional_hybrid": "low",
-    "quantum_ready": "info",
-    "unknown": "info",
-}
 
 
 class MalformedCbomError(ValueError):
@@ -294,7 +286,7 @@ def from_cbom(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
         description=(
             f"KEX offered: {posture['kex-offered']}; cert signature: {posture['cert-signature']}."
         ),
-        severity=_SEVERITY.get(readiness, "info"),
+        severity=get_policy().severity.get(readiness, "info"),
         status="open",
         subject=subject,
         observed_at=timestamp,

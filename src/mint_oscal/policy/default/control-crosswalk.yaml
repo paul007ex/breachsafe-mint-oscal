@@ -1,0 +1,19 @@
+# DRAFT - UNREVIEWED - needs conformance sign-off (R-CTRL-01)
+#
+# Policy: cryptographic-posture readiness verdict -> NIST SP 800-53r5 control ids.
+# Reviewable source data, NOT an authored compliance decision. SC-13 (Cryptographic
+# Protection) is the anchor; SC-12 (Cryptographic Key Establishment/Management) is
+# supporting when key establishment is classical. SC-8 (Transmission
+# Confidentiality/Integrity) is intentionally EXCLUDED as overreach: the finding is
+# about the primitive's quantum readiness, not transmission integrity.
+#
+# A program targeting CNSA 2.0 or NIST SP 1800-38 (PQC migration) may prefer a
+# different frame; copy this pack and swap the table per program.
+---
+# classical / weak posture: cryptographic protection defect + key establishment.
+quantum_vulnerable: [SC-13, SC-12]
+classically_weak: [SC-13, SC-12]
+# hybrid/ready/unknown: cryptographic protection remains the frame.
+transitional_hybrid: [SC-13]
+quantum_ready: [SC-13]
+unknown: [SC-13]
