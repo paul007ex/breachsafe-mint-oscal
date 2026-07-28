@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 BreachSAFE
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Serialize an emitted OSCAL document to a target format.
 
 JSON is native and always available. XML and YAML are produced by shelling out to

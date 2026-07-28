@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 BreachSAFE
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Shared OSCAL building blocks used by more than one emitter.
 
 Metadata, party, and property constructs recur across every OSCAL model

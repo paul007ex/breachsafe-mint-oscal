@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 BreachSAFE
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Adapter: CycloneDX CBOM JSON -> the neutral IR.
 
 CBOM is the vendor-independent ingestion path (ADR-0006): any producer that emits

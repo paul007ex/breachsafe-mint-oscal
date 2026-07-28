@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 BreachSAFE
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Consume an OSCAL profile: read its operational-defined parameters (ODPs).
 
 A profile's ``set-parameters`` bind the tailorable values (organization-defined

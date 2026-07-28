@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 BreachSAFE
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Emitter (stub): IR findings -> an OSCAL Component Definition document.
 
 A component-definition describes the assessed components and the controls they

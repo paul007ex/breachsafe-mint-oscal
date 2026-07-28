@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 BreachSAFE
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Map a cryptographic-posture finding to NIST SP 800-53 controls.
 
 REVIEW REQUIRED: these mappings are a defensible starting point, not an authored

@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 BreachSAFE
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Consume an OSCAL catalog: read control text keyed by control id.
 
 Component definitions and human-readable POA&M annotations need the prose of a

@@ -61,10 +61,9 @@ mint-oscal poam generate --from qureddy scan.json
 # chain straight into the NIST validator
 mint-oscal poam generate --from qureddy scan.json | oscal-cli poam validate -
 
-# XML, pinned timestamp, validated, to a file
-mint-oscal poam generate --from qureddy scan.json --to XML \
-  --system-id "tls://example.com:443" --prepared-by "BreachSAFE" \
-  --now 2026-07-27T03:21:54Z --validate -o example.poam.xml
+# check internal integrity, then let oscal-cli produce XML (ADR-0005)
+mint-oscal poam generate --from qureddy scan.json --validate > poam.json
+oscal-cli poam convert --to xml poam.json example.poam.xml
 ```
 
 Full flag reference: [docs/cli.md](docs/cli.md).
@@ -93,15 +92,15 @@ Embedded callers use the library directly instead of the CLI:
 
 ```python
 import mint_oscal
-poam = mint_oscal.convert(ir, shape="poam", system_id="tls://example.com:443")
+poam = mint_oscal.convert(ir, shape="poam")
 ```
 
-The CLI is a thin wrapper over `convert`; parameters map 1:1.
+The CLI is a thin wrapper over `convert`.
 
 ## Determinism and git
 
-UUIDs are `uuid5` over a fixed namespace and `last-modified` is pinnable with `--now`, so
-the same scan produces byte-identical output. A re-scan yields a clean `git diff` — you
+UUIDs are `uuid5` over a fixed namespace and `last-modified` is derived from the scan's
+observation time (not wall-clock), so the same scan produces byte-identical output. A re-scan yields a clean `git diff` — you
 review what changed in posture, not churn.
 
 ## What "valid" does and does not mean
