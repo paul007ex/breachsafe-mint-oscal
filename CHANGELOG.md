@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Legacy/weak protocols downgrade readiness** (#53): the CBOM adapter now scores plain
+  `protocol` components (not just key exchange). A weak transport offering — any SSL, or a
+  TLS/DTLS version below 1.2 (TLS 1.0/1.1, RFC 8996) — caps the verdict at `classically_weak`
+  and is surfaced as `legacy-protocols` in `posture`, mirroring the #24 honest-failure
+  downgrade. Previously a live cloudflare.com CBOM offering TLSv1/TLSv1.1 minted the favorable
+  `transitional_hybrid`/`low` despite the producer's own `classically_weak`; it now reads
+  `classically_weak`/`medium` (SC-13, SC-12). Modern-only CBOMs are unchanged.
+
 ## [0.1.2] - 2026-07-28
 
 ### Fixed
