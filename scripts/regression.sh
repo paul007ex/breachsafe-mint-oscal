@@ -62,6 +62,25 @@ stdout_valid_json() {
   else _no "$desc (stdout not valid JSON)"; fi
 }
 
+# stderr_has / stderr_lacks "needle" "desc" -- <cli args...>
+stderr_has() {
+  local needle="$1" desc="$2"; shift 3
+  $MINT "$@" >/dev/null 2>"$TMP/e"
+  if grep -qF "$needle" "$TMP/e"; then _ok "$desc"; else _no "$desc (stderr missing: $needle)"; fi
+}
+stderr_lacks() {
+  local needle="$1" desc="$2"; shift 3
+  $MINT "$@" >/dev/null 2>"$TMP/e"
+  if grep -qF "$needle" "$TMP/e"; then _no "$desc (stderr unexpectedly has: $needle)"; else _ok "$desc"; fi
+}
+# stderr_ndjson "desc" -- <cli args...>  (every non-blank STDERR line is valid JSON)
+stderr_ndjson() {
+  local desc="$1"; shift 2
+  $MINT "$@" >/dev/null 2>"$TMP/e"
+  if [ -s "$TMP/e" ] && "$PY" -c 'import sys,json;[json.loads(l) for l in sys.stdin if l.strip()]' <"$TMP/e" 2>/dev/null
+  then _ok "$desc"; else _no "$desc (stderr not NDJSON)"; fi
+}
+
 # _readiness <cbom file> -> "<readiness> <legacy-bool-lowercase> <kex-offered...>"
 _readiness() {
   $MINT poam generate --from cbom "$1" 2>/dev/null | "$PY" -c '
@@ -149,8 +168,11 @@ expect_exit 0 "bare 'help' word"                 -- help
 if $MINT help 2>/dev/null | grep -q "usage: mint-oscal"; then _ok "explicit 'help' -> STDOUT"
 else _no "explicit 'help' not on STDOUT"; fi
 expect_exit 0 "poam --help"                      -- poam --help
+expect_exit 0 "poam (model, no verb) -> help"    -- poam
 expect_exit 0 "poam generate --help"             -- poam generate --help
+expect_exit 0 "poam generate -h"                 -- poam generate -h
 stdout_has "EXIT CODES:" "generate --help has EXIT CODES section" -- poam generate --help
+stdout_has "70" "generate --help documents exit 70" -- poam generate --help
 stdout_has "(planned)" "root help labels stub models planned" -- --help
 
 echo "-- happy paths --"
@@ -163,8 +185,18 @@ stdout_has "provenance" "extension stamps provenance" -- poam generate --from cb
 expect_exit 0 "--validate (cbom)"                -- poam generate --from cbom "$EX/example.cbom.json" --validate
 expect_exit 0 "qureddy + ext + validate"         -- poam generate --from qureddy "$EX/example.scan.json" --extension breachsafe --validate
 expect_exit 0 "--to json explicit"               -- poam generate --from cbom "$EX/example.cbom.json" --to json
+expect_exit 0 "--extension repeated (idempotent)" -- poam generate --from cbom "$EX/example.cbom.json" --extension breachsafe --extension breachsafe
 # stdin (the flagship pipe)
 if cat "$EX/example.cbom.json" | $MINT poam generate --from cbom - >/dev/null 2>&1; then _ok "stdin '-' pipe (exit 0)"; else _no "stdin '-' pipe"; fi
+
+echo "-- logging flags (STDERR only; STDOUT stays pure OSCAL) --"
+CB=(poam generate --from cbom "$EX/example.cbom.json")
+stderr_lacks "minted_document" "default level is quiet on success (no INFO)" -- "${CB[@]}"
+stderr_has "minted_document" "-v surfaces the INFO run summary"      -- "${CB[@]}" -v
+expect_exit 0 "-vv (DEBUG) exits 0"                                  -- "${CB[@]}" -vv
+stdout_valid_json "-vv keeps STDOUT a pure OSCAL channel"            -- "${CB[@]}" -vv
+stderr_lacks "semantic_checks_passed" "-q suppresses the --validate WARNING" -- "${CB[@]}" --validate -q
+stderr_ndjson "--json-logs emits NDJSON on STDERR"                   -- "${CB[@]}" -v --json-logs
 
 echo "-- usage errors (exit 4, distinct from bad input) --"
 expect_exit 4 "invalid --from choice"            -- poam generate --from nope "$EX/example.cbom.json"
@@ -178,7 +210,9 @@ expect_exit 2 "invalid JSON"                     -- poam generate --from cbom "$
 expect_exit 2 "malformed CBOM (bomFormat)"       -- poam generate --from cbom "$TMP/bad.cbom.json"
 expect_exit 2 "malformed qureddy (no target)"    -- poam generate --from qureddy "$TMP/bad.scan.json"
 expect_exit 3 "--to xml without oscal-cli"       -- poam generate --from cbom "$EX/example.cbom.json" --to xml
+expect_exit 3 "--to yaml without oscal-cli"      -- poam generate --from cbom "$EX/example.cbom.json" --to yaml
 expect_exit 3 "stub model 'ar' -> not-implemented" -- ar generate --from cbom "$EX/example.cbom.json"
+expect_exit 3 "stub model 'component-definition'" -- component-definition generate --from cbom "$EX/example.cbom.json"
 
 echo "-- honest-failure regression guards --"
 readiness_is classically_weak true  "#67 legacy TLS 'TLSv1.0' string caps at classically_weak" "$TMP/tlsv10.cbom.json"
