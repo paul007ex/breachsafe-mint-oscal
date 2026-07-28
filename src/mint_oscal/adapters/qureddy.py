@@ -15,26 +15,64 @@ from mint_oscal.controls.nist import controls_for, risk_statement
 from mint_oscal.ir import Evidence, Finding, Subject
 
 
+class MalformedScanError(ValueError):
+    """The input is not a well-shaped ``qureddy.scan.v1`` document.
+
+    A domain error (not ``SystemExit``): the caller decides how to surface it. Mirrors
+    :class:`mint_oscal.adapters.cbom.MalformedCbomError` so a shapeless scan fails loudly
+    with a clear message instead of leaking a bare ``KeyError``/``TypeError``.
+    """
+
+
+def _require(container: dict[str, Any], key: str, where: str) -> Any:  # noqa: ANN401
+    """Return ``container[key]`` or raise a typed error naming the missing field."""
+    if key not in container:
+        raise MalformedScanError(f"malformed qureddy.scan.v1: missing {where!r}")
+    return container[key]
+
+
 def from_scan_v1(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
-    """Convert one ``qureddy.scan.v1`` document into IR findings and their subject."""
-    target = document["target"]
+    """Convert one ``qureddy.scan.v1`` document into IR findings and their subject.
+
+    Raises:
+        MalformedScanError: if ``document`` is not a well-shaped scan envelope.
+    """
+    # qureddy JSON is untrusted input, so assert the envelope shape ourselves: a shapeless
+    # dict (or a list/scalar) must fail with one typed domain error, never a bare
+    # KeyError/TypeError that would leak through the CLI boundary as a traceback.
+    if not isinstance(document, dict):
+        raise MalformedScanError(
+            f"malformed qureddy.scan.v1: expected a JSON object, got {type(document).__name__}"
+        )
+    target = _require(document, "target", "target")
+    if not isinstance(target, dict):
+        raise MalformedScanError("malformed qureddy.scan.v1: 'target' must be an object")
     subject = Subject(
-        id=target["locator"],
+        id=_require(target, "locator", "target.locator"),
         kind="inventory-item",
-        description=f"{target.get('scheme', 'tls')} endpoint {target['host']}:{target['port']}",
+        description=(
+            f"{target.get('scheme', 'tls')} endpoint "
+            f"{_require(target, 'host', 'target.host')}:{_require(target, 'port', 'target.port')}"
+        ),
     )
-    collected = document["scan"]["completed_at"]
+    scan = _require(document, "scan", "scan")
+    if not isinstance(scan, dict):
+        raise MalformedScanError("malformed qureddy.scan.v1: 'scan' must be an object")
+    collected = _require(scan, "completed_at", "scan.completed_at")
     evidence_by_id = {item["id"]: item for item in document.get("evidence", [])}
 
     findings: list[Finding] = []
     for finding in document.get("findings", []):
+        if not isinstance(finding, dict):
+            raise MalformedScanError("malformed qureddy.scan.v1: each finding must be an object")
         readiness = finding.get("readiness", "")
+        title = _require(finding, "title", "findings[].title")
         findings.append(
             Finding(
-                id=finding["id"],
-                title=finding["title"],
-                description=finding.get("description", finding["title"]),
-                severity=finding["severity"],
+                id=_require(finding, "id", "findings[].id"),
+                title=title,
+                description=finding.get("description", title),
+                severity=_require(finding, "severity", "findings[].severity"),
                 status="open",
                 subject=subject,
                 observed_at=collected,

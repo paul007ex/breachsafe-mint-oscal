@@ -23,12 +23,16 @@ from typing import Any, cast
 
 import yaml
 from cyclonedx.model.bom import Bom
+from cyclonedx.schema import SchemaVersion
 
 from mint_oscal.controls.nist import controls_for, risk_statement
 from mint_oscal.ir import Finding, Subject
 
 _NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "https://breachsafe.ai/ns/oscal/cbom")
 _DATA_PACKAGE = "mint_oscal.adapters.cbom_data"
+# CycloneDX spec versions the parser understands ("1.0".."1.7"); an out-of-range
+# specVersion is rejected up front rather than silently mis-parsed.
+_SUPPORTED_SPEC_VERSIONS = frozenset(v.to_version() for v in SchemaVersion)
 _KEX_PRIMITIVES = frozenset({"key-agree", "kem"})
 _QUANTIFIERS = frozenset({"all", "some", "none"})
 
@@ -235,6 +239,12 @@ def from_cbom(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
     ):
         raise MalformedCbomError(
             "not a CycloneDX BOM (expected bomFormat=CycloneDX and specVersion)"
+        )
+    spec_version = document["specVersion"]
+    if spec_version not in _SUPPORTED_SPEC_VERSIONS:
+        supported = ", ".join(sorted(_SUPPORTED_SPEC_VERSIONS))
+        raise MalformedCbomError(
+            f"unsupported CycloneDX specVersion {spec_version}; supported: {supported}"
         )
     try:
         bom = Bom.from_json(document)  # type: ignore[attr-defined]  # shape asserted above
