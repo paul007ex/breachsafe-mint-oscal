@@ -86,10 +86,21 @@ def _find(obj: object, key: str) -> list[Any]:
 
 def _poam(document: dict[str, Any]) -> dict[str, Any]:
     """Return the POA&M root, or raise if the document is not a POA&M."""
-    body = document.get("plan-of-action-and-milestones")
+    body = document.get("plan-of-action-and-milestones") if isinstance(document, dict) else None
     if not isinstance(body, dict):
         raise KeyError("missing plan-of-action-and-milestones root")
     return body
+
+
+def _as_list(value: object) -> list[Any]:
+    """Return ``value`` if it is a list, else ``[]`` -- so a malformed scalar is never iterated.
+
+    A field the schema declares as an array (observations, risks, poam-items, methods) may
+    arrive as a scalar in hand-malformed input; iterating that directly would raise a bare
+    ``TypeError``/``AttributeError`` and break the never-raises contract. Callers flag the
+    non-list container separately; this only makes the loop safe.
+    """
+    return value if isinstance(value, list) else []
 
 
 def _is_uuid(value: object) -> bool:
@@ -115,7 +126,7 @@ def unique_uuids(document: dict[str, Any]) -> list[str]:
 def observation_refs(document: dict[str, Any]) -> list[str]:
     """Every related-observation uuid resolves to a declared observation."""
     poam = _poam(document)
-    declared = {o.get("uuid") for o in poam.get("observations", [])}
+    declared = {o.get("uuid") for o in _as_list(poam.get("observations")) if isinstance(o, dict)}
     used = _find(poam.get("poam-items", []), "observation-uuid")
     return [f"unresolved observation-uuid: {u}" for u in used if u not in declared]
 
@@ -123,7 +134,7 @@ def observation_refs(document: dict[str, Any]) -> list[str]:
 def risk_refs(document: dict[str, Any]) -> list[str]:
     """Every related-risk uuid resolves to a declared risk."""
     poam = _poam(document)
-    declared = {r.get("uuid") for r in poam.get("risks", [])}
+    declared = {r.get("uuid") for r in _as_list(poam.get("risks")) if isinstance(r, dict)}
     used = _find(poam.get("poam-items", []), "risk-uuid")
     return [f"unresolved risk-uuid: {u}" for u in used if u not in declared]
 
@@ -131,21 +142,26 @@ def risk_refs(document: dict[str, Any]) -> list[str]:
 def subject_refs(document: dict[str, Any]) -> list[str]:
     """Every observation subject-uuid resolves to a declared inventory-item."""
     poam = _poam(document)
-    inventory = poam.get("local-definitions", {}).get("inventory-items", [])
-    declared = {i.get("uuid") for i in inventory}
+    ld = poam.get("local-definitions")
+    inventory = ld.get("inventory-items", []) if isinstance(ld, dict) else []
+    declared = {i.get("uuid") for i in _as_list(inventory) if isinstance(i, dict)}
     used = _find(poam.get("observations", []), "subject-uuid")
     return [f"unresolved subject-uuid: {u}" for u in used if u not in declared]
 
 
 def props_namespaced(document: dict[str, Any]) -> list[str]:
-    """Every custom prop carries an ns."""
-    return [
-        f"prop without ns: {prop.get('name')!r}"
-        for group in _find(document, "props")
-        if isinstance(group, list)
-        for prop in group
-        if isinstance(prop, dict) and _PROP_NS_KEY not in prop
-    ]
+    """Every props group is an array and every custom prop carries an ns."""
+    out: list[str] = []
+    for group in _find(document, "props"):
+        if not isinstance(group, list):
+            out.append(f"props must be an array, got {type(group).__name__}")
+            continue
+        out += [
+            f"prop without ns: {prop.get('name')!r}"
+            for prop in group
+            if isinstance(prop, dict) and _PROP_NS_KEY not in prop
+        ]
+    return out
 
 
 # --- A: OSCAL POA&M structural validators (1:1 with oscal_poam_schema.json) ---------------
@@ -165,11 +181,14 @@ def required_fields(document: dict[str, Any]) -> list[str]:
 
     need(p, ["uuid", "metadata", "poam-items"], "poam")
     need(p.get("metadata", {}), ["title", "last-modified", "version", "oscal-version"], "metadata")
-    for o in p.get("observations", []):
+    for key in ("observations", "risks", "poam-items"):
+        if key in p and not isinstance(p[key], list):
+            out.append(f"poam '{key}' must be an array, got {type(p[key]).__name__}")
+    for o in _as_list(p.get("observations")):
         need(o, ["uuid", "methods"], "observation")
-    for r in p.get("risks", []):
+    for r in _as_list(p.get("risks")):
         need(r, ["uuid", "title", "description", "statement", "status"], "risk")
-    for it in p.get("poam-items", []):
+    for it in _as_list(p.get("poam-items")):
         need(it, ["title", "description"], "poam-item")
     if "system-id" in p:
         need(p["system-id"], ["id"], "system-id")
@@ -200,7 +219,7 @@ def risk_status_enum(document: dict[str, Any]) -> list[str]:
     """Every risk.status is an OSCAL risk-status token."""
     return [
         f"invalid risk status: {r.get('status')!r}"
-        for r in _poam(document).get("risks", [])
+        for r in _as_list(_poam(document).get("risks"))
         if isinstance(r, dict) and r.get("status") not in _RISK_STATUS
     ]
 
@@ -208,16 +227,20 @@ def risk_status_enum(document: dict[str, Any]) -> list[str]:
 def observation_enums(document: dict[str, Any]) -> list[str]:
     """observation.methods and .types use OSCAL-allowed tokens."""
     out: list[str] = []
-    for o in _poam(document).get("observations", []):
+    for o in _as_list(_poam(document).get("observations")):
         if not isinstance(o, dict):
             continue
+        if not (isinstance(o.get("methods"), list) and o["methods"]):
+            out.append(f"observation methods must be a non-empty array: {o.get('methods')!r}")
         out += [
             f"invalid observation method: {m!r}"
-            for m in o.get("methods", [])
+            for m in _as_list(o.get("methods"))
             if m not in _OBS_METHODS
         ]
         out += [
-            f"invalid observation type: {t!r}" for t in o.get("types", []) if t not in _OBS_TYPES
+            f"invalid observation type: {t!r}"
+            for t in _as_list(o.get("types"))
+            if t not in _OBS_TYPES
         ]
     return out
 
