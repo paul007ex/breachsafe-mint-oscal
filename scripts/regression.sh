@@ -227,6 +227,31 @@ expect_exit 1 "validate empty poam-items -> exit 1 (minItems)" -- poam validate 
 expect_exit 2 "validate a non-POA&M doc -> exit 2 (input)" -- poam validate "$TMP/bad.cbom.json"
 expect_exit 2 "validate a missing file -> exit 2" -- poam validate "$TMP/does-not-exist.json"
 expect_exit 4 "validate with no document arg -> usage 4" -- poam validate
+# #74: an import-ssp POA&M whose observation subjects are type=component and whose related-risk
+# resolves in the imported SSP (not the local `risks`) must NOT false-red — mint cannot follow
+# `import-ssp`, so it must not assert those cross-refs are dangling (matches trestle/oscal-cli).
+"$PY" -c '
+import json, sys
+d = json.load(open(sys.argv[1])); p = d["plan-of-action-and-milestones"]
+p["import-ssp"] = {"href": "ssp.json"}
+for o in p.get("observations", []):
+    for s in o.get("subjects", []): s["type"] = "component"
+p["poam-items"][0].setdefault("related-risks", []).append({"risk-uuid": "401c15c9-ad6b-4d4a-a591-7d53a3abb3b6"})
+json.dump(d, open(sys.argv[2], "w"))' "$TMP/good.poam.json" "$TMP/import-ssp.poam.json"
+expect_exit 0 "#74 import-ssp: component subject + external risk-uuid not false-red" -- poam validate "$TMP/import-ssp.poam.json"
+# #74 controls: WITHOUT import-ssp the same dangling refs ARE still caught (self-contained POA&M).
+"$PY" -c '
+import json, sys
+d = json.load(open(sys.argv[1])); p = d["plan-of-action-and-milestones"]
+p["poam-items"][0].setdefault("related-risks", []).append({"risk-uuid": "401c15c9-ad6b-4d4a-a591-7d53a3abb3b6"})
+json.dump(d, open(sys.argv[2], "w"))' "$TMP/good.poam.json" "$TMP/dangling-risk.poam.json"
+expect_exit 1 "#74 control: self-contained dangling risk-uuid still caught -> exit 1" -- poam validate "$TMP/dangling-risk.poam.json"
+"$PY" -c '
+import json, sys
+d = json.load(open(sys.argv[1])); p = d["plan-of-action-and-milestones"]
+p["observations"][0]["subjects"] = [{"type": "inventory-item", "subject-uuid": "deadbeef-dead-4ead-8ead-deaddeaddead"}]
+json.dump(d, open(sys.argv[2], "w"))' "$TMP/good.poam.json" "$TMP/dangling-subject.poam.json"
+expect_exit 1 "#74 control: self-contained dangling inventory-item subject still caught -> exit 1" -- poam validate "$TMP/dangling-subject.poam.json"
 # the pipe: generate | validate -
 if $MINT poam generate --from cbom "$EX/example.cbom.json" 2>/dev/null | $MINT poam validate - >/dev/null 2>&1
 then _ok "generate | validate - (pipe, exit 0)"; else _no "generate | validate - pipe"; fi
