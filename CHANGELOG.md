@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **breachsafe enricher never-raises contract** (#76): `_producer_props` iterated
+  `properties`/`components` with `... or []`, so a truthy non-list (e.g. `components: 5`) raised
+  `TypeError` and a non-dict document raised `AttributeError` -- reachable via
+  `--from qureddy --extension breachsafe` (a stray CBOM-shaped field rides through the qureddy
+  adapter to the enricher), surfacing as exit 70 instead of being ignored. All three containers
+  are now type-guarded, so a shapeless field is ignored per the documented contract.
+
 ## [0.1.13] - 2026-07-28
 
 ### Added

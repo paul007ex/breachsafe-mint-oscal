@@ -241,6 +241,9 @@ stdout_has "stdout_sha256"      "evidence sha256 preserved in relevant-evidence"
 stdout_has "conflict:producer=quantum_ready,derived=transitional_hybrid" "conflict recorded, derived kept" -- poam generate --from cbom "$TMP/conflict.qureddy.cbom.json" --extension breachsafe
 # neutral path: no --extension -> no provenance, no evidence, no qureddy leak
 if "$MINT" "${QB[@]}" 2>/dev/null | grep -qF "provenance"; then _no "neutral --from cbom leaked provenance"; else _ok "neutral --from cbom stays vendor-neutral (no provenance/evidence)"; fi
+# #76: a stray non-CBOM field in a qureddy scan must not crash the enricher (never-raises)
+"$PY" -c 'import json,sys;d=json.load(open(sys.argv[1]));d["components"]=5;json.dump(d,open(sys.argv[2],"w"))' "$EX/example.scan.json" "$TMP/stray.scan.json"
+expect_exit 0 "enricher ignores a stray non-CBOM field (never-raises, #76)" -- poam generate --from qureddy "$TMP/stray.scan.json" --extension breachsafe
 
 echo "-- usage errors (exit 4, distinct from bad input) --"
 expect_exit 4 "invalid --from choice"            -- poam generate --from nope "$EX/example.cbom.json"

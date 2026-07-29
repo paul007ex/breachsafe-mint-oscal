@@ -40,19 +40,23 @@ _QUREDDY_PREFIX = "qureddy:"
 _EVIDENCE_INFIX = "evidence."
 
 
-def _producer_props(document: dict[str, Any]) -> dict[str, str]:
+def _producer_props(document: object) -> dict[str, str]:
     """Collect every string producer prop (``breachsafe:v1:*`` and ``qureddy:*``), keyed by name.
 
     Scans ``properties[]`` on ``metadata`` (where QuReddy places scan facts), on
-    ``metadata.component`` and every component (where ``breachsafe:v1`` facts ride). Anything
-    shapeless is skipped -- a facts extension never fails the pipeline over a stray property.
+    ``metadata.component`` and every component (where ``breachsafe:v1`` facts ride). Every
+    container is type-guarded: a non-dict document, a truthy non-list ``properties``/
+    ``components`` (e.g. ``5``), or a shapeless prop is *ignored*, honoring the enricher's
+    "malformed -> treated as absent, never raises" contract (#76).
     """
     out: dict[str, str] = {}
+    if not isinstance(document, dict):
+        return out
 
     def scan(holder: object) -> None:
-        if not isinstance(holder, dict):
+        if not isinstance(holder, dict) or not isinstance(holder.get("properties"), list):
             return
-        for prop in holder.get("properties") or []:
+        for prop in holder["properties"]:
             if not isinstance(prop, dict):
                 continue
             name, value = prop.get("name"), prop.get("value")
@@ -67,8 +71,10 @@ def _producer_props(document: dict[str, Any]) -> dict[str, str]:
     if isinstance(metadata, dict):
         scan(metadata)
         scan(metadata.get("component"))
-    for component in document.get("components") or []:
-        scan(component)
+    components = document.get("components")
+    if isinstance(components, list):
+        for component in components:
+            scan(component)
     return out
 
 
