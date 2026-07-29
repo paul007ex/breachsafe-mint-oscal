@@ -1,23 +1,25 @@
 # SPDX-FileCopyrightText: 2026 BreachSAFE
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-"""Extension: the BreachSAFE ``breachsafe:v1`` cross-check enricher (ADR-0008).
+"""Extension: the BreachSAFE producer cross-check + evidence enricher (ADR-0008).
 
-``breachsafe:v1`` is a facts-only CycloneDX extension: a producer declares small,
-native-first, string-valued facts as ``properties[]`` (``breachsafe:v1:readiness``,
-``breachsafe:v1:evidence-sha256``) on ``metadata.component`` or on any component. This
-enricher runs *after* a source adapter has already derived the neutral IR and reconciles
-the producer's *declared aggregate readiness* against the verdict mint derived from the
-inventory itself.
+Runs *after* a source adapter has derived the neutral IR and reconciles the producer's
+declared facts against what mint derived from the crypto inventory itself. Two facts:
 
-Trust is scoped honestly (ADR-0008). Native atomic facts (e.g. ``nistQuantumSecurityLevel``
-on an algorithm) are trusted-by-design and consumed by ``adapters/cbom.py`` directly; this
-enricher does *not* re-adjudicate them. Only the *aggregate* readiness verdict is compared,
-and mint's own derived verdict always wins on conflict — the producer claim is recorded, not
-obeyed. The outcome is stamped onto ``finding.posture['provenance']``:
+- **Aggregate readiness** -> stamped onto ``finding.posture['provenance']`` as
+  ``derived`` (no usable producer claim), ``producer-confirmed`` (producer's declared
+  readiness matches the derived verdict), or ``conflict:producer=X,derived=Y`` (they
+  differ; ``Y`` -- the derived verdict -- is kept, honest-failure). mint's own verdict
+  always wins on conflict; the producer claim is *recorded*, not obeyed.
+- **Evidence chain** -> the producer's per-probe evidence (sha256 hashes, probe results,
+  timestamps) becomes OSCAL ``relevant-evidence`` on the observation, so the minted POA&M
+  carries the chain of custody, not just the verdict.
 
-- ``derived`` — no usable producer claim; the verdict is mint's own.
-- ``producer-confirmed`` — the producer's declared readiness matches the derived verdict.
-- ``conflict:producer=X,derived=Y`` — they differ; ``Y`` (the derived verdict) is kept.
+Producer facts are read from the standard ``breachsafe:v1:*`` extension namespace when
+present. As a **for-now bridge**, the native ``qureddy:*`` namespace is also read, because
+QuReddy does not yet emit ``breachsafe:v1:*`` (tracked upstream; long-term QuReddy emits the
+standard namespace and this bridge is removed). ``breachsafe:v1:*`` takes precedence. This
+qureddy-awareness lives only in this *opt-in* enricher; the neutral ``--from cbom`` path
+stays vendor-neutral.
 
 The enricher is pure: it never logs, prints, or raises. A malformed or unknown declared
 value is ignored (treated as absent), not an error.
@@ -28,21 +30,24 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any
 
-from mint_oscal.ir import Finding, Subject
+from mint_oscal.ir import Evidence, Finding, Subject
 from mint_oscal.policy import READINESS_VERDICTS
 
 _EXT_PREFIX = "breachsafe:v1:"
+# For-now bridge: QuReddy still emits its native namespace, not breachsafe:v1. Read it so the
+# cross-check + evidence chain work today; remove when QuReddy emits breachsafe:v1 (upstream).
+_QUREDDY_PREFIX = "qureddy:"
+_EVIDENCE_INFIX = "evidence."
 
 
-def _observations(document: dict[str, Any]) -> dict[str, str]:
-    """Collect ``breachsafe:v1:*`` facts from the raw CBOM document.
+def _producer_props(document: dict[str, Any]) -> dict[str, str]:
+    """Collect every string producer prop (``breachsafe:v1:*`` and ``qureddy:*``), keyed by name.
 
-    Reads ``properties[]`` on ``metadata.component`` and on every component, keyed by the
-    suffix after ``breachsafe:v1:``. Later occurrences win (components override metadata),
-    which is fine for the single-subject flow. Anything shapeless is skipped silently — a
-    facts extension never fails the pipeline over a stray property.
+    Scans ``properties[]`` on ``metadata`` (where QuReddy places scan facts), on
+    ``metadata.component`` and every component (where ``breachsafe:v1`` facts ride). Anything
+    shapeless is skipped -- a facts extension never fails the pipeline over a stray property.
     """
-    observations: dict[str, str] = {}
+    out: dict[str, str] = {}
 
     def scan(holder: object) -> None:
         if not isinstance(holder, dict):
@@ -51,31 +56,64 @@ def _observations(document: dict[str, Any]) -> dict[str, str]:
             if not isinstance(prop, dict):
                 continue
             name, value = prop.get("name"), prop.get("value")
-            if isinstance(name, str) and name.startswith(_EXT_PREFIX) and isinstance(value, str):
-                observations[name[len(_EXT_PREFIX) :]] = value
+            if (
+                isinstance(name, str)
+                and isinstance(value, str)
+                and (name.startswith(_EXT_PREFIX) or name.startswith(_QUREDDY_PREFIX))
+            ):
+                out[name] = value
 
     metadata = document.get("metadata")
     if isinstance(metadata, dict):
+        scan(metadata)
         scan(metadata.get("component"))
     for component in document.get("components") or []:
         scan(component)
-    return observations
+    return out
 
 
-def _crosscheck(derived: str, observations: dict[str, str]) -> str:
-    """Return the provenance verdict for a derived readiness against producer observations.
+def _declared_readiness(props: dict[str, str]) -> str | None:
+    """The producer's declared aggregate readiness (breachsafe:v1 preferred, qureddy fallback).
 
-    A declared readiness outside the recognized vocabulary is ignored (treated as absent).
-    On conflict the derived verdict is authoritative; the producer's claim is only recorded.
+    Returns it only if it is a recognized readiness verdict; an unknown/out-of-vocab value is
+    treated as absent (``None``) so a garbage producer claim can never taint the cross-check.
     """
-    declared = observations.get("readiness")
-    if declared not in READINESS_VERDICTS:
-        declared = None
-    # ``derived`` is mint's own verdict and is always a recognized token in practice; guard it
-    # too so the delimited ``conflict:producer=X,derived=Y`` provenance can never be corrupted
-    # by an unexpected value bearing a ``,`` or ``=`` (keeps the string round-trip-parseable).
-    # A no-op for every real finding; only a would-be junk derived verdict falls back to
-    # ``derived`` rather than emitting a malformed conflict token (#63).
+    declared = props.get(f"{_EXT_PREFIX}readiness") or props.get(f"{_QUREDDY_PREFIX}scan.readiness")
+    return declared if declared in READINESS_VERDICTS else None
+
+
+def _evidence_records(props: dict[str, str]) -> tuple[Evidence, ...]:
+    """Build IR ``Evidence`` (-> OSCAL relevant-evidence) from producer evidence facts.
+
+    QuReddy emits ``qureddy:evidence.<NN>.<key>`` grouped by index; each group becomes one
+    ``Evidence`` whose props are its facts (sha256 hashes, probe results, ...). A single
+    ``breachsafe:v1:evidence-sha256`` fact, if present, is carried as one more record.
+    Deterministic: groups and their keys are sorted.
+    """
+    groups: dict[str, dict[str, str]] = {}
+    for name, value in props.items():
+        if name.startswith(f"{_QUREDDY_PREFIX}{_EVIDENCE_INFIX}"):
+            index, _, key = name[len(f"{_QUREDDY_PREFIX}{_EVIDENCE_INFIX}") :].partition(".")
+            if key:
+                groups.setdefault(index, {})[key] = value
+    records: list[Evidence] = []
+    for index in sorted(groups):
+        facts = dict(sorted(groups[index].items()))
+        description = facts.get("type") or facts.get("source") or f"probe evidence {index}"
+        records.append(Evidence(description=description, props=facts))
+    sha = props.get(f"{_EXT_PREFIX}evidence-sha256")
+    if sha:
+        records.append(Evidence(description="producer evidence", props={"sha256": sha}))
+    return tuple(records)
+
+
+def _crosscheck(derived: str, declared: str | None) -> str:
+    """Return the provenance verdict for a derived readiness against the producer's declared one.
+
+    On conflict the derived verdict is authoritative; the producer's claim is only recorded.
+    ``derived`` is guarded to a recognized verdict so the delimited ``conflict:producer=X,
+    derived=Y`` string can never be corrupted by an unexpected value bearing a ``,``/``=`` (#63).
+    """
     if derived not in READINESS_VERDICTS:
         return "derived"
     if declared and declared != derived:
@@ -91,23 +129,23 @@ def enrich(
     *,
     document: dict[str, Any],
 ) -> tuple[list[Finding], Subject]:
-    """Enrich IR findings with a ``breachsafe:v1`` provenance cross-check.
+    """Enrich IR findings with the producer provenance cross-check and evidence chain.
 
-    Reads producer-declared facts from the raw ``document`` and stamps each finding's
-    ``posture`` with a ``provenance`` verdict (and ``evidence-sha256`` when the producer
-    supplies one). Pure: returns new ``Finding`` objects via :func:`dataclasses.replace`
-    and never mutates its inputs, logs, or raises.
+    Stamps each finding's ``posture`` with a ``provenance`` verdict and attaches the producer's
+    evidence records (-> OSCAL relevant-evidence). Pure: returns new ``Finding`` objects via
+    :func:`dataclasses.replace` and never mutates its inputs, logs, or raises.
     """
-    observations = _observations(document)
-    evidence = observations.get("evidence-sha256")
+    props = _producer_props(document)
+    declared = _declared_readiness(props)
+    evidence = _evidence_records(props)
 
     enriched: list[Finding] = []
     for finding in findings:
         derived = finding.posture.get("readiness", "unknown")
-        posture = {**finding.posture, "provenance": _crosscheck(derived, observations)}
-        if evidence:
-            posture["evidence-sha256"] = evidence
-        enriched.append(replace(finding, posture=posture))
+        posture = {**finding.posture, "provenance": _crosscheck(derived, declared)}
+        enriched.append(
+            replace(finding, posture=posture, evidence=(*finding.evidence, *evidence))
+        )
     return enriched, subject
 
 

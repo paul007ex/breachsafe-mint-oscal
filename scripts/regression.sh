@@ -142,6 +142,23 @@ cat >"$TMP/empty.scan.json" <<'JSON'
  "scan":{"completed_at":"2026-01-01T00:00:00Z"},"findings":[],"evidence":[]}
 JSON
 
+# A qureddy-flavoured CBOM (native qureddy: namespace): a hybrid inventory + the producer's
+# declared verdict + one evidence record -- to exercise the --extension breachsafe bridge.
+cat >"$TMP/hybrid.qureddy.cbom.json" <<'JSON'
+{"bomFormat":"CycloneDX","specVersion":"1.6","version":1,
+ "metadata":{"timestamp":"2026-01-01T00:00:00Z",
+   "component":{"type":"platform","name":"example.com:443"},
+   "properties":[
+     {"name":"qureddy:scan.readiness","value":"transitional_hybrid"},
+     {"name":"qureddy:evidence.00.type","value":"tls.negotiation"},
+     {"name":"qureddy:evidence.00.stdout_sha256","value":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}]},
+ "components":[
+   {"type":"cryptographic-asset","name":"X25519MLKEM768","cryptoProperties":{"assetType":"algorithm","algorithmProperties":{"primitive":"kem","nistQuantumSecurityLevel":3}}},
+   {"type":"cryptographic-asset","name":"X25519","cryptoProperties":{"assetType":"algorithm","algorithmProperties":{"primitive":"key-agree","nistQuantumSecurityLevel":0}}}]}
+JSON
+# same, but the producer over-claims a favorable quantum_ready (honest-failure test)
+"$PY" -c 'import json,sys;d=json.load(open(sys.argv[1]));[p.__setitem__("value","quantum_ready") for p in d["metadata"]["properties"] if p["name"]=="qureddy:scan.readiness"];json.dump(d,open(sys.argv[2],"w"))' "$TMP/hybrid.qureddy.cbom.json" "$TMP/conflict.qureddy.cbom.json"
+
 echo '{"bomFormat":"NotCycloneDX","specVersion":"1.6"}' >"$TMP/bad.cbom.json"   # wrong bomFormat
 echo '{"schema":"qureddy.scan.v1","scan":{}}' >"$TMP/bad.scan.json"            # missing target
 printf '{ this is not json ' >"$TMP/notjson.json"
@@ -214,6 +231,16 @@ expect_exit 4 "validate with no document arg -> usage 4" -- poam validate
 if $MINT poam generate --from cbom "$EX/example.cbom.json" 2>/dev/null | $MINT poam validate - >/dev/null 2>&1
 then _ok "generate | validate - (pipe, exit 0)"; else _no "generate | validate - pipe"; fi
 expect_exit 0 "poam validate --help"             -- poam validate --help
+
+echo "-- producer cross-check + evidence chain (--extension breachsafe on a qureddy CBOM) --"
+QB=(poam generate --from cbom "$TMP/hybrid.qureddy.cbom.json")
+stdout_has "producer-confirmed" "producer verdict matches derived -> producer-confirmed" -- "${QB[@]}" --extension breachsafe
+stdout_has "relevant-evidence"  "evidence chain carried into the POA&M"                   -- "${QB[@]}" --extension breachsafe
+stdout_has "stdout_sha256"      "evidence sha256 preserved in relevant-evidence"          -- "${QB[@]}" --extension breachsafe
+# honest-failure: producer over-claims quantum_ready, mint derived transitional_hybrid
+stdout_has "conflict:producer=quantum_ready,derived=transitional_hybrid" "conflict recorded, derived kept" -- poam generate --from cbom "$TMP/conflict.qureddy.cbom.json" --extension breachsafe
+# neutral path: no --extension -> no provenance, no evidence, no qureddy leak
+if "$MINT" "${QB[@]}" 2>/dev/null | grep -qF "provenance"; then _no "neutral --from cbom leaked provenance"; else _ok "neutral --from cbom stays vendor-neutral (no provenance/evidence)"; fi
 
 echo "-- usage errors (exit 4, distinct from bad input) --"
 expect_exit 4 "invalid --from choice"            -- poam generate --from nope "$EX/example.cbom.json"

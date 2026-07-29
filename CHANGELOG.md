@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.13] - 2026-07-28
+
+### Added
+
+- **`--extension breachsafe` now carries the producer cross-check + evidence chain** (#75):
+  a live end-to-end demo (qureddy scan -> CBOM -> POA&M) showed the minted POA&M asserted a
+  verdict but dropped its proof. The opt-in `breachsafe` extension now (a) records
+  `provenance=producer-confirmed` / `conflict:producer=X,derived=Y` by reading the producer's
+  declared readiness from `breachsafe:v1:readiness` (preferred) or the native `qureddy:scan.readiness`
+  as a for-now bridge (breachsafe-qureddy-v2#14 tracks qureddy emitting the standard namespace);
+  and (b) maps the producer evidence (`qureddy:evidence.<NN>.*` sha256 hashes / probe facts) into
+  OSCAL `relevant-evidence`, so the POA&M carries the chain of custody. Honest-failure preserved
+  (a producer over-claim never overrides the derived verdict). The neutral `--from cbom` path is
+  unchanged and vendor-neutral. oscal-cli reports the evidence-bearing POA&M valid.
+
 ## [0.1.12] - 2026-07-28
 
 ### Fixed
@@ -368,7 +383,8 @@ by NIST `oscal-cli` and IBM `trestle`.
   infrastructure, and by independent review; a CI test suite is the immediate follow-on.
 - `ar`/`component-definition` emitters and the `consume` side are stubs.
 
-[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.12...HEAD
+[Unreleased]: https://github.com/paul007ex/breachsafe-mint-oscal/compare/v0.1.13...HEAD
+[0.1.13]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.13
 [0.1.12]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.12
 [0.1.11]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.11
 [0.1.10]: https://github.com/paul007ex/breachsafe-mint-oscal/releases/tag/v0.1.10
