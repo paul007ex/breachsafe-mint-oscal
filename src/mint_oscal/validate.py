@@ -182,6 +182,21 @@ def _unresolved(used: list[Any], declared: set[str], label: str) -> list[str]:
     ]
 
 
+def _imports_ssp(poam: dict[str, Any]) -> bool:
+    """True if the POA&M imports an external SSP (``import-ssp``), which mint cannot resolve.
+
+    An ``import-ssp`` pulls in a System Security Plan (and, transitively, its assessment
+    context) that lives *outside* the POA&M document. Cross-references such as a risk-uuid or a
+    subject-uuid may legitimately resolve into that imported context rather than into the
+    POA&M's own ``risks``/``local-definitions`` -- and mint cannot follow the ``href`` to check.
+    Per the honest-failure principle (#74), mint must therefore NOT assert those refs are
+    *dangling* when an SSP is imported: doing so false-reds the canonical NIST POA&M, which the
+    trestle/oscal-cli oracles accept. A self-contained POA&M (no ``import-ssp``) is still fully
+    cross-checked, so a genuinely dangling ref is caught.
+    """
+    return isinstance(poam.get("import-ssp"), dict)
+
+
 def observation_refs(document: dict[str, Any]) -> list[str]:
     """Every related-observation uuid resolves to a declared observation."""
     poam = _poam(document)
@@ -191,20 +206,45 @@ def observation_refs(document: dict[str, Any]) -> list[str]:
 
 
 def risk_refs(document: dict[str, Any]) -> list[str]:
-    """Every related-risk uuid resolves to a declared risk."""
+    """Every related-risk uuid resolves to a declared risk (self-contained POA&M only).
+
+    A poam-item's ``related-risk`` may reference a risk declared in an imported SSP's assessment
+    context, not the POA&M's own ``risks`` list; mint cannot follow ``import-ssp``, so when one
+    is present it does not assert the ref is dangling (#74). Without ``import-ssp`` the risk
+    universe is fully local, so a genuinely dangling risk-uuid is still caught.
+    """
     poam = _poam(document)
+    if _imports_ssp(poam):
+        return []
     declared = _string_ids(_as_list(poam.get("risks")), "uuid")
     used = _find(poam.get("poam-items", []), "risk-uuid")
     return _unresolved(used, declared, "risk-uuid")
 
 
 def subject_refs(document: dict[str, Any]) -> list[str]:
-    """Every observation subject-uuid resolves to a declared inventory-item."""
+    """Every locally-resolvable observation subject resolves to a declared inventory-item.
+
+    A subject resolves *locally* only when (a) the POA&M is self-contained (no ``import-ssp``,
+    which mint cannot follow) AND (b) its ``type`` is ``inventory-item`` (the sole subject kind
+    declared in ``local-definitions.inventory-items``). Subjects of any other type -- component,
+    party, location, user -- are declared in the imported SSP or a component-definition mint
+    cannot see, and when an SSP is imported even an inventory-item subject may live there. In
+    both cases mint must not assert the ref is dangling, or it false-reds the canonical NIST
+    POA&M (#74). A dangling inventory-item subject in a self-contained POA&M is still caught.
+    """
     poam = _poam(document)
+    if _imports_ssp(poam):
+        return []
     ld = poam.get("local-definitions")
     inventory = ld.get("inventory-items", []) if isinstance(ld, dict) else []
     declared = _string_ids(_as_list(inventory), "uuid")
-    used = _find(poam.get("observations", []), "subject-uuid")
+    used = [
+        subject.get("subject-uuid")
+        for observation in _as_list(poam.get("observations"))
+        if isinstance(observation, dict)
+        for subject in _as_list(observation.get("subjects"))
+        if isinstance(subject, dict) and subject.get("type") == "inventory-item"
+    ]
     return _unresolved(used, declared, "subject-uuid")
 
 
