@@ -39,6 +39,12 @@ _SUPPORTED_SPEC_VERSIONS = frozenset(v.to_version() for v in SchemaVersion)
 # key-agree (DH/ECDH) and kem (ML-KEM), plus pke: RSA-encrypted **key transport** is classical
 # key establishment and must be scored, not silently dropped as a non-KEX primitive (#68).
 _KEX_PRIMITIVES = frozenset({"key-agree", "kem", "pke"})
+# CycloneDX ``primitive`` values that assert *nothing* -- the producer is telling us it
+# could not determine the primitive. An algorithm carrying one of these that we also fail
+# to recognise in the registry cannot be ruled out as key establishment, so it must be
+# surfaced as ``unclassified`` rather than silently dropped from the verdict: dropping it
+# would let a hidden (possibly classical) KEX read as the most-favorable posture (#78).
+_AMBIGUOUS_PRIMITIVES = frozenset({"unknown", "other"})
 _QUANTIFIERS = frozenset({"all", "some", "none"})
 # Transport protocols that carry a numeric TLS-style version; SSL is handled by name.
 _TLS_LIKE = frozenset({"tls", "dtls"})
@@ -217,6 +223,34 @@ def _inventory(
     return algos, sigs, sorted(weak_protocols)
 
 
+def _classify_algorithm(
+    entry: dict[str, Any] | None, primitive: str | None, declared_level: int | None
+) -> tuple[bool, bool | None, int]:
+    """Classify one inventory algorithm into ``(is_kex, quantum_safe_or_None, nistLevel)``.
+
+    Producer declaration wins with the registry as fallback, with one honest-failure
+    exception: a producer's ``nistQuantumSecurityLevel`` may never *upgrade* a
+    registry-known classical algorithm to quantum-safe. NIST security *categories* are
+    defined as classical-equivalent strengths (cat 1 ~ AES-128, cat 3 ~ AES-192), so a
+    producer may legitimately stamp e.g. category 1 on X25519 to mean "128-bit classical
+    strength", not "quantum safe"; trusting it would let a classical KEX (even inside a
+    hybrid) read as the most-favorable posture (#79). ``safe`` is ``None`` when quantum
+    safety cannot be established at all.
+    """
+    is_kex = primitive in _KEX_PRIMITIVES or (entry or {}).get("kind") == "kex"
+    if declared_level is not None:
+        safe: bool | None = declared_level > 0
+        level = declared_level
+        if entry is not None and entry.get("quantum_safe") is False:
+            safe, level = False, 0  # known-classical wins over a producer's positive level
+    elif entry is not None:
+        safe = bool(entry.get("quantum_safe"))
+        level = int(entry.get("nistLevel", 0))
+    else:
+        safe, level = None, 0
+    return is_kex, safe, level
+
+
 def _readiness(
     algos: dict[str, tuple[str | None, int | None]], weak_protocols: list[str]
 ) -> _Readiness:
@@ -239,16 +273,7 @@ def _readiness(
     levels: list[int] = []
     for name, (declared_primitive, declared_level) in algos.items():
         entry = registry.get(name.upper())
-        is_kex = declared_primitive in _KEX_PRIMITIVES or (entry or {}).get("kind") == "kex"
-        if declared_level is not None:
-            safe: bool | None = declared_level > 0
-            level = declared_level
-        elif entry is not None:
-            safe = bool(entry.get("quantum_safe"))
-            level = int(entry.get("nistLevel", 0))
-        else:
-            safe = None
-            level = 0
+        is_kex, safe, level = _classify_algorithm(entry, declared_primitive, declared_level)
         if is_kex:
             kex_names.append(name)
             if safe is None:
@@ -259,8 +284,15 @@ def _readiness(
                 kex_safe.append(safe)
                 if safe and level:
                     levels.append(level)
-        elif entry is None and declared_primitive is None and declared_level is None:
-            unclassified.append(name)  # a non-KEX algorithm we do not recognize at all
+        elif (
+            entry is None
+            and declared_level is None
+            and (declared_primitive is None or declared_primitive in _AMBIGUOUS_PRIMITIVES)
+        ):
+            # A non-KEX algorithm we do not recognise at all, or one the producer itself
+            # flags as an indeterminate primitive (unknown/other): surface it as
+            # unclassified so it can never be silently dropped into a favorable verdict.
+            unclassified.append(name)
 
     readiness = "unknown"
     if kex_safe:  # only judge over the KEX we could actually classify

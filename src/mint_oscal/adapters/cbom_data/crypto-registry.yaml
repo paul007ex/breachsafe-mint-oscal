@@ -10,6 +10,11 @@ X25519KYBER768:         { quantum_safe: true,  nistLevel: 3, kind: kex }
 SECP256R1MLKEM768:      { quantum_safe: true,  nistLevel: 3, kind: kex }
 MLKEM768:               { quantum_safe: true,  nistLevel: 3, kind: kex }
 MLKEM1024:              { quantum_safe: true,  nistLevel: 5, kind: kex }
+# FIPS 203 spells these hyphenated ("ML-KEM-768"), matching the ML-DSA-65 row below; a
+# spec-compliant producer emits the hyphenated name, so it must resolve too or a deployed
+# PQ KEX misses the registry and a real hybrid mis-scores as quantum_vulnerable.
+ML-KEM-768:             { quantum_safe: true,  nistLevel: 3, kind: kex }
+ML-KEM-1024:            { quantum_safe: true,  nistLevel: 5, kind: kex }
 SNTRUP761X25519-SHA512: { quantum_safe: true,  nistLevel: 1, kind: kex }
 ECDSA-WITH-SHA384:      { quantum_safe: false, kind: signature }
 ECDSA-WITH-SHA256:      { quantum_safe: false, kind: signature }
