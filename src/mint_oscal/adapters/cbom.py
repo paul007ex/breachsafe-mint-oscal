@@ -39,6 +39,11 @@ _SUPPORTED_SPEC_VERSIONS = frozenset(v.to_version() for v in SchemaVersion)
 # key-agree (DH/ECDH) and kem (ML-KEM), plus pke: RSA-encrypted **key transport** is classical
 # key establishment and must be scored, not silently dropped as a non-KEX primitive (#68).
 _KEX_PRIMITIVES = frozenset({"key-agree", "kem", "pke"})
+# CycloneDX's indeterminate `primitive` enum values: the producer is explicitly telling us
+# it could not determine the primitive. An indeterminate algorithm that also misses the
+# registry must surface as `unclassified` (it could be a hidden classical KEX), never be
+# silently dropped into the most-favorable verdict -- same as a no-primitive unknown (#78).
+_INDETERMINATE_PRIMITIVES = frozenset({"unknown", "other"})
 _QUANTIFIERS = frozenset({"all", "some", "none"})
 # Transport protocols that carry a numeric TLS-style version; SSL is handled by name.
 _TLS_LIKE = frozenset({"tls", "dtls"})
@@ -266,8 +271,15 @@ def _readiness(
                 kex_safe.append(safe)
                 if safe and level:
                     levels.append(level)
-        elif entry is None and declared_primitive is None and declared_level is None:
-            unclassified.append(name)  # a non-KEX algorithm we do not recognize at all
+        elif (
+            entry is None
+            and declared_level is None
+            and (declared_primitive is None or declared_primitive in _INDETERMINATE_PRIMITIVES)
+        ):
+            # a registry-miss we cannot classify: either no primitive at all, or one the
+            # producer explicitly flagged indeterminate (`unknown`/`other`). Surface it as
+            # unclassified so a hidden classical KEX cannot ride a favorable verdict (#78).
+            unclassified.append(name)
 
     readiness = "unknown"
     if kex_safe:  # only judge over the KEX we could actually classify
