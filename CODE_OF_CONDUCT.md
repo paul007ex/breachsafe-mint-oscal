@@ -1,5 +1,15 @@
 # Contributor Covenant Code of Conduct
 
+## Contents
+
+1. [Our Pledge](#our-pledge)
+2. [Our Standards](#our-standards)
+3. [Enforcement Responsibilities](#enforcement-responsibilities)
+4. [Scope](#scope)
+5. [Enforcement](#enforcement)
+6. [Enforcement Guidelines](#enforcement-guidelines)
+7. [Attribution](#attribution)
+
 ## Our Pledge
 
 We as members, contributors, and leaders pledge to make participation in our

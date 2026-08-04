@@ -29,6 +29,11 @@ git-diffable.
 > scanner-derived truth. The control crosswalk requires human conformance review with
 > catalog citations. A document being OSCAL-*valid* does **not** make it *compliant*.
 
+## Contents
+
+1. [Documents](#documents)
+2. [Status at a glance](#status-at-a-glance)
+
 ## Documents
 
 | Doc | Description |

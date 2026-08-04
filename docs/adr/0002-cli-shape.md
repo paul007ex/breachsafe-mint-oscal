@@ -4,6 +4,12 @@
 - **Deciders:** mint-oscal maintainers
 - **Related:** CLI-1 (workbook *Open-Decisions*); [cli-design.md](../cli-design.md)
 
+## Contents
+
+1. [Context](#context)
+2. [Decision](#decision)
+3. [Consequences](#consequences)
+
 ## Context
 
 `mint-oscal` needs a command surface. Prior art offers three distinct shapes:

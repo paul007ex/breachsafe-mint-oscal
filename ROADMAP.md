@@ -4,6 +4,13 @@ Tiers are ordered by priority. Items move to `CHANGELOG.md` as they ship. This
 roadmap is intentionally interface-first: the agnostic core (ADR-0004) lets each
 tier add adapters or emitters without disturbing the others.
 
+## Contents
+
+1. [P0 - POA&M generate (foundational)](#p0---poam-generate-foundational)
+2. [P1 - Assessment Results, profile consume, crosswalk sign-off](#p1---assessment-results-profile-consume-crosswalk-sign-off)
+3. [P2 - Component Definition, fleet, merge](#p2---component-definition-fleet-merge)
+4. [P3 - OCSF, profile emit](#p3---ocsf-profile-emit)
+
 ## P0 - POA&M generate (foundational)
 
 - [x] Source-neutral IR (`mint.ir.v1`) and frozen dataclasses.

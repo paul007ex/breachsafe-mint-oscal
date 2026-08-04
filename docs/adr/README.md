@@ -6,6 +6,10 @@ Further open decisions (T2 re-scan lifecycle, T3 fleet/multi-subject, T4 ODP sou
 linkage) are tracked as stubs in [`requirements.xlsx`](../requirements.xlsx) →
 *Open-Decisions* and will graduate to ADRs as they are decided.
 
+## Contents
+
+1. [Architecture Decision Records](#architecture-decision-records)
+
 | # | Title | Status |
 | --- | --- | --- |
 | [0001](0001-primary-oscal-target.md) | Primary OSCAL target for scan findings | Proposed |

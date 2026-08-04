@@ -4,6 +4,12 @@
 - **Deciders:** mint-oscal maintainers
 - **Related:** T1 (workbook *Open-Decisions*); UC-1, UC-2; [oscal-shapes.md](../oscal-shapes.md)
 
+## Contents
+
+1. [Context](#context)
+2. [Decision](#decision)
+3. [Consequences](#consequences)
+
 ## Context
 
 A scanner (QuReddy, later Prowler/OCSF) **observes** the state of a system. In OSCAL terms,

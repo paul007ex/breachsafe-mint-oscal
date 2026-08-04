@@ -5,6 +5,13 @@
 - **Related:** ADR-0004 (agnostic core); ADR-0006 (CBOM-first ingestion); supersedes the
   approach in closed PR #35 (breachsafe wired as a `--from` adapter); issue #28
 
+## Contents
+
+1. [Context](#context)
+2. [Decision](#decision)
+3. [Compatibility evidence](#compatibility-evidence)
+4. [Consequences](#consequences)
+
 ## Context
 
 `mint-oscal` ingests a source document through a `--from` *adapter* (ADR-0004/0006) into a

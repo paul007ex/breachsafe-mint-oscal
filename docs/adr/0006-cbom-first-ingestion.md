@@ -4,6 +4,12 @@
 - **Deciders:** mint-oscal maintainers
 - **Related:** ADR-0004 (agnostic core); UC-1, UC-2; [oscal-shapes.md](../oscal-shapes.md)
 
+## Contents
+
+1. [Context](#context)
+2. [Decision](#decision)
+3. [Consequences](#consequences)
+
 ## Context
 
 CBOM (CycloneDX Cryptography Bill of Materials) is the generic, standards-based ingestion

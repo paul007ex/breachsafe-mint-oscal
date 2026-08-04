@@ -7,6 +7,21 @@ Requirements Traceability Matrix for `mint-oscal` — 42 requirements across 11 
 See [README](README.md) for the index and the honest-verdict caveat that governs all
 control-mapping requirements below.
 
+## Contents
+
+1. [Legend](#legend)
+2. [ARCH — Architecture (N sources → neutral IR → M targets)](#arch--architecture-n-sources--neutral-ir--m-targets)
+3. [SRC — Sources (input adapters)](#src--sources-input-adapters)
+4. [OUT — Targets (output emitters)](#out--targets-output-emitters)
+5. [OSC — OSCAL Conformance (schema + version)](#osc--oscal-conformance-schema--version)
+6. [DET — Determinism (reproducibility)](#det--determinism-reproducibility)
+7. [EVID — Evidence integrity (privacy of evidence)](#evid--evidence-integrity-privacy-of-evidence)
+8. [CTRL — Control mapping (finding → control crosswalk)](#ctrl--control-mapping-finding--control-crosswalk)
+9. [VAL — Validation (checking output)](#val--validation-checking-output)
+10. [CLI — CLI (command surface)](#cli--cli-command-surface)
+11. [PKG — Packaging / NFR (ship the library)](#pkg--packaging--nfr-ship-the-library)
+12. [NG — Non-goals (explicitly out of scope)](#ng--non-goals-explicitly-out-of-scope)
+
 ## Legend
 
 - **Priority** — Must (release blocked without it) · Should (ship without only with a

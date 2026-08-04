@@ -12,6 +12,12 @@ Each OSCAL model `mint-oscal` touches has a defined **role**: `EMIT` (we produce
 > to POA&M — before any emitter is written. Do not treat the sketches below as the field
 > list; treat them as prompts for what to confirm.
 
+## Contents
+
+1. [Shapes](#shapes)
+2. [Notes per shape](#notes-per-shape)
+3. [Control crosswalk caveat](#control-crosswalk-caveat)
+
 ## Shapes
 
 | Shape | mint role | Required roots / fields | Grounding | Priority | Verified |

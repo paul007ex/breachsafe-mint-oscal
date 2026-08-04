@@ -4,6 +4,12 @@
 - **Deciders:** mint-oscal maintainers
 - **Related:** NAME (workbook *Open-Decisions*); `R-PKG-01`
 
+## Contents
+
+1. [Context](#context)
+2. [Decision](#decision)
+3. [Consequences](#consequences)
+
 ## Context
 
 The library needs a name that is brand-consistent, memorable, and collision-free across the
