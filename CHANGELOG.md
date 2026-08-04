@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-04
+
 ### Added
 
 - **SCF-QTS as the default control framework + `--framework` selector** (#88): findings map to
@@ -20,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the `qureddy | mint-oscal` pipe no longer emits a self-invalid POA&M.
 - **`interpretation-status: provisional` marker** (#84): a finding built from an unreviewed
   policy pack is marked provisional, so an ungoverned mapping is never read as authoritative.
+- **NIST OSCAL conformance gate** (#71, #93): `scripts/oscal-conformance.sh` (and a
+  `workflow_dispatch` CI workflow) validate every minted POA&M against the upstream reference
+  validator **oscal-cli 3.2.0** — positive + negative controls, fail-closed. Requires Python
+  3.12+ (3.9 is rejected).
 
 ### Changed
 
@@ -39,6 +45,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--from qureddy --extension breachsafe` (a stray CBOM-shaped field rides through the qureddy
   adapter to the enricher), surfacing as exit 70 instead of being ignored. All three containers
   are now type-guarded, so a shapeless field is ignored per the documented contract.
+- **CBOM crypto-scoring correctness** (#78, #79, #80): canonical FIPS-203 `ML-KEM-768`/
+  `ML-KEM-1024` hyphenated names now resolve in the registry, so a real hybrid no longer
+  mis-scores as `quantum_vulnerable` (#80); a producer `nistQuantumSecurityLevel` can no longer
+  upgrade a registry-classical algorithm to `quantum_ready` (#79); an indeterminate `primitive`
+  (`unknown`/`other`) is routed to unclassified instead of silently dropped, so a hidden KEX can
+  no longer ride a favorable verdict (#78).
 
 ## [0.1.13] - 2026-07-28
 
