@@ -114,3 +114,8 @@ branch = true
 
 [tool.coverage.report]
 show_missing = true
+
+[tool.bandit]
+# Python SAST. Scans src only; the shipped code has zero findings today. tests/ (when it
+# exists) is excluded since asserts there are expected. Run: `bandit -c pyproject.toml -r src`.
+exclude_dirs = ["tests"]

@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 BreachSAFE
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 FROM python:3.12-slim
 
 # OSCAL is a compliance artifact; keep the image reproducible and minimal.

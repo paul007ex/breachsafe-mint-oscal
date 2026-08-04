@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: 2026 BreachSAFE
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+#
+# CodeQL static analysis (SAST) for Python. Complements bandit (pre-commit + local) with
+# GitHub's semantic dataflow analysis and an OpenSSF-Scorecard SAST signal.
+#
+# READY-BUT-GATED (#46): GitHub Actions cannot execute on this private repo (billing/minutes),
+# so this will not run until #46 is resolved — it keeps push/PR/schedule triggers so it
+# activates automatically then, with no further edit.
+#
+# NOTE (#71): github/codeql-action is pinned to a tag here; SHA-pin it in the CI-hardening pass
+# that pins the remaining tag-referenced actions.
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (python)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          queries: security-and-quality
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"
