@@ -240,8 +240,15 @@ def _readiness(
     for name, (declared_primitive, declared_level) in algos.items():
         entry = registry.get(name.upper())
         is_kex = declared_primitive in _KEX_PRIMITIVES or (entry or {}).get("kind") == "kex"
+        # A producer's nistQuantumSecurityLevel is a *classical-equivalent* strength
+        # (category 1 ~ AES-128 ... 5 ~ AES-256), NOT a PQC-readiness claim. A positive
+        # level must never UPGRADE an algorithm the registry authoritatively records as
+        # classical (quantum_safe: false) -- otherwise a producer stamping level 1 on a
+        # purely classical X25519 would read as the most-favorable posture (#79).
+        # Downgrades (level 0) and registry misses stay producer-first.
+        registry_classical = entry is not None and not entry.get("quantum_safe", False)
         if declared_level is not None:
-            safe: bool | None = declared_level > 0
+            safe: bool | None = declared_level > 0 and not registry_classical
             level = declared_level
         elif entry is not None:
             safe = bool(entry.get("quantum_safe"))
