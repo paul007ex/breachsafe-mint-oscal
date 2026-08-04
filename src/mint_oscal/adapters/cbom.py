@@ -58,9 +58,9 @@ _VER_RE = re.compile(r"\d+(?:\.\d+)?")
 _WEAK_DOWNGRADE_FROM = frozenset({"transitional_hybrid", "quantum_ready", "unknown"})
 # Readiness verdicts that carry no open PQC gap: an already-PQC-ready subject (or one out of
 # scope for PQC readiness) is a resolved posture, so its risk is minted ``closed``, not open --
-# a CBOM has no per-finding remediation field, so the verdict is the honest status signal it can
-# carry, which makes the emitter's status pass-through live instead of a hardcoded "open" (#83).
-_RESOLVED_READINESS = frozenset({"quantum_ready", "not_applicable"})
+# A CBOM is a point-in-time inventory with no remediation evidence, so mint never claims a risk is
+# "closed" from it: asserting a resolution it cannot prove is the unsafe/non-conformant direction.
+# CBOM findings stay "open" (an assessor closes with evidence); QuReddy carries real status (#83).
 
 
 class MalformedCbomError(ValueError):
@@ -417,7 +417,7 @@ def from_cbom(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
             f"KEX offered: {posture['kex-offered']}; cert signature: {posture['cert-signature']}."
         ),
         severity=active_policy().severity.get(readiness, "info"),
-        status="closed" if readiness in _RESOLVED_READINESS else "open",
+        status="open",
         subject=subject,
         observed_at=timestamp,
         control_ids=controls_for(readiness),
