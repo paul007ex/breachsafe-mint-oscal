@@ -52,16 +52,30 @@ ok()    { printf "  ${GREEN}PASS${NC}  %s\n" "$*"; }
 bad()   { printf "  ${RED}FAIL${NC}  %s\n" "$*"; }
 die()   { printf "${RED}${BOLD}conformance gate ERROR:${NC} %s\n" "$*" >&2; exit 2; }
 
+# --- resolve a Python 3.12+ interpreter (mint-oscal's floor; 3.9 is BANNED) -----------
+# Ambient `python3` is often an old system build (3.9 on macOS) that fails opaquely, so
+# prefer $PYTHON, then a versioned python3.1x, and HARD-REQUIRE >= 3.12 (fail closed).
+_py312() { command -v "$1" >/dev/null 2>&1 && "$1" -c 'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 12) else 1)' 2>/dev/null; }
+if [ -n "${PYTHON:-}" ]; then
+  _py312 "$PYTHON" || die "PYTHON=$PYTHON is not Python 3.12+ (mint-oscal floor; 3.9 is banned)"
+  PY="$PYTHON"
+else
+  PY=""
+  for cand in python3.14 python3.13 python3.12 python3; do
+    if _py312 "$cand"; then PY="$(command -v "$cand")"; break; fi
+  done
+  [ -n "$PY" ] || die "Python 3.12+ not found (3.9 is banned); install it or set PYTHON=/path/to/python3.12+"
+fi
+
 # --- resolve the mint-oscal CLI under test --------------------------------------------
 if [ -n "${MINT:-}" ]; then
   :
 elif command -v mint-oscal >/dev/null 2>&1; then
   MINT="mint-oscal"
 else
-  MINT="${PYTHON:-python3} -m mint_oscal.cli"
+  MINT="$PY -m mint_oscal.cli"
   export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
 fi
-PY="${PYTHON:-python3}"
 
 # --- resolve a Java 17+ runtime -------------------------------------------------------
 # Returns the major version of a `java` launcher (handles both "1.8.x" and "17.x").
