@@ -42,6 +42,7 @@ git-diffable.
 | [adr/0001-primary-oscal-target.md](adr/0001-primary-oscal-target.md) | SAR canonical, POA&M derived (flagship). |
 | [adr/0002-cli-shape.md](adr/0002-cli-shape.md) | Model-first subcommands + composable filter. |
 | [adr/0003-naming.md](adr/0003-naming.md) | Package naming (Accepted). |
+| [reviews/qureddy-quality-port-review.md](reviews/qureddy-quality-port-review.md) | Proposed port of QuReddy's release, conformance, documentation, and regression practices. |
 
 ## Status at a glance
 

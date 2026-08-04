@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **QuReddy quality-port review:** documents the proposed local release, external conformance,
+  deterministic-output, regression, documentation, and supply-chain practices to adapt for
+  Mint-OSCAL. The review is planning material; it does not claim implementation.
+
 ### Fixed
 
 - **breachsafe enricher never-raises contract** (#76): `_producer_props` iterated
