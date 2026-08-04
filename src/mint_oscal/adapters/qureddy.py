@@ -117,7 +117,11 @@ def from_scan_v1(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
     scan = _require(document, "scan", "scan")
     if not isinstance(scan, dict):
         raise MalformedScanError("malformed qureddy.scan.v1: 'scan' must be an object")
-    collected = _require(scan, "completed_at", "scan.completed_at")
+    # Type-guard like its siblings: a non-string completed_at flows into Finding.observed_at
+    # then datetime.fromisoformat(), whose TypeError (not a ValueError) escapes the adapter's
+    # domain-error boundary and is mislabeled exit 70 internal_error instead of exit 2
+    # malformed_input -- the exit code would lie about whose fault the bad input is (#82).
+    collected = _str(_require(scan, "completed_at", "scan.completed_at"), "scan.completed_at")
     evidence_by_id = _index_evidence(document.get("evidence", []))
 
     findings: list[Finding] = []
