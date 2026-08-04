@@ -404,8 +404,26 @@ def domain_vocabulary(document: dict[str, Any]) -> list[str]:
             out.append(f"provenance malformed: {val!r}")
         elif name == "nistQuantumSecurityLevel" and not (s is not None and s.isdigit()):
             out.append(f"nistQuantumSecurityLevel not a non-neg int: {val!r}")
-        elif name == "control-id" and not (s is not None and _CONTROL_RE.match(s)):
-            out.append(f"control-id malformed: {val!r}")
+    return out
+
+
+def control_id_shape(document: dict[str, Any]) -> list[str]:
+    """Every control-id prop value is a well-formed control identifier (any namespace).
+
+    control-id belongs to the framework authority, so #88/#91 moved it out of the BreachSAFE
+    namespace into the authority ns (SCF/NIST). That left the shape check dead: it only ran over
+    BreachSAFE-namespaced props, a namespace the emitter never writes control-id into, so a
+    malformed control-id went unvalidated (#94). Validate it wherever it now lives -- walking all
+    props, not only BreachSAFE ones -- so the framework-agnostic ``_CONTROL_RE`` is live again.
+    """
+    out: list[str] = []
+    for group in _find(document, "props"):
+        if isinstance(group, list):
+            for pr in group:
+                if isinstance(pr, dict) and pr.get("name") == "control-id":
+                    v = pr.get("value")
+                    if not (isinstance(v, str) and _CONTROL_RE.match(v)):
+                        out.append(f"control-id malformed: {v!r}")
     return out
 
 
@@ -424,6 +442,7 @@ _VALIDATORS = (
     observation_enums,
     # B -- BreachSAFE domain
     domain_vocabulary,
+    control_id_shape,
 )
 
 
