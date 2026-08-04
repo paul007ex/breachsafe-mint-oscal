@@ -39,8 +39,8 @@ def convert(ir: IR, *, shape: str, **params: Any) -> dict[str, Any]:  # noqa: AN
     """Convert a neutral :class:`IR` into an OSCAL document of the given ``shape``.
 
     ``shape`` is an OSCAL model name registered in ``mint_oscal.emitters``
-    (``poam``, ``ar``, ``component-definition``). Extra keyword ``params`` are
-    forwarded to the selected emitter.
+    (``poam``, ``ar``). Extra keyword ``params`` are forwarded to the selected
+    emitter.
 
     Raises:
         KeyError: if ``shape`` is not a registered OSCAL model.
