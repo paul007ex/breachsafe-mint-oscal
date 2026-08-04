@@ -8,23 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Contents
 
 1. [Unreleased](#unreleased)
-2. [0.2.0 - 2026-08-04](#020---2026-08-04)
-3. [0.1.13 - 2026-07-28](#0113---2026-07-28)
-4. [0.1.12 - 2026-07-28](#0112---2026-07-28)
-5. [0.1.11 - 2026-07-28](#0111---2026-07-28)
-6. [0.1.10 - 2026-07-28](#0110---2026-07-28)
-7. [0.1.9 - 2026-07-28](#019---2026-07-28)
-8. [0.1.8 - 2026-07-28](#018---2026-07-28)
-9. [0.1.7 - 2026-07-28](#017---2026-07-28)
-10. [0.1.6 - 2026-07-28](#016---2026-07-28)
-11. [0.1.5 - 2026-07-28](#015---2026-07-28)
-12. [0.1.4 - 2026-07-28](#014---2026-07-28)
-13. [0.1.3 - 2026-07-28](#013---2026-07-28)
-14. [0.1.2 - 2026-07-28](#012---2026-07-28)
-15. [0.1.1 - 2026-07-28](#011---2026-07-28)
-16. [0.1.0 - 2026-07-28](#010---2026-07-28)
+2. [0.2.1 - 2026-08-04](#021---2026-08-04)
+3. [0.2.0 - 2026-08-04](#020---2026-08-04)
+4. [0.1.13 - 2026-07-28](#0113---2026-07-28)
+5. [0.1.12 - 2026-07-28](#0112---2026-07-28)
+6. [0.1.11 - 2026-07-28](#0111---2026-07-28)
+7. [0.1.10 - 2026-07-28](#0110---2026-07-28)
+8. [0.1.9 - 2026-07-28](#019---2026-07-28)
+9. [0.1.8 - 2026-07-28](#018---2026-07-28)
+10. [0.1.7 - 2026-07-28](#017---2026-07-28)
+11. [0.1.6 - 2026-07-28](#016---2026-07-28)
+12. [0.1.5 - 2026-07-28](#015---2026-07-28)
+13. [0.1.4 - 2026-07-28](#014---2026-07-28)
+14. [0.1.3 - 2026-07-28](#013---2026-07-28)
+15. [0.1.2 - 2026-07-28](#012---2026-07-28)
+16. [0.1.1 - 2026-07-28](#011---2026-07-28)
+17. [0.1.0 - 2026-07-28](#010---2026-07-28)
 
 ## [Unreleased]
+
+## [0.2.1] - 2026-08-04
+
+### Changed
+
+- **Build/quality hardening** (#71, #87): REUSE/SPDX compliance (`LICENSES/` + `REUSE.toml`;
+  normalized `Dockerfile` and `CONTRIBUTING.md` from `Apache-2.0` to `PolyForm-Noncommercial-1.0.0`),
+  bandit + CodeQL SAST, and a numbered-`## Contents` documentation-contract check (ported
+  `scripts/check_docs.py`). All enforced via pre-commit (GitHub Actions are billing-blocked on the
+  private repo, #46). No runtime behavior change.
+
+### Documentation
+
+- README trued up against the shipped product: the Quickstart now shows `--framework`
+  (`scf-qts` default, `nist` opt-in), the stale `sp800-53r5` crosswalk description is corrected,
+  and the dangling "Docker image" claim is removed (no image is published; #100). Every
+  first-party doc gained a numbered `## Contents` table of contents.
 
 ## [0.2.0] - 2026-08-04
 
