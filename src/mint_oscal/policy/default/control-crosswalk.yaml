@@ -17,3 +17,6 @@ classically_weak: [SC-13, SC-12]
 transitional_hybrid: [SC-13]
 quantum_ready: [SC-13]
 unknown: [SC-13]
+# not-applicable: out of scope for PQC readiness (a certificate signature, not a key-
+# establishment primitive). Implicates NO control -- never minted as an SC-13 finding (#86).
+not_applicable: []

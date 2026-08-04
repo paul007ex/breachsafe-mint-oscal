@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 BreachSAFE
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-"""Emitter: IR findings -> an OSCAL 1.1.2 plan-of-action-and-milestones (POA&M).
+"""Emitter: IR findings -> an OSCAL 1.2.2 plan-of-action-and-milestones (POA&M).
 
 Each finding becomes one poam-item tied to an evidence-backed observation and a
 risk. Remediation milestones/dates, system-id, and party/role context are program
@@ -16,6 +16,7 @@ from typing import Any
 
 from mint_oscal.emitters import _common
 from mint_oscal.ir import IR, Finding, Subject
+from mint_oscal.policy import active_policy
 
 OSCAL_VERSION = _common.OSCAL_VERSION
 # Fixed namespace so the same scan produces the same OSCAL uuids (content-addressable).
@@ -108,6 +109,9 @@ def to_poam(
     findings = list(findings)
     timestamp = now or _stamp(findings)
     inventory_uuid = _det("inventory-item", subject.id)
+    # Framework attribution + governance for this run (scf-qts by default). Control ids belong
+    # to the framework authority (SCF/NIST); framework + provisional status are BreachSAFE facts.
+    pol = active_policy()
 
     observations: list[dict[str, Any]] = []
     risks: list[dict[str, Any]] = []
@@ -148,19 +152,37 @@ def to_poam(
                 "status": finding.status,
             }
         )
-        items.append(
-            {
-                "uuid": _det("poam-item", finding.id),
-                "title": finding.title,
-                "description": finding.description,
-                "props": [
-                    *(_common.prop("control-id", control) for control in finding.control_ids),
-                    _common.prop("severity", finding.severity),
-                ],
-                "related-observations": [{"observation-uuid": observation_uuid}],
-                "related-risks": [{"risk-uuid": risk_uuid}],
-            }
-        )
+        item: dict[str, Any] = {
+            "uuid": _det("poam-item", finding.id),
+            "title": finding.title,
+            "description": finding.description,
+            "props": [
+                # Control ids are the framework's (SCF/NIST); attribute them to its authority ns,
+                # NEVER the BreachSAFE ns (#88). framework + interpretation-status ARE ours.
+                *(
+                    _common.prop("control-id", c, ns=pol.authority_ns or None)
+                    for c in finding.control_ids
+                ),
+                _common.prop("severity", finding.severity),
+                *([_common.prop("framework", pol.framework)] if pol.framework else []),
+                # An unreviewed pack yields an ungoverned interpretation; mark it beside the
+                # control/severity claims so it is never read as authoritative (#84).
+                *(
+                    [_common.prop("interpretation-status", "provisional")]
+                    if not pol.reviewed
+                    else []
+                ),
+            ],
+            "related-observations": [{"observation-uuid": observation_uuid}],
+            "related-risks": [{"risk-uuid": risk_uuid}],
+        }
+        # Native OSCAL control reference: link each control id to its authoritative catalog so a
+        # consumer resolves it to the source instead of parsing a bare string (#88).
+        if pol.catalog_href and finding.control_ids:
+            item["links"] = [
+                {"href": f"{pol.catalog_href}#{c}", "rel": "reference"} for c in finding.control_ids
+            ]
+        items.append(item)
 
     # OSCAL requires observations/risks to have >=1 item when present, so omit an empty array
     # rather than emit a schema-invalid `[]`; poam-items is required (>=1), so an empty scan

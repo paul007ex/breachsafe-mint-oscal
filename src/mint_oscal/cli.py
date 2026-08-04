@@ -43,6 +43,7 @@ from mint_oscal.emitters import available_models
 from mint_oscal.extensions import apply_extensions, available_extensions
 from mint_oscal.ir import IR
 from mint_oscal.logging import BoundLog, configure_logging, get_logger
+from mint_oscal.policy import FRAMEWORK_PACKS, set_active_framework
 from mint_oscal.render import render
 from mint_oscal.validate import oscal_cli_available, semantic_errors
 
@@ -232,6 +233,17 @@ def _build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.Argumen
             help=f"source adapter to parse the report: {', '.join(sources)}",
         )
         generate.add_argument(
+            "--framework",
+            dest="framework",
+            choices=sorted(FRAMEWORK_PACKS),
+            default="scf-qts",
+            metavar="FRAMEWORK",
+            help=(
+                "control framework to map findings to: scf-qts (default, PQC-native SCF "
+                "Quantum Security controls) or nist (NIST SP 800-53r5 SC-13/SC-12)"
+            ),
+        )
+        generate.add_argument(
             "--extension",
             dest="extensions",
             action="append",
@@ -292,6 +304,8 @@ def _run(args: argparse.Namespace, log: BoundLog) -> int:
     The pipeline proper; :func:`main` owns the top-level error-to-exit-code mapping. STDOUT
     carries only the minted OSCAL document.
     """
+    # Select the control framework for this run (scf-qts default) before any crosswalk lookup.
+    set_active_framework(args.framework)
     document = json.loads(_read_source(args.report))
     try:
         adapter = get_adapter(args.source)

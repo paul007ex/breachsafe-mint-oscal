@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **SCF-QTS as the default control framework + `--framework` selector** (#88): findings map to
+  PQC-native SCF Quantum Security controls (qts-04.3 Exposure, qts-06.5 Deprecated, qts-06.9
+  Hybrid, qts-06.3 Approved-PQC, qts-04 Discovery) instead of a single generic SC-13. NIST SP
+  800-53r5 (SC-13/SC-12) is retained as `--framework nist`. Control ids are attributed to the
+  framework authority namespace (SCF/NIST) and linked to its OSCAL catalog; only BreachSAFE
+  concepts (`severity`, `framework`, `interpretation-status`) ride the BreachSAFE namespace.
+- **`not_applicable` readiness verdict** (#86): a producer's out-of-scope state (e.g. a
+  certificate signature algorithm) maps to no control and is no longer coerced into SC-13, so
+  the `qureddy | mint-oscal` pipe no longer emits a self-invalid POA&M.
+- **`interpretation-status: provisional` marker** (#84): a finding built from an unreviewed
+  policy pack is marked provisional, so an ungoverned mapping is never read as authoritative.
+
+### Changed
+
+- **Pinned OSCAL to 1.2.2** (#85), the current NIST release; removed the redundant
+  `oscal-target-version` prop and the `oscal-version 1.1.2` declaration. Validated against
+  oscal-cli 3.2.0 and the NIST v1.2.2 JSON schema.
+- `controls_for` no longer defaults an unrecognized verdict to `SC-13`; an unmapped verdict
+  implicates no control (#86).
+- `validate.py` control-id checks are framework-agnostic: a control id may be a non-NIST id
+  (e.g. `qts-04.3`) attributed to its framework authority, not the BreachSAFE namespace (#88).
+
 ### Fixed
 
 - **breachsafe enricher never-raises contract** (#76): `_producer_props` iterated

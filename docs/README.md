@@ -21,9 +21,8 @@ qureddy scan | mint-oscal poam --from qureddy | oscal-cli validate -
 Output is **deterministic** (uuid5 over a fixed namespace) so generated OSCAL is
 git-diffable.
 
-> **OSCAL version note:** Docs declare `oscal-version = 1.1.2` for maximum validator
-> interop; the internal target is `1.2.2`, recorded as a prop. Validated end-to-end with
-> `oscal-cli 3.2.0`.
+> **OSCAL version note:** Documents declare `oscal-version = 1.2.2` (the current NIST OSCAL
+> release). Validated end-to-end with `oscal-cli 3.2.0` and the NIST v1.2.2 JSON schema.
 
 > **Honest-verdict caveat (applies throughout):** any finding→control→ODP judgment is an
 > **organization-policy assertion** (an organization-defined parameter), **not** a

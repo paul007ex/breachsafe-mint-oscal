@@ -77,8 +77,10 @@ _SEVERITY = frozenset({"critical", "high", "medium", "low", "info"})
 _CONFIDENCE = frozenset({"high", "partial", "not-applicable"})
 # BreachSAFE provenance grammar (see extensions.breachsafe).
 _PROV_RE = re.compile(r"^(derived|producer-confirmed|conflict:producer=.+,derived=.+)$")
-# NIST control identifier shape, e.g. SC-13.
-_CONTROL_RE = re.compile(r"^[A-Z]{2}-\d+$")
+# Control identifier shape, framework-agnostic: NIST ``SC-13`` and SCF ``qts-04.3`` alike
+# (2-5 letters, a number, optional dotted sub-parts). Control ids belong to the framework
+# authority, not BreachSAFE (#88), so control-id is no longer a BreachSAFE-namespaced prop.
+_CONTROL_RE = re.compile(r"^[A-Za-z]{2,5}-\d+(?:\.\d+)*$")
 # BreachSAFE custom prop names -- these carry our domain vocabulary and must live in the
 # BreachSAFE ns, never the core OSCAL namespace (`ns` itself is optional in OSCAL).
 _BREACHSAFE_PROP_NAMES = frozenset(
@@ -87,7 +89,8 @@ _BREACHSAFE_PROP_NAMES = frozenset(
         "mapping-confidence",
         "severity",
         "provenance",
-        "control-id",
+        "framework",
+        "interpretation-status",
         "nistQuantumSecurityLevel",
     }
 )

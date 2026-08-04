@@ -11,3 +11,5 @@ classically_weak: medium
 transitional_hybrid: low
 quantum_ready: info
 unknown: info
+# Out of scope for PQC readiness (e.g. a classical certificate signature); not a gap (#86).
+not_applicable: info

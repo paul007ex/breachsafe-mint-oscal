@@ -1,0 +1,11 @@
+# BreachSAFE readiness->control MAPPING onto SCF QTS 2026.2 controls (CC BY-ND source).
+# DRAFT - the MAPPING is BreachSAFE-authored and UNREVIEWED (meta.yaml reviewed: false);
+# the QTS controls themselves are SCF's. Each verdict maps to the PQC-native QTS control it
+# implicates -- discriminating, unlike a single generic SC-13 (#88). No control => not a gap.
+---
+quantum_vulnerable: [qts-04.3]   # Post-Quantum Cryptography Exposure
+classically_weak: [qts-06.5]     # Deprecated Cryptographic Algorithms
+transitional_hybrid: [qts-06.9]  # Hybrid / Composite Cryptography
+quantum_ready: [qts-06.3]        # Approved Post-Quantum Cryptography Algorithm Use
+unknown: [qts-04]                # PQC Discovery & Visibility (could not assess)
+not_applicable: []               # out of scope for PQC readiness; not a gap (#86)
