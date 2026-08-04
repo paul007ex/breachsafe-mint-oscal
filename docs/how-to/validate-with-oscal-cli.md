@@ -1,67 +1,78 @@
 # Validate with oscal-cli
 
-Goal: run the authoritative NIST schema-and-constraint check on a POA&M. `mint-oscal`'s
-built-in `--validate` / `poam validate` are pure-Python semantic checks — necessary but not
-sufficient for full NIST conformance. This guide covers the authoritative step.
+Goal: run the authoritative NIST schema-and-constraint check on a POA&M with `oscal-cli`.
+`mint-oscal`'s in-process checks catch semantic problems but do not cover full NIST
+conformance; this guide covers the authoritative step and how it relates to the in-process
+check.
 
 ## Contents
 
 1. [Two levels of validation](#two-levels-of-validation)
 2. [In-process check (no external tool)](#in-process-check-no-external-tool)
 3. [Authoritative check with oscal-cli](#authoritative-check-with-oscal-cli)
-4. [Validate in a pipeline](#validate-in-a-pipeline)
-5. [Related](#related)
+4. [Related](#related)
 
 ## Two levels of validation
 
 | Level | Command | Needs | Confirms |
 | --- | --- | --- | --- |
-| In-process | `--validate` or `mint-oscal poam validate` | nothing | uuid/ref/ns integrity, OSCAL structure + datatypes, BreachSAFE vocab |
-| Authoritative | `oscal-cli poam validate` | `oscal-cli` on `PATH` | NIST OSCAL schema + constraints |
+| Layer-2 in-process | `mint-oscal poam generate --validate` or `mint-oscal poam validate` | nothing | uuid/ref/ns integrity, OSCAL structure and datatypes, BreachSAFE vocab |
+| Authoritative | `oscal-cli validate` | `oscal-cli` on `PATH` | NIST OSCAL schema and constraints |
 
-Neither blesses the finding→control mapping or the compliance verdict — that is a policy
-judgment, not a validation result. See
-[../explanation/valid-vs-compliant.md](../explanation/valid-vs-compliant.md).
+Neither level rules on the finding-to-control mapping or a compliance verdict. That is a
+policy judgment; see [../explanation/valid-vs-compliant.md](../explanation/valid-vs-compliant.md).
 
 ## In-process check (no external tool)
 
-Fold the check into generation, or run it on an existing document:
+The Layer-2 check is pure Python and needs no external tool. Fold it into generation, or run
+it on an existing document:
 
 ```bash
 # fail generation (exit 1) if the output has a semantic problem
-mint-oscal poam generate --from cbom scan.cbom.json --validate > poam.json
+mint-oscal poam generate --from cbom examples/example.cbom.json --validate > poam.json
 
 # check a document produced anywhere (yours or another tool's)
 mint-oscal poam validate poam.json
 ```
 
+`mint-oscal poam validate` accepts `-` to read from STDIN, so you can generate and check in one
+chain:
+
+```bash
+mint-oscal poam generate --from cbom examples/example.cbom.json | mint-oscal poam validate -
+```
+
+A valid document exits `0`. The tool logs a reminder on STDERR that this is not NIST schema
+validation and that you should run `oscal-cli` for that.
+
 ## Authoritative check with oscal-cli
 
-Install NIST [`oscal-cli`](https://github.com/metaschema-framework/oscal-cli), then:
+`oscal-cli` reads a file, not STDIN. Mint to a file first, then validate the file:
 
-```bash
-oscal-cli poam validate poam.json
-```
+1. Mint the POA&M:
 
-`mint-oscal` was validated against `oscal-cli` 3.2.0 and the NIST v1.2.2 JSON schema; documents
-declare `oscal-version` `1.2.2`.
+   ```bash
+   mint-oscal poam generate --from cbom examples/example.cbom.json > poam.json
+   ```
 
-## Validate in a pipeline
+2. Validate the file:
 
-Because `mint-oscal` writes to STDOUT, you can generate and validate in one chain:
+   ```bash
+   oscal-cli validate poam.json
+   ```
 
-```bash
-mint-oscal poam generate --from cbom scan.cbom.json | mint-oscal poam validate -
-```
+A valid document prints `The file 'file:.../poam.json' is valid.` and exits `0`.
 
-Or hand the same stream to `oscal-cli`:
+Install NIST [`oscal-cli`](https://github.com/metaschema-framework/oscal-cli) (it needs a Java
+17 runtime) if it is not on `PATH`. `mint-oscal` documents declare `oscal-version` `1.2.2` and
+were validated against `oscal-cli` 3.2.0.
 
-```bash
-mint-oscal poam generate --from cbom scan.cbom.json | oscal-cli poam validate -
-```
+Do not pass `-` to `oscal-cli`; it has no STDIN mode and treats `-` as a filename, which fails
+with `The provided source 'file:.../-' does not exist.` The older `oscal-cli poam validate`
+form still works but prints a deprecation warning; use `oscal-cli validate`.
 
 ## Related
 
-- [Exit codes](../reference/exit-codes.md) — how the two checks signal success and failure
-- [Emit XML or YAML](emit-xml-or-yaml.md) — the other `oscal-cli`-backed feature
+- [Exit codes](../reference/exit-codes.md): how the two checks signal success and failure
+- [Emit XML or YAML](emit-xml-or-yaml.md): the other `oscal-cli`-backed step
 - [CLI reference](../reference/cli.md)

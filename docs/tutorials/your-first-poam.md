@@ -1,8 +1,8 @@
 # Your first POA&M
 
 This tutorial walks you from a scanner report to a validated OSCAL Plan of Action &
-Milestones (POA&M). You will use a sample CBOM bundled with the repository, so every step is
-guaranteed to run without a live scan. You will finish with one OSCAL document and two ways of
+Milestones (POA&M). You will use a sample CBOM bundled with the repository, so every step
+runs offline without a live scan. You will finish with one OSCAL document and two ways of
 checking it.
 
 By the end you will have:
@@ -54,7 +54,7 @@ BreachSAFE Mint-OSCAL <version> -- https://www.breachsafe.ai
 ## 3. Mint a POA&M from a CBOM
 
 Turn the bundled CycloneDX CBOM into an OSCAL POA&M. With no `--framework`, findings map to
-the default `scf-qts` controls, and output is JSON on STDOUT — redirect it to a file:
+the default `scf-qts` controls, and output is JSON on STDOUT. Redirect it to a file:
 
 ```bash
 mint-oscal poam generate --from cbom examples/example.cbom.json > first.poam.json
@@ -92,24 +92,25 @@ mint-oscal poam validate first.poam.json
 ```
 
 Exit `0` means no semantic problems were found. This check is **necessary but not sufficient**
-for full NIST conformance — a warning in the log says as much.
+for full NIST conformance. A warning in the log says as much.
 
 ## 6. Validate authoritatively with oscal-cli
 
-For the authoritative schema-and-constraint check, hand the document to NIST
-[`oscal-cli`](https://github.com/metaschema-framework/oscal-cli). If it is on your `PATH`:
+This optional step needs Java 17+ and NIST
+[`oscal-cli`](https://github.com/metaschema-framework/oscal-cli) on your `PATH`. Setup is in
+[validate-with-oscal-cli.md](../how-to/validate-with-oscal-cli.md). For the authoritative
+schema-and-constraint check, pass the file to `oscal-cli`:
 
 ```bash
-oscal-cli poam validate first.poam.json
+oscal-cli validate first.poam.json
 ```
 
-If `oscal-cli` is not installed, skip this step for now; step 5 already told you the document
-is structurally sound. The full recipe, including a container option, is in
-[validate-with-oscal-cli.md](../how-to/validate-with-oscal-cli.md).
+A valid document prints `The file '...' is valid.` and exits `0`. If `oscal-cli` is not
+installed, skip this step for now; step 5 already told you the document is structurally sound.
 
 ## 7. Try the QuReddy source
 
-The same command mints from a QuReddy scan report instead of a CBOM — the only change is
+The same command mints from a QuReddy scan report instead of a CBOM. The only change is
 `--from`:
 
 ```bash
@@ -132,7 +133,7 @@ You used the installed command to:
 
 ## 9. Next steps
 
-- [Mint from a CBOM](../how-to/mint-from-a-cbom.md) — the recipe, including piping from a scan
-- [Choose a control framework](../how-to/choose-a-control-framework.md) — `scf-qts` vs `nist`
+- [Mint from a CBOM](../how-to/mint-from-a-cbom.md): the recipe, including piping from a scan
+- [Choose a control framework](../how-to/choose-a-control-framework.md): `scf-qts` vs `nist`
 - [Emit XML or YAML](../how-to/emit-xml-or-yaml.md)
-- [CLI reference](../reference/cli.md) — every flag, default, and value
+- [CLI reference](../reference/cli.md): every flag, default, and value

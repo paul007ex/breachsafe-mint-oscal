@@ -5,15 +5,15 @@ Mint NIST OSCAL documents from security-tool findings.
 [![License: PolyForm-Noncommercial-1.0.0](https://img.shields.io/badge/License-PolyForm--Noncommercial--1.0.0-blue.svg)](LICENSE)
 ![Status: pre-alpha](https://img.shields.io/badge/status-pre--alpha-orange.svg)
 
-`mint-oscal` converts security-tool findings — starting with post-quantum crypto
-posture from QuReddy — into NIST [OSCAL](https://pages.nist.gov/OSCAL/) documents. It is
-a composable filter: findings in, OSCAL out, ready to pipe into `oscal-cli` or commit for
-review.
+`mint-oscal` converts security-tool findings into NIST
+[OSCAL](https://pages.nist.gov/OSCAL/) documents. Its first source is post-quantum crypto
+posture from QuReddy. It is a composable filter: findings in, OSCAL out, ready to validate
+with `oscal-cli` or commit for review.
 
 > **Status: pre-alpha.** The POA&M path is prototyped and validated against NIST
-> `oscal-cli`. `ar` and `component-definition` emitters are stubs. Not yet published to
-> PyPI. Claim classes below: **Shipped** = in the artifact; **Designed** = specified, not
-> built.
+> `oscal-cli`. The `ar` (Assessment Results) emitter is a stub that exits `3`. Not yet
+> published to PyPI. Claim classes below: **Shipped** = in the artifact; **Designed** =
+> specified, not built.
 
 ## Contents
 
@@ -32,7 +32,7 @@ review.
 
 ## Why
 
-No open tool converts scanner findings — least of all post-quantum crypto posture — *into*
+No open tool converts scanner findings, including post-quantum crypto posture, *into*
 OSCAL. `oscal-cli` and `oscalkit` transform existing OSCAL; Trestle authors and manages it.
 `mint-oscal` fills the producer gap: it turns a scan into a Plan of Action & Milestones (or
 Assessment Results) an assessor can consume.
@@ -55,19 +55,19 @@ on `PATH`; JSON output has no external dependency.
 ## Quickstart
 
 ```bash
-# mint a POA&M from a QuReddy scan (JSON to stdout)
+# mint a POA&M from a CycloneDX CBOM (JSON to stdout)
 # findings map to PQC-native SCF Quantum Security (QTS) controls by default
-mint-oscal poam generate --from qureddy scan.json
+mint-oscal poam generate --from cbom examples/example.cbom.json > poam.json
 
-# from a CycloneDX CBOM, mapped to NIST SP 800-53r5 instead of the default scf-qts
-mint-oscal poam generate --from cbom scan.cbom.json --framework nist
+# map to NIST SP 800-53r5 instead of the default scf-qts
+mint-oscal poam generate --from cbom examples/example.cbom.json --framework nist > poam.json
 
-# chain straight into the NIST validator
-mint-oscal poam generate --from qureddy scan.json | oscal-cli validate -
+# validate with the NIST validator (oscal-cli reads a file; it has no stdin)
+oscal-cli validate poam.json
 
-# check internal integrity, then let oscal-cli produce XML (ADR-0005)
-mint-oscal poam generate --from qureddy scan.json --validate > poam.json
-oscal-cli convert --to xml poam.json example.poam.xml
+# run in-process semantic checks while minting, then convert JSON to XML (ADR-0005)
+mint-oscal poam generate --from cbom examples/example.cbom.json --validate > poam.json
+oscal-cli convert --to=xml poam.json poam.xml --overwrite
 ```
 
 Findings map to a control framework selected with `--framework`: **`scf-qts`** (default,
@@ -79,9 +79,8 @@ attributed to the framework's own namespace and linked to its catalog. Full flag
 
 | Model | Role | Status |
 | --- | --- | --- |
-| `poam` — Plan of Action & Milestones | emit | **Shipped** (prototype, `oscal-cli`-validated) |
-| `ar` — Assessment Results | emit | Designed (requires `import-ap`) |
-| `component-definition` | emit | Designed |
+| `poam` (Plan of Action & Milestones) | emit | **Shipped** (prototype, `oscal-cli`-validated) |
+| `ar` (Assessment Results) | emit | Designed (requires `import-ap`; the emitter exits `3`) |
 | `profile`, `catalog` | consume (the ODP bar / control text) | Designed |
 
 Crypto facts ride as readable `prop` in the `https://breachsafe.ai/ns/oscal` namespace
@@ -90,16 +89,38 @@ OSCAL has no native crypto model; these props pass through validators unchanged.
 
 ## Supported formats
 
-OSCAL's three native encodings, matching `oscal-cli`: **JSON** (native, deterministic, no
-dependency), **XML**, and **YAML** (both via `oscal-cli`). Select with `--to`.
+JSON is the only shipped native encoding: deterministic, no external dependency. Native
+`--to xml` and `--to yaml` are planned (ADR-0005) and exit `3` (`not_implemented`) today.
+To get XML or YAML now, mint JSON and convert it with `oscal-cli`:
+
+```bash
+mint-oscal poam generate --from cbom examples/example.cbom.json > poam.json
+oscal-cli convert --to=xml poam.json poam.xml --overwrite
+```
+
+See [docs/how-to/emit-xml-or-yaml.md](docs/how-to/emit-xml-or-yaml.md).
 
 ## Library API
 
-Embedded callers use the library directly instead of the CLI:
+Embedded callers build an `IR` and call `convert` instead of shelling out to the CLI:
 
 ```python
-import mint_oscal
-poam = mint_oscal.convert(ir, shape="poam")
+from mint_oscal import IR, Finding, Subject, convert
+
+subject = Subject(id="example.com:443", kind="endpoint", description="TLS endpoint")
+finding = Finding(
+    id="rsa-2048-in-use",
+    title="RSA-2048 key exchange is not quantum-safe",
+    description="Endpoint negotiates RSA-2048, which CNSA 2.0 deprecates.",
+    severity="high",
+    status="open",
+    subject=subject,
+    observed_at="2026-07-28T15:00:12+00:00",
+    control_ids=("QTS-01",),
+    risk_statement="Harvest-now-decrypt-later exposure.",
+)
+ir = IR(findings=(finding,), subject=subject, source="cbom")
+poam = convert(ir, shape="poam")  # returns a dict; metadata.oscal-version == "1.2.2"
 ```
 
 The CLI is a thin wrapper over `convert`.
@@ -107,8 +128,8 @@ The CLI is a thin wrapper over `convert`.
 ## Determinism and git
 
 UUIDs are `uuid5` over a fixed namespace and `last-modified` is derived from the scan's
-observation time (not wall-clock), so the same scan produces byte-identical output. A re-scan yields a clean `git diff` — you
-review what changed in posture, not churn.
+observation time (not wall-clock), so the same scan produces byte-identical output. A
+re-scan yields a clean `git diff`: you review what changed in posture, without churn.
 
 ## What "valid" does and does not mean
 
@@ -126,7 +147,7 @@ Documents declare `oscal-version` **1.2.2** (the current NIST OSCAL release). Va
 
 ## Documentation
 
-The docs follow [Diátaxis](https://diataxis.fr) — start at the [docs index](docs/README.md).
+The docs follow [Diátaxis](https://diataxis.fr). Start at the [docs index](docs/README.md).
 
 - **Learn:** [Your first POA&M](docs/tutorials/your-first-poam.md)
 - **Do:** [Mint from a CBOM](docs/how-to/mint-from-a-cbom.md) ·
