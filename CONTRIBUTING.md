@@ -4,15 +4,23 @@ Thanks for your interest in contributing. This project mints NIST OSCAL document
 from a source-neutral intermediate representation (IR); correctness and auditability
 matter more than speed here.
 
+## Contents
+
+1. [Ground rules](#ground-rules)
+2. [Architecture (read first)](#architecture-read-first)
+3. [Development setup](#development-setup)
+4. [Before you open a PR](#before-you-open-a-pr)
+5. [Reporting security issues](#reporting-security-issues)
+
 ## Ground rules
 
-- By contributing you agree your work is licensed under [Apache-2.0](LICENSE).
+- By contributing you agree your work is licensed under [PolyForm-Noncommercial-1.0.0](LICENSE).
 - Be excellent to each other; see our [Code of Conduct](CODE_OF_CONDUCT.md).
 - Every source file carries the SPDX header:
 
   ```python
   # SPDX-FileCopyrightText: 2026 BreachSAFE
-  # SPDX-License-Identifier: Apache-2.0
+  # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
   ```
 
 ## Architecture (read first)

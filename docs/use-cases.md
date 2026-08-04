@@ -20,6 +20,17 @@ it, and neither knows about the other.
 | UC-7 | Existing POA&M + new scan | POA&M (merge) | Reconcile item status across re-scans (open→closed) by deterministic uuid. | Should | T2 | Backlog |
 | UC-8 | Fleet scan (many endpoints) | POA&M / SAR | One document, many inventory-items; findings reference their subject. | Should | T3 | Backlog |
 
+## Contents
+
+1. [UC-1 — QuReddy scan → POA&M](#uc-1--qureddy-scan--poam-must-prototyped-and-validated)
+2. [UC-2 — QuReddy scan → Assessment Results (SAR)](#uc-2--qureddy-scan--assessment-results-sar-must)
+3. [UC-3 — QuReddy CBOM → Component Definition](#uc-3--qureddy-cbom--component-definition-should)
+4. [UC-4 — Prowler → POA&M / SAR](#uc-4--prowler--poam--sar-should)
+5. [UC-5 — OCSF → Assessment Results](#uc-5--ocsf--assessment-results-could)
+6. [UC-6 — Org PQC policy → Profile (CONSUME)](#uc-6--org-pqc-policy--profile-consume-should)
+7. [UC-7 — Existing POA&M + new scan → merge](#uc-7--existing-poam--new-scan--merge-should)
+8. [UC-8 — Fleet / multi-subject](#uc-8--fleet--multi-subject-should)
+
 ## UC-1 — QuReddy scan → POA&M *(Must, prototyped and validated)*
 
 Convert a single QuReddy scan into a standalone, human-readable OSCAL POA&M. This is the

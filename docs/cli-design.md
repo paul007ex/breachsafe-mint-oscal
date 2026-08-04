@@ -4,6 +4,14 @@ Source: [`requirements.xlsx`](requirements.xlsx) → *CLI-Design* sheet (R-CLI-D
 See the [README](README.md) index. The CLI-shape decision is recorded in
 [ADR-0002](adr/0002-cli-shape.md).
 
+## Contents
+
+1. [Prior art](#prior-art)
+2. [Decision](#decision)
+3. [Synopsis](#synopsis)
+4. [Design requirements (R-CLI-D01..D12)](#design-requirements-r-cli-d01d12)
+5. [Exit codes (R-CLI-D08)](#exit-codes-r-cli-d08)
+
 ## Prior art
 
 | Tool | Shape | Model |

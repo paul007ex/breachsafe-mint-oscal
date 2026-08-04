@@ -7,11 +7,11 @@
 
 ## Contents
 
-- [Context](#context)
-- [Decision](#decision)
-- [Consequences](#consequences)
-- [Alternatives considered](#alternatives-considered)
-- [Implementation](#implementation)
+1. [Context](#context)
+2. [Decision](#decision)
+3. [Consequences](#consequences)
+4. [Alternatives considered](#alternatives-considered)
+5. [Implementation](#implementation)
 
 ## Context
 

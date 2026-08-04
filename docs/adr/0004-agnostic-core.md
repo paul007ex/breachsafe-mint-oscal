@@ -7,12 +7,12 @@
 
 ## Contents
 
-- [Context](#context)
-- [Decision](#decision)
-- [The contract (IR)](#the-contract-ir)
-- [Rules the boundary enforces](#rules-the-boundary-enforces)
-- [Consequences](#consequences)
-- [Alternatives considered](#alternatives-considered)
+1. [Context](#context)
+2. [Decision](#decision)
+3. [The contract (IR)](#the-contract-ir)
+4. [Rules the boundary enforces](#rules-the-boundary-enforces)
+5. [Consequences](#consequences)
+6. [Alternatives considered](#alternatives-considered)
 
 ## Context
 

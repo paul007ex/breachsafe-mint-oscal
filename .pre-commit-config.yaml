@@ -26,3 +26,20 @@ repos:
         language: system
         types_or: [python, pyi]
         require_serial: true
+      - id: bandit
+        name: bandit (Python SAST)
+        entry: uvx --from "bandit[toml]" bandit -q -c pyproject.toml -r src
+        language: system
+        pass_filenames: false
+        files: ^src/.*\.py$
+      - id: reuse
+        name: reuse (SPDX/license compliance)
+        entry: uvx reuse lint
+        language: system
+        pass_filenames: false
+      - id: doc-contract
+        name: doc contract (numbered Contents TOC + resolvable anchors)
+        entry: python scripts/check_docs.py
+        language: system
+        pass_filenames: false
+        files: \.md$

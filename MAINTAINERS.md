@@ -3,6 +3,13 @@
 This file lists the people responsible for reviewing and merging changes to
 `breachsafe-mint-oscal`, in the style used by the NIST OSCAL tooling projects.
 
+## Contents
+
+1. [Current maintainers](#current-maintainers)
+2. [Responsibilities](#responsibilities)
+3. [Decision making](#decision-making)
+4. [Becoming a maintainer](#becoming-a-maintainer)
+
 ## Current maintainers
 
 | Name      | GitHub      | Area                                   |

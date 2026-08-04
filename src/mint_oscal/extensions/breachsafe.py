@@ -149,9 +149,7 @@ def enrich(
     for finding in findings:
         derived = finding.posture.get("readiness", "unknown")
         posture = {**finding.posture, "provenance": _crosscheck(derived, declared)}
-        enriched.append(
-            replace(finding, posture=posture, evidence=(*finding.evidence, *evidence))
-        )
+        enriched.append(replace(finding, posture=posture, evidence=(*finding.evidence, *evidence)))
     return enriched, subject
 
 

@@ -1,5 +1,11 @@
 # Security Policy
 
+## Contents
+
+1. [Supported Versions](#supported-versions)
+2. [Reporting a Vulnerability](#reporting-a-vulnerability)
+3. [Scope notes](#scope-notes)
+
 ## Supported Versions
 
 This project is pre-1.0. Security fixes are applied to the latest `0.0.x` release

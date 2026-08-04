@@ -7,17 +7,17 @@
 
 ## Contents
 
-- [Context](#context)
-- [The trestle investigation (grounded)](#the-trestle-investigation-grounded)
-- [Decision](#decision)
-- [Design: the boundary](#design-the-boundary)
-- [Proposed code (Layer 2 validator registry)](#proposed-code-layer-2-validator-registry)
-- [What exactly we borrow — provenance ledger](#what-exactly-we-borrow--provenance-ledger)
-- [Anti-pattern review of the proposed design](#anti-pattern-review-of-the-proposed-design)
-- [Consequences](#consequences)
-- [Alternatives considered](#alternatives-considered)
-- [Implementation plan](#implementation-plan)
-- [References](#references)
+1. [Context](#context)
+2. [The trestle investigation (grounded)](#the-trestle-investigation-grounded)
+3. [Decision](#decision)
+4. [Design: the boundary](#design-the-boundary)
+5. [Proposed code (Layer 2 validator registry)](#proposed-code-layer-2-validator-registry)
+6. [What exactly we borrow — provenance ledger](#what-exactly-we-borrow--provenance-ledger)
+7. [Anti-pattern review of the proposed design](#anti-pattern-review-of-the-proposed-design)
+8. [Consequences](#consequences)
+9. [Alternatives considered](#alternatives-considered)
+10. [Implementation plan](#implementation-plan)
+11. [References](#references)
 
 ## Context
 
