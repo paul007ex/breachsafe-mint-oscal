@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 BreachSAFE
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+#
+# Governance + authority metadata for the SCF-QTS pack.
+#
+# reviewed: false => the readiness->QTS MAPPING is DRAFT/unreviewed (BreachSAFE-authored);
+# every finding minted through it is stamped `interpretation-status: provisional` in the
+# emitted OSCAL until conformance sign-off (#84). Flip to true only after review.
+#
+# The QTS CONTROLS are authoritative SCF (SCF 2026.2, CC BY-ND) -- BreachSAFE does not own
+# them. Attribute control ids to SCF's authority namespace (NEVER the BreachSAFE ns) and
+# link to the SCF-QTS OSCAL catalog, so the output is clear about what is standard vs ours.
+reviewed: false
+framework: scf-qts-2026.2
+authority_ns: https://securecontrolsframework.com/ns/oscal
+catalog_href: scf-qts-2026.2-catalog.json

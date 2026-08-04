@@ -28,7 +28,7 @@ from cyclonedx.schema import SchemaVersion
 
 from mint_oscal.controls.nist import controls_for, risk_statement
 from mint_oscal.ir import Finding, Subject
-from mint_oscal.policy import get_policy
+from mint_oscal.policy import active_policy
 
 _NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "https://breachsafe.ai/ns/oscal/cbom")
 _DATA_PACKAGE = "mint_oscal.adapters.cbom_data"
@@ -390,7 +390,7 @@ def from_cbom(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
         description=(
             f"KEX offered: {posture['kex-offered']}; cert signature: {posture['cert-signature']}."
         ),
-        severity=get_policy().severity.get(readiness, "info"),
+        severity=active_policy().severity.get(readiness, "info"),
         status="open",
         subject=subject,
         observed_at=timestamp,

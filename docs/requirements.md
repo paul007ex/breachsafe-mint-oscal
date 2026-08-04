@@ -53,7 +53,7 @@ control-mapping requirements below.
 
 | ID | Requirement | Type | Priority | Grounding / Source | Acceptance Criteria | Verify | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| R-OSC-01 | Declared `oscal-version = 1.1.2` for max validator interop; `1.2.2` recorded as internal target prop. | Constraint | Must | oscal-cli 3.2.0; Trestle regex `^1.2.[0-1]$` | Declared 1.1.2; prop `oscal-target-version=1.2.2`. | Inspection | Met (v2) |
+| R-OSC-01 | Declared `oscal-version = 1.2.2` (current NIST OSCAL release). | Constraint | Must | oscal-cli 3.2.0; NIST v1.2.2 JSON schema | Declared 1.2.2; no `oscal-target-version` prop. | Inspection | Met (v3) |
 | R-OSC-02 | All required POA&M fields present (uuid, metadata{title,last-modified,version,oscal-version}, system-id\|import-ssp, ≥1 poam-item{title,description}). | Constraint | Must | `oscal_poam_metaschema.xml` | Validator reports required fields satisfied. | Demo | Met (v2) |
 | R-OSC-03 | Output validates clean against NIST oscal-cli. | Non-functional | Must | ghcr.io oscal-cli:latest (3.2.0) | "The file is valid." exit clean. | Demo | PASS (v2) |
 | R-OSC-04 | Element ordering conforms to the metaschema. | Constraint | Must | metaschema | No ordering errors from validator. | Demo | PASS (v2) |

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
-OSCAL_VERSION = "1.1.2"
+OSCAL_VERSION = "1.2.2"
 
 # Custom (non-core) props MUST carry this namespace. OSCAL constrains prop names in
 # the default core namespace (http://csrc.nist.gov/ns/oscal) to an allowed set, so an
@@ -51,5 +51,4 @@ def metadata(
         "last-modified": timestamp,
         "version": version,
         "oscal-version": oscal_version,
-        "props": [prop("oscal-target-version", "1.2.2")],
     }

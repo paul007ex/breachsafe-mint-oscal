@@ -71,13 +71,13 @@ Each flag maps to the OSCAL field it populates. POA&M requires `system-id` **or*
 | `--import-ssp HREF` | `import-ssp` (XOR `--system-id`) | one of | — |
 | `--title TEXT` | `metadata/title` | no | derived |
 | `--doc-version VER` | `metadata/version` | no | `0.1.0` |
-| `--oscal-version VER` | `metadata/oscal-version` | no | `1.1.2` (target `1.2.2` as prop) |
+| `--oscal-version VER` | `metadata/oscal-version` | no | `1.2.2` |
 | `--now TS` | `metadata/last-modified` (determinism) | no | scan completion time |
 | `--published TS` | `metadata/published` | no | omitted |
 | `--prepared-by NAME` | `responsible-party` | no | omitted |
 | `--cbom HREF` | `relevant-evidence` (CycloneDX CBOM) | no | omitted |
 | `--profile PATH` | consume Profile for the ODP bar | no | omitted |
-| `--framework ID` | crosswalk control set | no | `sp800-53r5` |
+| `--framework ID` | control framework: `scf-qts` (SCF Quantum Security) or `nist` (SP 800-53r5) | no | `scf-qts` |
 | `--validate` | validate output via `oscal-cli` or structural | no | off |
 
 Evidence carries hashes only (`command-sha256`, `stdout-sha256`), never raw excerpts.

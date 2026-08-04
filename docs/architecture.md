@@ -103,10 +103,9 @@ nistQuantumSecurityLevel, cert-signature, evidence hashes) — standalone, no ba
 
 ## Versioning
 
-Declare `oscal-version` **1.1.2** for maximum validator interop (older oscal-cli, Trestle's
-`^1.2.[0-1]$`); record the internal target **1.2.2** as
-`prop name="oscal-target-version"`. Validated with oscal-cli 3.2.0. "Valid OSCAL" ≠
-"compliant" — the verdict depends on the org's ODP, which is asserted, not scanner-derived.
+Declare `oscal-version` **1.2.2** (the current NIST OSCAL release). Validated with oscal-cli
+3.2.0 and the NIST v1.2.2 JSON schema. "Valid OSCAL" ≠ "compliant" — the verdict depends on
+the org's ODP, which is asserted, not scanner-derived.
 
 ## References
 

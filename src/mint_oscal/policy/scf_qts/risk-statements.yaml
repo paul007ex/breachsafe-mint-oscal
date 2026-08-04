@@ -1,0 +1,19 @@
+# BreachSAFE readiness->risk statement for the SCF-QTS frame. DRAFT/unreviewed (meta.yaml).
+---
+quantum_vulnerable: >-
+  A CRQC-vulnerable key-establishment primitive is exposed (SCF QTS-04.3): captured
+  traffic is subject to harvest-now-decrypt-later once a cryptographically relevant
+  quantum computer exists.
+classically_weak: A weak or deprecated cryptographic primitive is offered (SCF QTS-06.5).
+transitional_hybrid: >-
+  PQ-hybrid key exchange is negotiated (SCF QTS-06.9); residual classical elements remain
+  (for example a classical certificate signature).
+quantum_ready: >-
+  Key establishment uses an approved post-quantum algorithm (SCF QTS-06.3); monitor for
+  residual classical dependencies elsewhere in the cryptographic stack.
+unknown: >-
+  No key exchange could be assessed from the inventory (SCF QTS-04 discovery gap); quantum
+  readiness is undetermined and warrants manual review.
+not_applicable: >-
+  Not applicable to post-quantum readiness (for example a certificate signature algorithm,
+  not a key-establishment primitive); no remediation required.

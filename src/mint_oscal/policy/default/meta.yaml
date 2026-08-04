@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 BreachSAFE
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+#
+# Governance + authority metadata for the NIST 800-53r5 pack (friendly name: nist).
+#
+# reviewed: false => the readiness->control MAPPING is DRAFT/unreviewed (BreachSAFE-authored);
+# findings minted through it are stamped `interpretation-status: provisional` (#84).
+#
+# The controls (SC-13, SC-12) are authoritative NIST SP 800-53r5 -- attribute control ids to
+# NIST's authority namespace, never the BreachSAFE ns.
+reviewed: false
+framework: nist-800-53r5
+authority_ns: https://csrc.nist.gov/ns/oscal/800-53
+catalog_href: NIST_SP-800-53_rev5_catalog.json

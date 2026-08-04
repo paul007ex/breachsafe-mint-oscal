@@ -113,8 +113,8 @@ conformance sign-off**. Valid OSCAL is not the same as compliant.
 
 ## Versioning
 
-Documents declare `oscal-version` **1.1.2** for maximum validator interop and record the
-internal target **1.2.2** as a prop. Validated with `oscal-cli` 3.2.0.
+Documents declare `oscal-version` **1.2.2** (the current NIST OSCAL release). Validated with
+`oscal-cli` 3.2.0 and the NIST v1.2.2 JSON schema.
 
 ## Documentation
 

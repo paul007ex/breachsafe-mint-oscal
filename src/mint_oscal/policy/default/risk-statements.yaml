@@ -16,3 +16,6 @@ quantum_ready: >-
 unknown: >-
   No key exchange could be assessed from the inventory; quantum readiness is
   undetermined and warrants manual review.
+not_applicable: >-
+  Not applicable to post-quantum readiness (for example a certificate signature
+  algorithm, not a key-establishment primitive); no remediation required.
