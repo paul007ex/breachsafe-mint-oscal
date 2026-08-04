@@ -21,7 +21,7 @@
 mint-oscal converts security-tool findings into NIST OSCAL documents through an
 **N sources → neutral IR → M OSCAL shapes** pipeline. The core is *agnostic*: it
 knows only the intermediate representation (IR) and OSCAL, never a source's schema
-(see [ADR-0004](adr/0004-agnostic-core.md)). Source knowledge lives in optional edge
+(see [ADR-0004](../adr/0004-agnostic-core.md)). Source knowledge lives in optional edge
 adapters or, better, in the sources themselves (which emit the published `mint.ir.v1`
 contract directly).
 
@@ -97,7 +97,7 @@ philosophy Trestle applies to authored OSCAL, applied here to generated OSCAL.
 
 mint-oscal emits canonical OSCAL (it *is* OSCAL). Native default **JSON**; XML/YAML via
 oscal-cli. A real, oscal-cli-validated document lives at
-[`../examples/example.poam.v2.xml`](../examples/example.poam.v2.xml). Crypto facts ride as
+[`examples/example.poam.v2.xml`](../../examples/example.poam.v2.xml). Crypto facts ride as
 readable `prop ns="https://breachsafe.ai/ns/oscal"` (readiness, algorithm,
 nistQuantumSecurityLevel, cert-signature, evidence hashes) — standalone, no base64.
 
@@ -109,7 +109,7 @@ the org's ODP, which is asserted, not scanner-derived.
 
 ## References
 
-- [requirements.md](requirements.md) · [use-cases.md](use-cases.md) ·
-  [oscal-shapes.md](oscal-shapes.md) · [cli.md](cli.md)
-- [ADRs](adr/) · `requirements.xlsx` (13-tab source of truth)
+- [requirements.md](../reference/requirements.md) · [use-cases.md](../reference/use-cases.md) ·
+  [oscal-shapes.md](../reference/oscal-shapes.md) · [cli.md](../reference/cli.md)
+- [ADRs](../adr/) · `requirements.xlsx` (13-tab source of truth)
 - Skill: `breachsafe-oscal-conformance` (OSCAL required-fields + crosswalk gate)

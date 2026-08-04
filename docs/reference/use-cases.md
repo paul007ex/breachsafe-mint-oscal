@@ -1,7 +1,7 @@
 # Use Cases
 
-Eight use cases for `mint-oscal`, source: [`requirements.xlsx`](requirements.xlsx) →
-*Use-Cases* sheet. See the [README](README.md) index and the honest-verdict caveat.
+Eight use cases for `mint-oscal`, source: [`requirements.xlsx`](../requirements.xlsx) →
+*Use-Cases* sheet. See the [docs index](../README.md) and the honest-verdict caveat.
 
 Use cases sit on a **two-axis matrix**: **N sources** (QuReddy scan JSON, QuReddy CBOM,
 Prowler, OCSF, org PQC policy, an existing POA&M, fleet scans) crossed with **M OSCAL
@@ -37,13 +37,13 @@ Convert a single QuReddy scan into a standalone, human-readable OSCAL POA&M. Thi
 flagship path and the only end-to-end proven one: prototype v2 validated clean against
 `oscal-cli 3.2.0`. The document is self-contained (no base64, no mandatory external fetch)
 with crypto facts carried as readable namespaced props. Depends on decision **T1**
-([ADR-0001](adr/0001-primary-oscal-target.md)).
+([ADR-0001](../adr/0001-primary-oscal-target.md)).
 
 ## UC-2 — QuReddy scan → Assessment Results (SAR) *(Must)*
 
 Emit the canonical, faithful artifact: what the scanner actually *observed*
 (observations/findings/risks), as opposed to the downstream management plan. Per
-[ADR-0001](adr/0001-primary-oscal-target.md), SAR is the canonical record and POA&M is its
+[ADR-0001](../adr/0001-primary-oscal-target.md), SAR is the canonical record and POA&M is its
 open-risk extract. Designed; required fields **NEEDS CONFIRM** from the SAR metaschema
 before the emitter is written (see [oscal-shapes.md](oscal-shapes.md)).
 

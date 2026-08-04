@@ -73,7 +73,7 @@ oscal-cli convert --to xml poam.json example.poam.xml
 Findings map to a control framework selected with `--framework`: **`scf-qts`** (default,
 PQC-native SCF Quantum Security controls) or **`nist`** (SP 800-53r5). Control ids are
 attributed to the framework's own namespace and linked to its catalog. Full flag reference:
-[docs/cli.md](docs/cli.md).
+[docs/reference/cli.md](docs/reference/cli.md).
 
 ## Supported OSCAL models
 
@@ -126,9 +126,19 @@ Documents declare `oscal-version` **1.2.2** (the current NIST OSCAL release). Va
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) — components, data flow, trust boundaries, decisions
-- [CLI reference](docs/cli.md) · [CLI design](docs/cli-design.md)
-- [Use cases](docs/use-cases.md) · [OSCAL shapes](docs/oscal-shapes.md) · [Requirements](docs/requirements.md)
+The docs follow [Diátaxis](https://diataxis.fr) — start at the [docs index](docs/README.md).
+
+- **Learn:** [Your first POA&M](docs/tutorials/your-first-poam.md)
+- **Do:** [Mint from a CBOM](docs/how-to/mint-from-a-cbom.md) ·
+  [Choose a framework](docs/how-to/choose-a-control-framework.md) ·
+  [Validate with oscal-cli](docs/how-to/validate-with-oscal-cli.md) ·
+  [Emit XML or YAML](docs/how-to/emit-xml-or-yaml.md)
+- **Look up:** [CLI reference](docs/reference/cli.md) · [Exit codes](docs/reference/exit-codes.md) ·
+  [OSCAL shapes](docs/reference/oscal-shapes.md) · [Requirements](docs/reference/requirements.md)
+- **Understand:** [Agnostic core](docs/explanation/agnostic-core.md) ·
+  [Valid vs compliant](docs/explanation/valid-vs-compliant.md) ·
+  [Honest state & frameworks](docs/explanation/honest-state-and-frameworks.md) ·
+  [Architecture](docs/explanation/architecture.md)
 - [ADRs](docs/adr/) · [Roadmap](ROADMAP.md)
 
 ## Contributing, security, license

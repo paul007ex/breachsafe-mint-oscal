@@ -1,7 +1,7 @@
 # OSCAL Shapes — one requirement set per model
 
-Source: [`requirements.xlsx`](requirements.xlsx) → *OSCAL-Shapes* sheet. See the
-[README](README.md) index.
+Source: [`requirements.xlsx`](../requirements.xlsx) → *OSCAL-Shapes* sheet. See the
+[docs index](../README.md).
 
 Each OSCAL model `mint-oscal` touches has a defined **role**: `EMIT` (we produce it),
 `CONSUME` (we read it as input), `LINK` (we only reference it), or `SKIP` (out of scope).
@@ -40,7 +40,7 @@ Required fields are **verified against the metaschema** and validated end-to-end
 
 ### Assessment Results (SAR) — EMIT (needs confirm)
 
-Per [ADR-0001](adr/0001-primary-oscal-target.md), SAR is the canonical faithful record of
+Per [ADR-0001](../adr/0001-primary-oscal-target.md), SAR is the canonical faithful record of
 what the scanner observed. The sketch above notably includes `import-ap`, which is
 **likely** required — confirm against the SAR metaschema before building the emitter.
 

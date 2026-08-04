@@ -2,9 +2,9 @@
 
 Requirements Traceability Matrix for `mint-oscal` — 42 requirements across 11 categories
 (ARCH, SRC, OUT, OSC, DET, EVID, CTRL, VAL, CLI, PKG, NG). Source of truth:
-[`requirements.xlsx`](requirements.xlsx) → *Requirements* sheet.
+[`requirements.xlsx`](../requirements.xlsx) → *Requirements* sheet.
 
-See [README](README.md) for the index and the honest-verdict caveat that governs all
+See the [docs index](../README.md) for the honest-verdict caveat that governs all
 control-mapping requirements below.
 
 ## Contents
@@ -113,9 +113,9 @@ control-mapping requirements below.
 
 ## CLI — CLI (command surface)
 
-> See [cli-design.md](cli-design.md) for the full design set (R-CLI-D01..D12). Note: the
+> See [cli-design.md](../contributors/cli-design.md) for the full design set (R-CLI-D01..D12). Note: the
 > command name below reflects the pre-naming RTM wording; the decided invocation is
-> `mint-oscal <shape>` per [ADR-0003](adr/0003-naming.md).
+> `mint-oscal <shape>` per [ADR-0003](../adr/0003-naming.md).
 
 | ID | Requirement | Type | Priority | Grounding / Source | Acceptance Criteria | Verify | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |

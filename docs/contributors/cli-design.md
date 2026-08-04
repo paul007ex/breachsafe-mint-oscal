@@ -1,8 +1,14 @@
 # CLI Design
 
-Source: [`requirements.xlsx`](requirements.xlsx) → *CLI-Design* sheet (R-CLI-D01..D12).
-See the [README](README.md) index. The CLI-shape decision is recorded in
-[ADR-0002](adr/0002-cli-shape.md).
+Source: [`requirements.xlsx`](../requirements.xlsx) → *CLI-Design* sheet (R-CLI-D01..D12).
+See the [docs index](../README.md). The CLI-shape decision is recorded in
+[ADR-0002](../adr/0002-cli-shape.md).
+
+> **This is a design record, not the shipped contract.** For the exact command surface as
+> built, read [reference/cli.md](../reference/cli.md). Some names evolved after this record:
+> the encoding flag shipped as `--to` (not `--format`), output goes to STDOUT with no
+> `-o/--output` flag, and the `sources`/`shapes` introspection commands are not implemented.
+> The `Status` column below tracks what actually landed.
 
 ## Contents
 

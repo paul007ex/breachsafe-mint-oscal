@@ -2,7 +2,7 @@
 
 - **Status:** Proposed
 - **Deciders:** mint-oscal maintainers
-- **Related:** CLI-1 (workbook *Open-Decisions*); [cli-design.md](../cli-design.md)
+- **Related:** CLI-1 (workbook *Open-Decisions*); [cli-design.md](../contributors/cli-design.md)
 
 ## Contents
 

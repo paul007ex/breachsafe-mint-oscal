@@ -1,66 +1,78 @@
 # mint-oscal — Documentation
 
-`mint-oscal` (repo `breachsafe-mint-oscal`, PyPI `mint-oscal`, import `mint_oscal`)
-converts security-tool findings into NIST OSCAL documents.
+`mint-oscal` (repo `breachsafe-mint-oscal`, import `mint_oscal`) converts security-tool
+findings into NIST OSCAL documents. This directory follows
+**[Diátaxis](https://diataxis.fr)**: every page belongs to one of four quadrants and has one
+job.
 
-It is built on an **N sources → neutral IR → M OSCAL shapes** architecture:
-
-- **Sources (adapters):** QuReddy scan JSON first; later Prowler, OCSF, CycloneDX CBOM.
-- **Neutral IR:** frozen dataclasses `Finding` / `Subject` / `Evidence`,
-  source- and target-agnostic.
-- **Targets (emitters):** OSCAL POA&M (flagship, prototyped and validated),
-  Assessment Results (SAR), Component Definition.
-
-`mint-oscal` is a **composable stdin→stdout filter**, not a stateful repo tool like
-IBM Trestle. A typical chain:
-
-```
-qureddy scan | mint-oscal poam --from qureddy | oscal-cli validate -
-```
-
-Output is **deterministic** (uuid5 over a fixed namespace) so generated OSCAL is
-git-diffable.
-
-> **OSCAL version note:** Documents declare `oscal-version = 1.2.2` (the current NIST OSCAL
-> release). Validated end-to-end with `oscal-cli 3.2.0` and the NIST v1.2.2 JSON schema.
-
-> **Honest-verdict caveat (applies throughout):** any finding→control→ODP judgment is an
-> **organization-policy assertion** (an organization-defined parameter), **not** a
-> scanner-derived truth. The control crosswalk requires human conformance review with
-> catalog citations. A document being OSCAL-*valid* does **not** make it *compliant*.
+> **Honest-verdict caveat (applies throughout).** A document being *valid OSCAL* does **not**
+> make it *compliant*. Any finding→control→ODP judgment is an organization-policy assertion,
+> not a scanner-derived truth. See
+> [explanation/valid-vs-compliant.md](explanation/valid-vs-compliant.md).
 
 ## Contents
 
-1. [Documents](#documents)
-2. [Status at a glance](#status-at-a-glance)
+1. [The four quadrants](#the-four-quadrants)
+2. [Tutorials](#tutorials)
+3. [How-to guides](#how-to-guides)
+4. [Reference](#reference)
+5. [Explanation](#explanation)
+6. [Decision records](#decision-records)
+7. [Contributor documentation](#contributor-documentation)
 
-## Documents
+## The four quadrants
 
-| Doc | Description |
-| --- | --- |
-| [requirements.md](requirements.md) | Requirements Traceability Matrix — 42 requirements across 11 categories. |
-| [use-cases.md](use-cases.md) | 8 use cases; the sources × OSCAL-shapes matrix. |
-| [oscal-shapes.md](oscal-shapes.md) | Per-model requirement sets (POA&M, SAR, Component, Profile, Catalog, SSP, Assessment Plan). |
-| [cli-design.md](cli-design.md) | CLI design (R-CLI-D01..D12), prior-art comparison, synopsis, exit codes. |
-| [adr/README.md](adr/README.md) | Architecture Decision Record index. |
-| [adr/0001-primary-oscal-target.md](adr/0001-primary-oscal-target.md) | SAR canonical, POA&M derived (flagship). |
-| [adr/0002-cli-shape.md](adr/0002-cli-shape.md) | Model-first subcommands + composable filter. |
-| [adr/0003-naming.md](adr/0003-naming.md) | Package naming (Accepted). |
+|  | Theoretical (concept) | Practical (action) |
+|---|---|---|
+| **Studying** (learning) | [Explanation](explanation/) | [Tutorials](tutorials/) |
+| **Working** (doing) | — | [How-to guides](how-to/) and [Reference](reference/) |
 
-## Status at a glance
+- **Tutorials** — learning-oriented. A guaranteed-to-work walkthrough for someone new.
+- **How-to guides** — task-oriented recipes for someone who knows the basics.
+- **Reference** — information-oriented. Complete, dry, accurate.
+- **Explanation** — understanding-oriented. Rationale and context.
 
-| Area | State | Notes |
-| --- | --- | --- |
-| POA&M emitter | **Built** | Prototype v2 validated clean against `oscal-cli 3.2.0`. |
-| Neutral IR (`Finding/Subject/Evidence`) | **Built** | Frozen, source/target-agnostic. |
-| QuReddy adapter | **Built** | Live scan → IR findings + subject. |
-| Determinism (uuid5) | **Built** | Re-run yields identical uuids. |
-| Structural validator | **Built** | No network/toolchain needed. |
-| Assessment Results (SAR) emitter | **Designed** | Required fields **NEEDS CONFIRM** from metaschema. |
-| Component Definition emitter | **Designed** | Required fields **NEEDS CONFIRM** from metaschema. |
-| Prowler / OCSF / CBOM adapters | **Backlog** | Roadmap. |
-| Packaging (`R-PKG-01`) | **Built** | pyproject, `mint-oscal` entry point, and LICENSE all shipped. |
-| Control crosswalk (`R-CTRL-01`) | **OPEN** | Draft only; needs cited human conformance review. |
-| Primary target (ADR-0001) | **Proposed** | SAR canonical + POA&M derived. |
-| CLI shape (ADR-0002) | **Proposed** | Model-first + composable filter. |
-| Naming (ADR-0003) | **Accepted** | `breachsafe-mint-oscal` / `mint-oscal` / `mint_oscal`. |
+## Tutorials
+
+Learning-oriented walkthroughs.
+
+- [Your first POA&M](tutorials/your-first-poam.md) — CBOM → POA&M → validate, end to end.
+
+## How-to guides
+
+Task-oriented recipes.
+
+- [Mint a POA&M from a CBOM](how-to/mint-from-a-cbom.md)
+- [Choose a control framework](how-to/choose-a-control-framework.md) — `scf-qts` vs `nist`
+- [Validate with oscal-cli](how-to/validate-with-oscal-cli.md)
+- [Emit XML or YAML](how-to/emit-xml-or-yaml.md)
+
+## Reference
+
+Look-it-up information — comprehensive, accurate, dry.
+
+- [CLI reference](reference/cli.md) — every command, flag, default, and value
+- [Exit codes](reference/exit-codes.md) — `generate` and `validate` code sets
+- [OSCAL shapes](reference/oscal-shapes.md) — per-model required fields (POA&M shipped; others planned)
+- [Requirements (RTM)](reference/requirements.md) — the traceability matrix
+- [Use cases](reference/use-cases.md) — the sources × OSCAL-shapes matrix and its status
+
+## Explanation
+
+Rationale and context. No commands.
+
+- [The agnostic core](explanation/agnostic-core.md) — N sources → neutral IR → M shapes
+- [Valid is not compliant](explanation/valid-vs-compliant.md) — what validation does and does not mean
+- [Honest state and control frameworks](explanation/honest-state-and-frameworks.md) — the `scf-qts` default, the provisional marker, the fact→finding gate
+- [Architecture](explanation/architecture.md) — components, data flow, trust boundaries
+
+## Decision records
+
+- [Architecture Decision Records](adr/README.md) — the ADR index (unchanged).
+
+## Contributor documentation
+
+Rules and conventions for working *on* `mint-oscal`, not *with* it.
+
+- [CONTRIBUTING.md](../CONTRIBUTING.md) — setup, ground rules, PR checklist.
+- [contributors/cli-design.md](contributors/cli-design.md) — the CLI design record (R-CLI-D01..D12).
