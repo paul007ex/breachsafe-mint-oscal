@@ -117,7 +117,11 @@ def from_scan_v1(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
     scan = _require(document, "scan", "scan")
     if not isinstance(scan, dict):
         raise MalformedScanError("malformed qureddy.scan.v1: 'scan' must be an object")
-    collected = _require(scan, "completed_at", "scan.completed_at")
+    # Type-guard like its siblings: a non-string completed_at flows into Finding.observed_at
+    # then datetime.fromisoformat(), whose TypeError (not a ValueError) escapes the adapter's
+    # domain-error boundary and is mislabeled exit 70 internal_error instead of exit 2
+    # malformed_input -- the exit code would lie about whose fault the bad input is (#82).
+    collected = _str(_require(scan, "completed_at", "scan.completed_at"), "scan.completed_at")
     evidence_by_id = _index_evidence(document.get("evidence", []))
 
     findings: list[Finding] = []
@@ -135,7 +139,7 @@ def from_scan_v1(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
                 title=title,
                 description=finding.get("description", title),
                 severity=_require(finding, "severity", "findings[].severity"),
-                status="open",
+                status=_status(finding),
                 subject=subject,
                 observed_at=collected,
                 control_ids=controls_for(readiness),
@@ -145,6 +149,19 @@ def from_scan_v1(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
             )
         )
     return findings, subject
+
+
+def _status(finding: dict[str, Any]) -> str:
+    """Derive the OSCAL risk status (``open``|``closed``) the scan reports for a finding.
+
+    A finding the scanner marks remediated/closed mints a CLOSED risk, not a hardcoded open
+    one, so a resolved finding is no longer published as an open POA&M risk (#83). This is what
+    makes the emitter's status pass-through (poam.py) live. Any other/absent/non-string value
+    falls back to ``open`` -- the honest default (an unresolved finding), never a crash.
+    """
+    if finding.get("remediated") is True or finding.get("status") == "closed":
+        return "closed"
+    return "open"
 
 
 def _posture(finding: dict[str, Any]) -> dict[str, str]:

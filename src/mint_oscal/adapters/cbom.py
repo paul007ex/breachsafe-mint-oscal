@@ -56,6 +56,11 @@ _VER_RE = re.compile(r"\d+(?:\.\d+)?")
 # Readiness verdicts that a weak-protocol offering downgrades to ``classically_weak``.
 # ``quantum_vulnerable`` is already unfavorable and is left as-is (honest-failure, #24/#53).
 _WEAK_DOWNGRADE_FROM = frozenset({"transitional_hybrid", "quantum_ready", "unknown"})
+# Readiness verdicts that carry no open PQC gap: an already-PQC-ready subject (or one out of
+# scope for PQC readiness) is a resolved posture, so its risk is minted ``closed``, not open --
+# A CBOM is a point-in-time inventory with no remediation evidence, so mint never claims a risk is
+# "closed" from it: asserting a resolution it cannot prove is the unsafe/non-conformant direction.
+# CBOM findings stay "open" (an assessor closes with evidence); QuReddy carries real status (#83).
 
 
 class MalformedCbomError(ValueError):
@@ -271,14 +276,16 @@ def _readiness(
                 kex_safe.append(safe)
                 if safe and level:
                     levels.append(level)
-        elif (
-            entry is None
-            and declared_level is None
-            and (declared_primitive is None or declared_primitive in _INDETERMINATE_PRIMITIVES)
+        elif entry is None and (
+            declared_primitive is None or declared_primitive in _INDETERMINATE_PRIMITIVES
         ):
             # a registry-miss we cannot classify: either no primitive at all, or one the
             # producer explicitly flagged indeterminate (`unknown`/`other`). Surface it as
             # unclassified so a hidden classical KEX cannot ride a favorable verdict (#78).
+            # A producer-declared `nistQuantumSecurityLevel` does NOT license classifying it:
+            # the level is a classical-equivalent *strength*, not a primitive determination, so
+            # a level-stamped indeterminate/no-primitive registry-miss is still unclassified --
+            # otherwise it is silently dropped and a hidden KEX rides a favorable verdict (#98).
             unclassified.append(name)
 
     readiness = "unknown"
