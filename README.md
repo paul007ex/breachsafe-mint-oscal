@@ -50,23 +50,30 @@ pip install .
 ```
 
 XML and YAML output additionally require an external [`oscal-cli`](https://github.com/metaschema-framework/oscal-cli)
-on `PATH` (or the Docker image); JSON output has no external dependency.
+on `PATH`; JSON output has no external dependency.
 
 ## Quickstart
 
 ```bash
 # mint a POA&M from a QuReddy scan (JSON to stdout)
+# findings map to PQC-native SCF Quantum Security (QTS) controls by default
 mint-oscal poam generate --from qureddy scan.json
 
+# from a CycloneDX CBOM, mapped to NIST SP 800-53r5 instead of the default scf-qts
+mint-oscal poam generate --from cbom scan.cbom.json --framework nist
+
 # chain straight into the NIST validator
-mint-oscal poam generate --from qureddy scan.json | oscal-cli poam validate -
+mint-oscal poam generate --from qureddy scan.json | oscal-cli validate -
 
 # check internal integrity, then let oscal-cli produce XML (ADR-0005)
 mint-oscal poam generate --from qureddy scan.json --validate > poam.json
-oscal-cli poam convert --to xml poam.json example.poam.xml
+oscal-cli convert --to xml poam.json example.poam.xml
 ```
 
-Full flag reference: [docs/cli.md](docs/cli.md).
+Findings map to a control framework selected with `--framework`: **`scf-qts`** (default,
+PQC-native SCF Quantum Security controls) or **`nist`** (SP 800-53r5). Control ids are
+attributed to the framework's own namespace and linked to its catalog. Full flag reference:
+[docs/cli.md](docs/cli.md).
 
 ## Supported OSCAL models
 
@@ -108,8 +115,9 @@ review what changed in posture, not churn.
 `oscal-cli` validation confirms schema and constraint conformance. It does **not** bless the
 finding→control mapping or the compliance verdict. That verdict depends on an
 organization-defined parameter (for example, whether the ODP requires CNSA 2.0 PQC) and is
-*asserted*, not scanner-derived. The `sp800-53r5` crosswalk ships as a **draft pending
-conformance sign-off**. Valid OSCAL is not the same as compliant.
+*asserted*, not scanner-derived. The default `scf-qts` crosswalk (and the opt-in `nist` one)
+ship as **drafts pending conformance sign-off**, so every finding carries an
+`interpretation-status: provisional` prop until then. Valid OSCAL is not the same as compliant.
 
 ## Versioning
 
