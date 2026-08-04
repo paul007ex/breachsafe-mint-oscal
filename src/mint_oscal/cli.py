@@ -85,9 +85,8 @@ _SOURCE_DISPLAY = {"cbom": "CBOM", "qureddy": "QuReddy"}
 _MODEL_BLURB = {
     "poam": "POA&M (Plan of Action & Milestones)",
     "ar": "Assessment Results",
-    "component-definition": "Component Definition",
 }
-_PLANNED_MODELS = {"ar", "component-definition"}
+_PLANNED_MODELS = {"ar"}
 # Models that have a native Layer-2 validator (a `validate` verb); POA&M is the only one today.
 _VALIDATABLE_MODELS = {"poam"}
 

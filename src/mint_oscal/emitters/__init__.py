@@ -13,7 +13,7 @@ from collections.abc import Callable
 from types import MappingProxyType
 from typing import Any
 
-from mint_oscal.emitters import ar, component, poam
+from mint_oscal.emitters import ar, poam
 
 Emitter = Callable[..., dict[str, Any]]
 
@@ -22,7 +22,6 @@ _EMITTERS: MappingProxyType[str, Emitter] = MappingProxyType(
     {
         "poam": poam.emit,
         "ar": ar.emit,
-        "component-definition": component.emit,
     }
 )
 
