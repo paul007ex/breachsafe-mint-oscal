@@ -56,6 +56,11 @@ _VER_RE = re.compile(r"\d+(?:\.\d+)?")
 # Readiness verdicts that a weak-protocol offering downgrades to ``classically_weak``.
 # ``quantum_vulnerable`` is already unfavorable and is left as-is (honest-failure, #24/#53).
 _WEAK_DOWNGRADE_FROM = frozenset({"transitional_hybrid", "quantum_ready", "unknown"})
+# Readiness verdicts that carry no open PQC gap: an already-PQC-ready subject (or one out of
+# scope for PQC readiness) is a resolved posture, so its risk is minted ``closed``, not open --
+# a CBOM has no per-finding remediation field, so the verdict is the honest status signal it can
+# carry, which makes the emitter's status pass-through live instead of a hardcoded "open" (#83).
+_RESOLVED_READINESS = frozenset({"quantum_ready", "not_applicable"})
 
 
 class MalformedCbomError(ValueError):
@@ -412,7 +417,7 @@ def from_cbom(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
             f"KEX offered: {posture['kex-offered']}; cert signature: {posture['cert-signature']}."
         ),
         severity=active_policy().severity.get(readiness, "info"),
-        status="open",
+        status="closed" if readiness in _RESOLVED_READINESS else "open",
         subject=subject,
         observed_at=timestamp,
         control_ids=controls_for(readiness),
