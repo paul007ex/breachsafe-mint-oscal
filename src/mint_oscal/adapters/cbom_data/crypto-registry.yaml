@@ -10,6 +10,9 @@ X25519KYBER768:         { quantum_safe: true,  nistLevel: 3, kind: kex }
 SECP256R1MLKEM768:      { quantum_safe: true,  nistLevel: 3, kind: kex }
 MLKEM768:               { quantum_safe: true,  nistLevel: 3, kind: kex }
 MLKEM1024:              { quantum_safe: true,  nistLevel: 5, kind: kex }
+# Canonical FIPS 203 hyphenated spellings — what a spec-compliant producer emits (#80).
+ML-KEM-768:             { quantum_safe: true,  nistLevel: 3, kind: kex }
+ML-KEM-1024:            { quantum_safe: true,  nistLevel: 5, kind: kex }
 SNTRUP761X25519-SHA512: { quantum_safe: true,  nistLevel: 1, kind: kex }
 ECDSA-WITH-SHA384:      { quantum_safe: false, kind: signature }
 ECDSA-WITH-SHA256:      { quantum_safe: false, kind: signature }
