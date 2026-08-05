@@ -2,7 +2,7 @@
 
 - **Status:** Proposed
 - **Deciders:** mint-oscal maintainers
-- **Related:** ADR-0004 (agnostic core); UC-1, UC-2; [oscal-shapes.md](../oscal-shapes.md)
+- **Related:** ADR-0004 (agnostic core); UC-1, UC-2; [oscal-shapes.md](../reference/oscal-shapes.md)
 
 ## Contents
 

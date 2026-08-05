@@ -2,7 +2,7 @@
 
 - **Status:** Proposed
 - **Deciders:** mint-oscal maintainers
-- **Related:** T1 (workbook *Open-Decisions*); UC-1, UC-2; [oscal-shapes.md](../oscal-shapes.md)
+- **Related:** T1 (workbook *Open-Decisions*); UC-1, UC-2; [oscal-shapes.md](../reference/oscal-shapes.md)
 
 ## Contents
 
@@ -60,7 +60,7 @@ scanner cannot assert.
 
 - Requires building and validating the SAR emitter. Its required fields are **NEEDS CONFIRM**
   — in particular `import-ap` is *likely* required — and MUST be read from the SAR metaschema
-  in `reference/` before coding (see [oscal-shapes.md](../oscal-shapes.md)).
+  in `reference/` before coding (see [oscal-shapes.md](../reference/oscal-shapes.md)).
 - POA&M-as-derived means the derivation rule (which findings/risks become poam-items) must be
   defined and kept honest against the ODP-conditioned verdict (`R-CTRL-03`).
 
