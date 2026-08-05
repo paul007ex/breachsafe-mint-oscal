@@ -296,11 +296,21 @@ def required_fields(document: dict[str, Any]) -> list[str]:
         if key in p and not isinstance(p[key], list):
             out.append(f"poam '{key}' must be an array, got {type(p[key]).__name__}")
     for o in _as_list(p.get("observations")):
-        need(o, ["uuid", "methods"], "observation")
+        need(o, ["uuid", "description", "methods", "collected"], "observation")
+        for s in _as_list(o.get("subjects")) if isinstance(o, dict) else []:
+            need(s, ["subject-uuid", "type"], "observation.subject")
     for r in _as_list(p.get("risks")):
         need(r, ["uuid", "title", "description", "statement", "status"], "risk")
     for it in _as_list(p.get("poam-items")):
         need(it, ["title", "description"], "poam-item")
+        for ro in _as_list(it.get("related-observations")) if isinstance(it, dict) else []:
+            need(ro, ["observation-uuid"], "poam-item.related-observation")
+        for rr in _as_list(it.get("related-risks")) if isinstance(it, dict) else []:
+            need(rr, ["risk-uuid"], "poam-item.related-risk")
+    ld = p.get("local-definitions")
+    if isinstance(ld, dict):
+        for iv in _as_list(ld.get("inventory-items")):
+            need(iv, ["uuid", "description"], "inventory-item")
     if "system-id" in p:
         need(p["system-id"], ["id"], "system-id")
     return out

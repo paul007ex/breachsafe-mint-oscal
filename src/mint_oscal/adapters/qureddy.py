@@ -9,6 +9,7 @@ knows QuReddy's field names; everything downstream sees only the IR.
 
 from __future__ import annotations
 
+import datetime
 from typing import Any
 
 from mint_oscal.controls.nist import controls_for, risk_statement
@@ -122,6 +123,17 @@ def from_scan_v1(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
     # domain-error boundary and is mislabeled exit 70 internal_error instead of exit 2
     # malformed_input -- the exit code would lie about whose fault the bad input is (#82).
     collected = _str(_require(scan, "completed_at", "scan.completed_at"), "scan.completed_at")
+    # A non-empty but unparseable completed_at (e.g. "" or "not-a-date") would flow into the
+    # emitter's ``collected`` -- a required OSCAL dateTime -- and ship an invalid document at
+    # exit 0. Reject it at the boundary as malformed input (exit 2), mirroring the emitter's own
+    # ``fromisoformat`` parse so anything the emitter cannot render as a timestamp fails here.
+    try:
+        datetime.datetime.fromisoformat(collected)
+    except ValueError:
+        raise MalformedScanError(
+            f"malformed qureddy.scan.v1: scan.completed_at must be an ISO-8601 dateTime, "
+            f"got {collected!r}"
+        ) from None
     evidence_by_id = _index_evidence(document.get("evidence", []))
 
     findings: list[Finding] = []
@@ -131,14 +143,19 @@ def from_scan_v1(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
         # ``readiness`` flows into controls_for/risk_statement, which use it as a crosswalk
         # key; a dict there would leak a bare ``TypeError: unhashable type``.
         readiness = _str(finding.get("readiness", ""), "findings[].readiness")
-        title = _require(finding, "title", "findings[].title")
+        # title/description/severity flow verbatim into required OSCAL string fields; a dict/array
+        # here would ship an object-valued title into the POA&M at exit 0, so guard them to a
+        # typed error like every sibling field (#107).
+        title = _str(_require(finding, "title", "findings[].title"), "findings[].title")
         findings.append(
             Finding(
                 # id flows into the emitter's uuid5 "|".join(...); guard it to a typed error.
                 id=_str(_require(finding, "id", "findings[].id"), "findings[].id"),
                 title=title,
-                description=finding.get("description", title),
-                severity=_require(finding, "severity", "findings[].severity"),
+                description=_str(finding.get("description", title), "findings[].description"),
+                severity=_str(
+                    _require(finding, "severity", "findings[].severity"), "findings[].severity"
+                ),
                 status=_status(finding),
                 subject=subject,
                 observed_at=collected,
