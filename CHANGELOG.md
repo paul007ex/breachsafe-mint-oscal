@@ -8,24 +8,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Contents
 
 1. [Unreleased](#unreleased)
-2. [0.2.1 - 2026-08-04](#021---2026-08-04)
-3. [0.2.0 - 2026-08-04](#020---2026-08-04)
-4. [0.1.13 - 2026-07-28](#0113---2026-07-28)
-5. [0.1.12 - 2026-07-28](#0112---2026-07-28)
-6. [0.1.11 - 2026-07-28](#0111---2026-07-28)
-7. [0.1.10 - 2026-07-28](#0110---2026-07-28)
-8. [0.1.9 - 2026-07-28](#019---2026-07-28)
-9. [0.1.8 - 2026-07-28](#018---2026-07-28)
-10. [0.1.7 - 2026-07-28](#017---2026-07-28)
-11. [0.1.6 - 2026-07-28](#016---2026-07-28)
-12. [0.1.5 - 2026-07-28](#015---2026-07-28)
-13. [0.1.4 - 2026-07-28](#014---2026-07-28)
-14. [0.1.3 - 2026-07-28](#013---2026-07-28)
-15. [0.1.2 - 2026-07-28](#012---2026-07-28)
-16. [0.1.1 - 2026-07-28](#011---2026-07-28)
-17. [0.1.0 - 2026-07-28](#010---2026-07-28)
+2. [0.2.2 - 2026-08-04](#022---2026-08-04)
+3. [0.2.1 - 2026-08-04](#021---2026-08-04)
+4. [0.2.0 - 2026-08-04](#020---2026-08-04)
+5. [0.1.13 - 2026-07-28](#0113---2026-07-28)
+6. [0.1.12 - 2026-07-28](#0112---2026-07-28)
+7. [0.1.11 - 2026-07-28](#0111---2026-07-28)
+8. [0.1.10 - 2026-07-28](#0110---2026-07-28)
+9. [0.1.9 - 2026-07-28](#019---2026-07-28)
+10. [0.1.8 - 2026-07-28](#018---2026-07-28)
+11. [0.1.7 - 2026-07-28](#017---2026-07-28)
+12. [0.1.6 - 2026-07-28](#016---2026-07-28)
+13. [0.1.5 - 2026-07-28](#015---2026-07-28)
+14. [0.1.4 - 2026-07-28](#014---2026-07-28)
+15. [0.1.3 - 2026-07-28](#013---2026-07-28)
+16. [0.1.2 - 2026-07-28](#012---2026-07-28)
+17. [0.1.1 - 2026-07-28](#011---2026-07-28)
+18. [0.1.0 - 2026-07-28](#010---2026-07-28)
 
 ## [Unreleased]
+
+## [0.2.2] - 2026-08-04
+
+### Removed
+
+- **Speculative model stubs** (#96): deleted the advertised-but-hollow `component-definition`
+  emitter, the `consume/` catalog and profile readers, and `ir/schema.py`. The CLI no longer lists
+  `component-definition`; the only planned model surfaced is `ar` (Assessment Results).
+
+### Fixed
+
+- **Validator false-greens** (#105): `--validate` / `poam validate` no longer pass POA&M documents
+  that NIST oscal-cli rejects. `required_fields` now checks every sub-object oscal-cli requires:
+  observation `description`/`collected`, observation subject `type`/`subject-uuid`, poam-item
+  `related-observation`/`related-risk` uuids, and `inventory-item` `description`. Proven with an
+  oscal-cli 3.2.0 differential harness.
+- **Invalid output at exit 0** (#106, #107): the QuReddy adapter now rejects a non-ISO-8601
+  `completed_at` (empty or malformed) and a non-string `title`/`severity`/`description` at the
+  parse boundary (exit 2, `malformed_input`) instead of shipping a schema-invalid POA&M at exit 0.
+- **CBOM honest-failure hole, control-id validation, finding status, type-guard** (#98, #94, #83,
+  #82): an indeterminate primitive with a producer security level and a registry miss no longer
+  rides a favorable verdict; control-id shape is validated in the authority namespace; CBOM finding
+  status stays `open` (a point-in-time inventory carries no remediation evidence) while QuReddy
+  carries a real status; a non-string `scan.completed_at` exits 2 (`malformed_input`), not 70.
+
+### Documentation
+
+- **All 17 user-facing docs raised to a 9-10 quality bar** and restructured into Diátaxis
+  (tutorials / how-to / reference / explanation) (#104). Every command is verified against the
+  shipped CLI and oscal-cli 3.2.0: the broken `oscal-cli ... -` stdin pipes are replaced with
+  file-based validation, native `--to xml/yaml` is documented as planned (the working path is
+  `oscal-cli convert`), and stale references (`component-definition`, a phantom `--now` flag, the
+  `from_qureddy` adapter name) are corrected.
 
 ## [0.2.1] - 2026-08-04
 
