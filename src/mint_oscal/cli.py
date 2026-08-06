@@ -118,13 +118,13 @@ def _generate_epilog() -> str:
         "qureddy scan tls example.com --format cbom | mint-oscal poam generate --from cbom -\n\n"
         "# Producer cross-check + semantic validation.\n"
         "mint-oscal poam generate --from cbom scan.cbom.json --extension breachsafe --validate\n\n"
-        "# XML output (requires oscal-cli on PATH).\n"
-        "mint-oscal poam generate --from cbom scan.cbom.json --to xml\n\n"
+        "# YAML output.\n"
+        "mint-oscal poam generate --from cbom scan.cbom.json --to yaml\n\n"
         "EXIT CODES:\n\n"
         "0    OSCAL document minted\n"
         "1    --validate found a semantic problem\n"
         "2    input error, or malformed / unrecognized source report\n"
-        "3    requested output needs a local dependency (oscal-cli for xml/yaml)\n"
+        "3    a planned model was requested (not yet implemented)\n"
         "4    usage error (bad flag / argument / choice)\n"
         "70   internal error (mint-oscal itself failed; not your input)\n\n"
         "ENVIRONMENT:\n\n"
@@ -259,9 +259,9 @@ def _build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.Argumen
             dest="fmt",
             default="json",
             type=str.lower,
-            choices=("json", "xml", "yaml"),
+            choices=("json", "yaml"),
             metavar="FORMAT",
-            help="output encoding: json (default), xml, yaml (xml/yaml require oscal-cli)",
+            help="output encoding: json (default), yaml",
         )
         generate.add_argument(
             "--validate",
@@ -403,8 +403,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911 -- error bounda
     STDOUT carries only the minted OSCAL document; all diagnostics go to STDERR via
     structured logging. This function is the error boundary: it maps the domain errors the
     pure core raises to distinct exit codes and log events without leaking a traceback --
-    input/OS errors and malformed/garbage input exit ``2``; not-yet-implemented paths (stub
-    emitters, XML/YAML render) exit ``3``; a usage mistake (bad flag/argument/choice, caught by
+    input/OS errors and malformed/garbage input exit ``2``; a not-yet-implemented path (a
+    planned model's stub emitter) exits ``3``; a usage mistake (bad flag/argument/choice, caught by
     :class:`_UsageParser`) exits ``4``; and any unexpected internal fault exits ``70`` (never
     mislabeled as input). The actual pipeline lives in :func:`_run`.
     """

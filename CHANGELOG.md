@@ -28,6 +28,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Native YAML output** (`--to yaml`): OSCAL YAML is the JSON data model in YAML syntax, so
+  mint serializes it in-process (no external tool), deterministically and alias-free. Verified
+  valid against oscal-cli 3.2.0, including YAML 1.1 scalar traps (`no`/`yes`/`007`/timestamps).
+
+### Removed
+
+- **`--to xml` and the `xml` optional-dependency extra** (#108): XML is not a capability mint
+  provides. `--to` now accepts `json` (default) and `yaml`; the misleading "requires oscal-cli"
+  help text and exit-3 wording are gone.
+
 ## [0.2.2] - 2026-08-04
 
 ### Removed

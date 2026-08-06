@@ -2,11 +2,10 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Serialize an emitted OSCAL document to a target format.
 
-JSON is native and always available. XML and YAML are produced by shelling out to
-the external NIST ``oscal-cli`` (converting the native JSON), rather than by
-carrying a second serializer in-tree. That boundary is the subject of ADR-0005
-(``oscal-cli`` as the format-conversion oracle); see also the ``xml`` optional
-dependency group in ``pyproject.toml``.
+JSON and YAML are the supported encodings, both produced natively. OSCAL YAML is the JSON
+data model in YAML syntax, so dumping the same document mint emits as JSON yields valid OSCAL
+YAML (verified against oscal-cli 3.2.0, including the YAML 1.1 ``no``/``yes`` boolean and
+timestamp-like scalar traps).
 """
 
 from __future__ import annotations
@@ -14,25 +13,41 @@ from __future__ import annotations
 import json
 from typing import Any
 
-_CLI_FORMATS = ("xml", "yaml")
+import yaml
+
+
+class _OscalYamlDumper(yaml.SafeDumper):
+    """A ``SafeDumper`` that never emits YAML anchors/aliases.
+
+    An OSCAL document is data serialized as a tree, and mint may reuse a child mapping (for
+    example a shared subject) in more than one place. The default dumper would collapse a
+    repeated node into a YAML anchor/alias; that is legal YAML but a surprising OSCAL encoding,
+    so force full expansion to keep the YAML an alias-free mirror of the JSON.
+    """
+
+    def ignore_aliases(self, data: object) -> bool:  # noqa: ARG002 -- always expand
+        return True
 
 
 def render(document: dict[str, Any], *, fmt: str = "json") -> str:
-    """Serialize ``document`` to ``fmt`` (``json`` | ``xml`` | ``yaml``).
-
-    JSON is serialized natively. XML/YAML require the external ``oscal-cli`` and are
-    not implemented in-process (ADR-0005).
+    """Serialize ``document`` to ``fmt`` (``json`` | ``yaml``).
 
     Raises:
-        NotImplementedError: for ``xml``/``yaml`` (delegated to ``oscal-cli``).
         ValueError: for an unknown format.
     """
     if fmt == "json":
         return json.dumps(document, indent=2)
-    if fmt in _CLI_FORMATS:
-        raise NotImplementedError(
-            f"render(fmt={fmt!r}): XML/YAML output is produced by shelling out to the "
-            "external NIST oscal-cli, which is not wired in yet (ADR-0005). Install "
-            "oscal-cli and use the 'xml' optional-dependency group when this lands."
+    if fmt == "yaml":
+        # ``sort_keys=False`` preserves mint's deterministic insertion order; a very large
+        # ``width`` disables line-wrapping so output is byte-stable and long scalars round-trip
+        # exactly. ``SafeDumper`` quotes any scalar that would otherwise resolve to a non-string
+        # (``no``/``yes``/``007``/a timestamp), keeping every OSCAL string a string.
+        return yaml.dump(
+            document,
+            Dumper=_OscalYamlDumper,
+            sort_keys=False,
+            allow_unicode=True,
+            default_flow_style=False,
+            width=1 << 30,
         )
-    raise ValueError(f"unknown output format {fmt!r}; expected one of: json, xml, yaml")
+    raise ValueError(f"unknown output format {fmt!r}; expected one of: json, yaml")

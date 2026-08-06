@@ -45,13 +45,10 @@ cbom = "mint_oscal.adapters.cbom:from_cbom"
 breachsafe = "mint_oscal.extensions.breachsafe:enrich"
 
 [project.optional-dependencies]
-# XML/YAML output is produced by shelling out to an external `oscal-cli` (ADR-0005),
-# not by an in-tree serializer, so this group is intentionally empty: it documents
-# the requirement and reserves the extra name.
-xml = []
 dev = [
   "ruff",
   "mypy",
+  "types-PyYAML",
   "pytest",
   "pytest-randomly",
   "coverage[toml]",
@@ -92,7 +89,7 @@ max-statements = 50
 [tool.ruff.lint.per-file-ignores]
 # Tests may use asserts (S101), magic numbers, unused fixture args, and need no docstrings;
 # they are owned by the tester.
-"tests/**" = ["S", "ANN", "D", "PLR2004", "ARG"]
+"tests/**" = ["S", "ANN", "D", "PLR2004", "ARG", "INP001"]
 # Operational scripts are standalone CLIs (print is fine; not an importable package).
 "scripts/**" = ["T20", "INP001"]
 
