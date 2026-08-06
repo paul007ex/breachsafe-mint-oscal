@@ -28,6 +28,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Non-UTF-8 input exits 2 (malformed), not 70 (internal)** (#121): a binary or non-UTF-8 report
+  is bad input, not a mint fault. The read-boundary `UnicodeDecodeError` is now mapped to
+  `malformed_input` instead of leaking to the top-level internal-error handler.
+- **`--validate` requires `href` on every OSCAL `link`** (#118): closes a false-green where a
+  `link` missing its required `href` passed mint's Layer-2 check while oscal-cli rejects it.
+
+Both were found by a real-data cross-tool pressure test (qureddy CBOM/scan -> mint -> oscal-cli
+across 5 live targets). First `tests/` in the repo cover them (seeds #6).
+
 ## [0.2.2] - 2026-08-04
 
 ### Removed

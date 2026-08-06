@@ -447,6 +447,12 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911 -- error bounda
     except json.JSONDecodeError as exc:
         log.error("invalid_json", report=src, error=str(exc))
         return _EXIT_INPUT
+    except UnicodeDecodeError as exc:
+        # A non-UTF-8 (binary) input is bad *input*, not a mint fault: map the decode failure to
+        # malformed_input (exit 2), not the top-level internal_error (exit 70) it would otherwise
+        # reach as a non-JSONDecodeError ValueError (#121).
+        log.error("invalid_encoding", report=src, error=str(exc))
+        return _EXIT_INPUT
     except NotImplementedError as exc:
         log.error(
             "not_implemented", model=args.model, fmt=getattr(args, "fmt", None), error=str(exc)

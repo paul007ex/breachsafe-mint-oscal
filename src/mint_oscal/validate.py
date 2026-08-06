@@ -437,6 +437,22 @@ def control_id_shape(document: dict[str, Any]) -> list[str]:
     return out
 
 
+def link_href(document: dict[str, Any]) -> list[str]:
+    """Every OSCAL ``link`` requires an ``href``.
+
+    A ``link`` can appear on any object (poam-item, observation, risk, metadata, ...), so walk
+    every ``links`` array reflectively and flag any entry missing ``href`` wherever it sits. The
+    other required sub-fields are covered by :func:`required_fields`; this closes the ``link``
+    hole a real-data differential against oscal-cli surfaced (#118).
+    """
+    out: list[str] = []
+    for links in _find(document, "links"):
+        for lk in _as_list(links):
+            if not isinstance(lk, dict) or "href" not in lk:
+                out.append("link missing required 'href'")
+    return out
+
+
 _VALIDATORS = (
     uuid_syntax,
     unique_uuids,
@@ -446,6 +462,7 @@ _VALIDATORS = (
     props_namespaced,
     # A -- OSCAL POA&M structural (1:1 with the schema)
     required_fields,
+    link_href,
     cardinality,
     datatypes,
     risk_status,
