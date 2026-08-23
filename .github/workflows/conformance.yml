@@ -32,7 +32,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: "3.12"
+          python-version: "3.14"
 
       # oscal-cli is pure Java and needs a JRE 17+. Provide one here; the gate script
       # auto-detects JAVA_HOME (else downloads oscal-cli from Maven Central itself).
