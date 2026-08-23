@@ -26,7 +26,7 @@ By the end you will have:
 
 ## 1. Install mint-oscal
 
-`mint-oscal` requires Python 3.12+. It is not yet on PyPI, so install from a source checkout:
+`mint-oscal` requires Python 3.14+. It is not yet on PyPI, so install from a source checkout:
 
 ```bash
 git clone https://github.com/breachsafe/breachsafe-mint-oscal

@@ -13,7 +13,7 @@ Goal: turn a CycloneDX CBOM into an OSCAL POA&M. This is the most common `mint-o
 
 ## Prerequisites
 
-- `mint-oscal` installed (Python 3.12+).
+- `mint-oscal` installed (Python 3.14+).
 - A CBOM file. A CBOM (Cryptographic Bill of Materials) is a CycloneDX document that lists the
   cryptographic assets observed on a target. The repository ships one at
   `examples/example.cbom.json`; a scanner such as QuReddy will produce one per scan once CBOM

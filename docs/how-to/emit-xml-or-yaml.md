@@ -18,7 +18,7 @@ the working path and uses only commands that run today.
 
 ## Prerequisites
 
-- `mint-oscal` installed (Python 3.12+).
+- `mint-oscal` installed (Python 3.14+).
 - `oscal-cli` 3.2.0 on `PATH`. Install NIST
   [`oscal-cli`](https://github.com/metaschema-framework/oscal-cli); it needs a Java 17 runtime.
 - A CBOM to mint from. The repository ships `examples/example.cbom.json`.
