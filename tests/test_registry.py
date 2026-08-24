@@ -143,6 +143,30 @@ def test_legacy_registry_source_is_normalized_to_unverified(tmp_path: Path) -> N
     assert registry.catalogs[0].source_verified is False
 
 
+def test_duplicate_yaml_keys_fail_closed(tmp_path: Path) -> None:
+    registry_path = tmp_path / "registry.yaml"
+    registry_path.write_text(
+        "schema: breachsafe.registry/v1\nschema: forged.registry/v1\nregistry-version: 0.4.0\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RegistryError, match="duplicate YAML key: 'schema'"):
+        load_registry(registry_path)
+
+
+def test_missing_registry_file_is_reported(tmp_path: Path) -> None:
+    with pytest.raises(RegistryError, match="cannot read registry"):
+        load_registry(tmp_path / "missing.yaml")
+
+
+def test_invalid_yaml_is_reported(tmp_path: Path) -> None:
+    registry_path = tmp_path / "registry.yaml"
+    registry_path.write_text("schema: [", encoding="utf-8")
+
+    with pytest.raises(RegistryError, match="invalid YAML"):
+        load_registry(registry_path)
+
+
 def test_registry_cli_list_and_validate(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     registry = _registry(tmp_path)
     assert main(["registry", "validate", "--registry", str(registry)]) == 0

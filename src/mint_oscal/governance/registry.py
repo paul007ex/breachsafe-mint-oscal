@@ -16,6 +16,26 @@ from jsonschema import Draft202012Validator, FormatChecker
 from rfc8785 import dumps as canonical_json
 
 
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """Safe YAML loader that rejects duplicate mapping keys."""
+
+
+def _construct_unique_mapping(loader: _UniqueKeyLoader, node: yaml.MappingNode) -> dict[Any, Any]:
+    """Construct a mapping while failing closed on duplicate keys."""
+    mapping: dict[Any, Any] = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=True)
+        if key in mapping:
+            raise RegistryError(f"duplicate YAML key: {key!r}")
+        mapping[key] = loader.construct_object(value_node, deep=True)
+    return mapping
+
+
+_UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_unique_mapping
+)
+
+
 class RegistryError(ValueError):
     """Raised when a registry is malformed or fails a semantic integrity check."""
 
@@ -80,7 +100,12 @@ def _schema_path() -> Path:
 
 def _read_yaml(path: Path) -> dict[str, Any]:
     try:
-        loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+        # The loader subclasses SafeLoader and only overrides mapping construction to reject
+        # duplicates; it does not permit arbitrary Python object tags.
+        loaded = yaml.load(
+            path.read_text(encoding="utf-8"),
+            Loader=_UniqueKeyLoader,  # noqa: S506
+        )
     except OSError as exc:
         raise RegistryError(f"cannot read registry {path}: {exc}") from exc
     except yaml.YAMLError as exc:

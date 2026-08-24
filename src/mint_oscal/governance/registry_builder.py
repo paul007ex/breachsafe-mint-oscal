@@ -106,9 +106,7 @@ def _read_catalog(source: Path) -> tuple[dict[str, Any], dict[str, Any]]:
 
 def _load_registry_source(registry_file: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Load the mutable registry source and its Catalog collection."""
-    document = yaml.safe_load(registry_file.read_text(encoding="utf-8"))
-    if not isinstance(document, dict):
-        raise RegistryError("registry root must be a YAML mapping")
+    document = load_registry(registry_file).document
     catalogs = document.get("catalogs")
     if not isinstance(catalogs, list):
         raise RegistryError("registry catalogs must be a YAML list")
