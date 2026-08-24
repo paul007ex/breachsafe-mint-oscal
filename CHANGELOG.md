@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Registry locks now hash RFC 8785 canonical JSON of parsed YAML, so comments and formatting
+  changes do not create false lock mismatches.
 - Registry initialization now creates a valid bootstrap registry that can accept a first
   Catalog through the CLI; registry lifecycle and verbose diagnostics are explicit.
 
