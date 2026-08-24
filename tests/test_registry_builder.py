@@ -70,3 +70,20 @@ def test_add_catalog_rejects_duplicate_without_mutating_registry(tmp_path: Path)
             ),
         )
     assert (root / "registry.yaml").read_bytes() == original
+
+
+def test_add_catalog_rejects_path_traversal_before_writing(tmp_path: Path) -> None:
+    root = _copy_fixture(tmp_path)
+    with pytest.raises(RegistryError, match="invalid Catalog ID"):
+        add_catalog(
+            root,
+            CatalogSource(
+                catalog_id="../../escaped/catalog",
+                source_file=CATALOG,
+                source_uri="https://example.invalid/catalog",
+                release="test",
+                license_name="NIST",
+                authority="NIST",
+            ),
+        )
+    assert not (tmp_path / "escaped").exists()
