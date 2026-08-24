@@ -11,13 +11,12 @@ and are always available even from a source checkout.
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any, cast
+from typing import cast
 
 from mint_oscal._registry import discover, resolve
-from mint_oscal.ir import Finding, Subject
+from mint_oscal.ingestion.ports import SourceAdapterFn
 
-Adapter = Callable[[dict[str, Any]], tuple[list[Finding], Subject]]
+Adapter = SourceAdapterFn
 
 _ENTRY_POINT_GROUP = "mint_oscal.adapters"
 # Bundled fallbacks: name -> "module:callable". Entry-point adapters still win.
