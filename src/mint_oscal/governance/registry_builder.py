@@ -45,14 +45,43 @@ def _today() -> str:
     return datetime.now(UTC).date().isoformat()
 
 
+def _bootstrap_document() -> dict[str, Any]:
+    """Return a truthful, empty bootstrap registry document."""
+    today = _today()
+    return {
+        "schema": "breachsafe.registry/v1",
+        "registry-version": "0.4.0",
+        "registry-state": "bootstrap",
+        "metadata": {
+            "title": "BreachSAFE Governed OSCAL Registry",
+            "version": "0.4.0",
+            "last-modified": today,
+            "oscal-version": "1.2.1",
+            "remarks": (
+                "Bootstrap registry. Catalogs, Profiles, Packs, objectives, "
+                "and review decisions must be added separately."
+            ),
+        },
+        "catalogs": [],
+        "profiles": [],
+        "packs": [],
+        "objectives": [],
+        "crosswalks": [],
+    }
+
+
 def init_registry(output: str | Path) -> Path:
-    """Create an empty registry workspace; Catalog import creates the YAML contract."""
+    """Create a valid empty bootstrap registry workspace."""
     root = Path(output).resolve()
     if root.exists() and any(root.iterdir()):
         raise RegistryError(f"registry directory is not empty: {root}")
     (root / "catalogs").mkdir(parents=True, exist_ok=True)
     (root / "packs").mkdir(parents=True, exist_ok=True)
     (root / "generated").mkdir(parents=True, exist_ok=True)
+    (root / "registry.yaml").write_text(
+        yaml.safe_dump(_bootstrap_document(), sort_keys=False, allow_unicode=False),
+        encoding="utf-8",
+    )
     return root
 
 

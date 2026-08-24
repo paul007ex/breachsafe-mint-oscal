@@ -136,7 +136,7 @@ def test_registry_cli_list_and_validate(tmp_path: Path, capsys: pytest.CaptureFi
     assert main(["registry", "validate", "--registry", str(registry)]) == 0
     assert main(["registry", "list", "--registry", str(registry)]) == 0
     output = capsys.readouterr().out
-    assert "Valid registry" in output
+    assert "Valid active registry" in output
     assert "fixture\tcatalog\t1.0\t1.2.1\tready" in output
 
 

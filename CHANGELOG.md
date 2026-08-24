@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Registry initialization now creates a valid bootstrap registry that can accept a first
+  Catalog through the CLI; registry lifecycle and verbose diagnostics are explicit.
+
 - The OSCAL conformance extra now declares the pinned Compliance Trestle dependency used by
   the local and CI conformance gate.
 

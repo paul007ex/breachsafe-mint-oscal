@@ -4,10 +4,11 @@
   "title": "BreachSAFE Governed OSCAL Registry v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "registry-version", "metadata", "defaults", "catalogs", "profiles", "packs", "objectives", "crosswalks"],
+  "required": ["schema", "registry-version", "metadata", "catalogs", "profiles", "packs", "objectives", "crosswalks"],
   "properties": {
     "schema": {"const": "breachsafe.registry/v1"},
     "registry-version": {"type": "string", "minLength": 1},
+    "registry-state": {"enum": ["bootstrap", "active"]},
     "metadata": {"$ref": "#/$defs/metadata"},
     "defaults": {
       "type": "object",
@@ -19,12 +20,22 @@
         "pack": {"type": "string", "minLength": 1}
       }
     },
-    "catalogs": {"type": "array", "items": {"$ref": "#/$defs/catalog"}, "minItems": 1},
+    "catalogs": {"type": "array", "items": {"$ref": "#/$defs/catalog"}, "minItems": 0},
     "profiles": {"type": "array", "items": {"$ref": "#/$defs/profile"}},
     "packs": {"type": "array", "items": {"$ref": "#/$defs/pack"}},
     "objectives": {"type": "array", "items": {"$ref": "#/$defs/objective"}},
     "crosswalks": {"type": "array", "items": {"$ref": "#/$defs/crosswalk"}}
   },
+  "allOf": [
+    {
+      "if": {"properties": {"registry-state": {"const": "active"}}},
+      "then": {"required": ["defaults"], "properties": {"catalogs": {"minItems": 1}}}
+    },
+    {
+      "if": {"properties": {"registry-state": {"const": "bootstrap"}}},
+      "then": {"not": {"required": ["defaults"]}}
+    }
+  ],
   "$defs": {
     "metadata": {
       "type": "object",
