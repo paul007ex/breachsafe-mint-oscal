@@ -24,6 +24,7 @@ from typing import Any, cast
 
 import yaml
 from cyclonedx.model.bom import Bom
+from cyclonedx.model.component import Component
 from cyclonedx.schema import SchemaVersion
 
 from mint_oscal.controls.nist import controls_for, risk_statement
@@ -157,6 +158,102 @@ def _is_legacy_protocol(name: str | None, ptype: str | None, version: str | None
     return False
 
 
+def _add_algorithm(
+    canon: dict[str, tuple[str, str | None, int | None]],
+    name: object,
+    primitive: str | None,
+    level: int | None,
+) -> None:
+    """Add one algorithm to the case-insensitive inventory."""
+    if not isinstance(name, str):
+        raise MalformedCbomError(f"component name must be a string, got {type(name).__name__}")
+    key = name.upper()
+    previous = canon.get(key)
+    if previous is None:
+        canon[key] = (name, primitive, level)
+    else:
+        display = name if previous[0].islower() and not name.islower() else previous[0]
+        canon[key] = (
+            display,
+            previous[1] or primitive,
+            previous[2] if previous[2] is not None else level,
+        )
+
+
+def _inventory_component(
+    comp: Component,
+    canon: dict[str, tuple[str, str | None, int | None]],
+    sigs: set[str],
+    weak: set[str],
+) -> None:
+    """Extract algorithm, certificate, or protocol facts from one typed component."""
+    cp = comp.crypto_properties
+    if cp is None:
+        return
+    if cp.asset_type is None:
+        raise MalformedCbomError(
+            f"assetType must be present on crypto component {comp.name!r}, got null"
+        )
+    handlers = {
+        "algorithm": _algorithm_component,
+        "protocol": _protocol_component,
+        "certificate": _certificate_component,
+    }
+    handler = handlers.get(cp.asset_type.value)
+    if handler:
+        handler(comp, canon, sigs, weak)
+
+
+def _algorithm_component(
+    comp: Component,
+    canon: dict[str, tuple[str, str | None, int | None]],
+    sigs: set[str],
+    weak: set[str],
+) -> None:
+    """Extract an algorithm asset."""
+    del sigs, weak
+    if comp.name and comp.crypto_properties:
+        props = comp.crypto_properties.algorithm_properties
+        _add_algorithm(
+            canon,
+            comp.name,
+            props.primitive.value if props and props.primitive else None,
+            props.nist_quantum_security_level if props else None,
+        )
+
+
+def _protocol_component(
+    comp: Component,
+    canon: dict[str, tuple[str, str | None, int | None]],
+    sigs: set[str],
+    weak: set[str],
+) -> None:
+    """Extract protocol cipher suites and weak transport facts."""
+    del sigs
+    props = comp.crypto_properties.protocol_properties if comp.crypto_properties else None
+    if not props:
+        return
+    for suite in props.cipher_suites or []:
+        for ref in suite.algorithms or []:
+            _add_algorithm(canon, _tail(ref), None, None)
+    ptype = props.type.value if props.type else None
+    if _is_legacy_protocol(comp.name, ptype, props.version):
+        weak.add(comp.name or f"{ptype or 'protocol'} {props.version or '?'}")
+
+
+def _certificate_component(
+    comp: Component,
+    canon: dict[str, tuple[str, str | None, int | None]],
+    sigs: set[str],
+    weak: set[str],
+) -> None:
+    """Extract a certificate signature algorithm."""
+    del canon, weak
+    props = comp.crypto_properties.certificate_properties if comp.crypto_properties else None
+    if props and props.signature_algorithm_ref:
+        sigs.add(_tail(props.signature_algorithm_ref))
+
+
 def _inventory(
     bom: Bom,
 ) -> tuple[dict[str, tuple[str | None, int | None]], set[str], list[str]]:
@@ -175,54 +272,8 @@ def _inventory(
     sigs: set[str] = set()
     weak_protocols: set[str] = set()
 
-    def add(name: str, primitive: str | None = None, level: int | None = None) -> None:
-        # ``name`` may come straight from an untrusted component name (typed str, but the
-        # parser will surface whatever JSON supplied); a non-str would leak a bare
-        # ``AttributeError`` from ``.upper()``.
-        if not isinstance(name, str):
-            raise MalformedCbomError(f"component name must be a string, got {type(name).__name__}")
-        key = name.upper()
-        prev = canon.get(key)
-        if prev is None:
-            canon[key] = (name, primitive, level)
-        else:
-            display = name if prev[0].islower() and not name.islower() else prev[0]
-            canon[key] = (display, prev[1] or primitive, prev[2] if prev[2] is not None else level)
-
     for comp in bom.components:
-        cp = comp.crypto_properties
-        if cp is None:
-            continue
-        # assetType is what selects the branch below; a null one would leak a bare
-        # ``AttributeError`` from ``.value``. Guard it as a typed malformation.
-        if cp.asset_type is None:
-            raise MalformedCbomError(
-                f"assetType must be present on crypto component {comp.name!r}, got null"
-            )
-        kind = cp.asset_type.value
-        if kind == "algorithm" and comp.name:
-            ap = cp.algorithm_properties
-            add(
-                comp.name,
-                ap.primitive.value if ap and ap.primitive else None,
-                ap.nist_quantum_security_level if ap else None,
-            )
-        elif kind == "protocol" and cp.protocol_properties:
-            pp = cp.protocol_properties
-            for suite in pp.cipher_suites or []:
-                for ref in suite.algorithms or []:
-                    add(_tail(ref))
-            ptype = pp.type.value if pp.type else None
-            if _is_legacy_protocol(comp.name, ptype, pp.version):
-                # a plain protocol-version component (no cipherSuites) still scores the
-                # verdict: a legacy TLS/SSL offering is a weak posture on its own (#53).
-                weak_protocols.add(comp.name or f"{ptype or 'protocol'} {pp.version or '?'}")
-        elif kind == "certificate" and cp.certificate_properties:
-            ref = cp.certificate_properties.signature_algorithm_ref
-            if ref:
-                sigs.add(_tail(ref))
-        elif kind == "related-crypto-material":
-            continue  # never read key/secret material into an emitted document
+        _inventory_component(comp, canon, sigs, weak_protocols)
     algos = {display: (primitive, level) for display, primitive, level in canon.values()}
     return algos, sigs, sorted(weak_protocols)
 

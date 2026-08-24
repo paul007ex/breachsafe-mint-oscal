@@ -129,12 +129,8 @@ def _digest(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _semantic_validate(root: Path, document: dict[str, Any]) -> None:  # noqa: PLR0912,PLR0915
-    catalogs = document["catalogs"]
-    catalog_ids = [item["id"] for item in catalogs]
-    if len(catalog_ids) != len(set(catalog_ids)):
-        raise RegistryError("duplicate Catalog ID")
-
+def _load_catalog_controls(root: Path, catalogs: list[dict[str, Any]]) -> dict[str, set[str]]:
+    """Verify pinned Catalog files and return their discovered control IDs."""
     catalog_controls: dict[str, set[str]] = {}
     for entry in catalogs:
         path = _catalog_path(root, entry["href"])
@@ -156,7 +152,15 @@ def _semantic_validate(root: Path, document: dict[str, Any]) -> None:  # noqa: P
         if catalog.get("uuid") != entry["uuid"]:
             raise RegistryError(f"Catalog {entry['id']!r} UUID does not match its registry pin")
         catalog_controls[entry["id"]] = _catalog_controls(catalog)
+    return catalog_controls
 
+
+def _validate_unique_ids(document: dict[str, Any]) -> tuple[list[str], set[str], set[str]]:
+    """Validate collection identifiers and return profile/catalog/pack IDs."""
+    catalogs = document["catalogs"]
+    catalog_ids = [item["id"] for item in catalogs]
+    if len(catalog_ids) != len(set(catalog_ids)):
+        raise RegistryError("duplicate Catalog ID")
     profile_ids_list = [profile["id"] for profile in document["profiles"]]
     if len(profile_ids_list) != len(set(profile_ids_list)):
         raise RegistryError("duplicate Profile ID")
@@ -166,16 +170,28 @@ def _semantic_validate(root: Path, document: dict[str, Any]) -> None:  # noqa: P
     objective_ids = [objective["id"] for objective in document["objectives"]]
     if len(objective_ids) != len(set(objective_ids)):
         raise RegistryError("duplicate objective ID")
-    profile_ids = set(profile_ids_list)
-    catalog_id_set = set(catalog_ids)
-    if document["defaults"]["catalog"] not in catalog_id_set:
+    return profile_ids_list, set(catalog_ids), set(pack_ids)
+
+
+def _validate_defaults(
+    document: dict[str, Any], profile_ids: set[str], catalog_ids: set[str], pack_ids: set[str]
+) -> None:
+    """Ensure configured defaults refer to registered entries."""
+    if document["defaults"]["catalog"] not in catalog_ids:
         raise RegistryError("default Catalog is not registered")
     if document["defaults"]["profile"] not in profile_ids:
         raise RegistryError("default Profile is not registered")
-    if document["defaults"]["pack"] not in set(pack_ids):
+    if document["defaults"]["pack"] not in pack_ids:
         raise RegistryError("default pack is not registered")
+
+
+def _validate_profiles(
+    document: dict[str, Any], catalog_ids: set[str], catalog_controls: dict[str, set[str]]
+) -> None:
+    """Ensure profiles resolve to Catalogs and only select declared controls."""
+    catalogs = document["catalogs"]
     for profile in document["profiles"]:
-        if profile["catalog"] not in catalog_id_set:
+        if profile["catalog"] not in catalog_ids:
             raise RegistryError(f"Profile {profile['id']!r} references an unknown Catalog")
         expected_href = next(
             catalog["href"] for catalog in catalogs if catalog["id"] == profile["catalog"]
@@ -192,8 +208,13 @@ def _semantic_validate(root: Path, document: dict[str, Any]) -> None:  # noqa: P
                         f"Profile {profile['id']!r} references unknown controls: {sorted(unknown)}"
                     )
 
+
+def _validate_packs_and_objectives(
+    document: dict[str, Any], catalog_ids: set[str], profile_ids: set[str]
+) -> None:
+    """Ensure packs and governed objectives resolve to registered dependencies."""
     for pack in document["packs"]:
-        if pack["catalog"] not in catalog_id_set:
+        if pack["catalog"] not in catalog_ids:
             raise RegistryError(f"Pack {pack['id']!r} references an unknown Catalog")
         if pack["profile"] not in profile_ids:
             raise RegistryError(f"Pack {pack['id']!r} references an unknown Profile")
@@ -205,6 +226,16 @@ def _semantic_validate(root: Path, document: dict[str, Any]) -> None:  # noqa: P
                 f"Objective {objective['id']!r} references unknown Profiles: "
                 f"{sorted(unknown_profiles)}"
             )
+
+
+def _semantic_validate(root: Path, document: dict[str, Any]) -> None:
+    """Apply cross-document registry integrity checks after schema validation."""
+    profile_ids_list, catalog_ids, pack_ids = _validate_unique_ids(document)
+    catalog_controls = _load_catalog_controls(root, document["catalogs"])
+    profile_ids = set(profile_ids_list)
+    _validate_defaults(document, profile_ids, catalog_ids, pack_ids)
+    _validate_profiles(document, catalog_ids, catalog_controls)
+    _validate_packs_and_objectives(document, catalog_ids, profile_ids)
 
 
 def load_registry(path: str | Path = "policy") -> Registry:

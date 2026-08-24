@@ -281,38 +281,81 @@ def props_namespaced(document: dict[str, Any]) -> list[str]:
 def required_fields(document: dict[str, Any]) -> list[str]:
     """Required OSCAL POA&M fields are present."""
     p = _poam(document)
+    out = _required_root_fields(p)
+    out.extend(_required_observation_fields(p))
+    out.extend(_required_risk_fields(p))
+    out.extend(_required_item_fields(p))
+    out.extend(_required_local_fields(p))
+    return out
+
+
+def _need(obj: object, fields: list[str], where: str) -> list[str]:
+    """Return missing-field diagnostics for one OSCAL object."""
+    return [
+        f"{where} missing required '{field}'"
+        for field in fields
+        if not isinstance(obj, dict) or field not in obj
+    ]
+
+
+def _required_root_fields(poam: dict[str, Any]) -> list[str]:
+    """Validate POA&M and metadata required fields and array containers."""
+    out = _need(poam, ["uuid", "metadata", "poam-items"], "poam")
+    metadata = poam.get("metadata", {})
+    out.extend(_need(metadata, ["title", "last-modified", "version", "oscal-version"], "metadata"))
+    out.extend(
+        f"poam '{key}' must be an array, got {type(poam[key]).__name__}"
+        for key in ("observations", "risks", "poam-items")
+        if key in poam and not isinstance(poam[key], list)
+    )
+    return out
+
+
+def _required_observation_fields(poam: dict[str, Any]) -> list[str]:
+    """Validate observation and subject required fields."""
     out: list[str] = []
-
-    def need(obj: object, fields: list[str], where: str) -> None:
+    for observation in _as_list(poam.get("observations")):
         out.extend(
-            f"{where} missing required '{f}'"
-            for f in fields
-            if not isinstance(obj, dict) or f not in obj
+            _need(observation, ["uuid", "description", "methods", "collected"], "observation")
         )
+        subjects = observation.get("subjects") if isinstance(observation, dict) else []
+        for subject in _as_list(subjects):
+            out.extend(_need(subject, ["subject-uuid", "type"], "observation.subject"))
+    return out
 
-    need(p, ["uuid", "metadata", "poam-items"], "poam")
-    need(p.get("metadata", {}), ["title", "last-modified", "version", "oscal-version"], "metadata")
-    for key in ("observations", "risks", "poam-items"):
-        if key in p and not isinstance(p[key], list):
-            out.append(f"poam '{key}' must be an array, got {type(p[key]).__name__}")
-    for o in _as_list(p.get("observations")):
-        need(o, ["uuid", "description", "methods", "collected"], "observation")
-        for s in _as_list(o.get("subjects")) if isinstance(o, dict) else []:
-            need(s, ["subject-uuid", "type"], "observation.subject")
-    for r in _as_list(p.get("risks")):
-        need(r, ["uuid", "title", "description", "statement", "status"], "risk")
-    for it in _as_list(p.get("poam-items")):
-        need(it, ["title", "description"], "poam-item")
-        for ro in _as_list(it.get("related-observations")) if isinstance(it, dict) else []:
-            need(ro, ["observation-uuid"], "poam-item.related-observation")
-        for rr in _as_list(it.get("related-risks")) if isinstance(it, dict) else []:
-            need(rr, ["risk-uuid"], "poam-item.related-risk")
-    ld = p.get("local-definitions")
-    if isinstance(ld, dict):
-        for iv in _as_list(ld.get("inventory-items")):
-            need(iv, ["uuid", "description"], "inventory-item")
-    if "system-id" in p:
-        need(p["system-id"], ["id"], "system-id")
+
+def _required_risk_fields(poam: dict[str, Any]) -> list[str]:
+    """Validate risk required fields."""
+    return [
+        message
+        for risk in _as_list(poam.get("risks"))
+        for message in _need(risk, ["uuid", "title", "description", "statement", "status"], "risk")
+    ]
+
+
+def _required_item_fields(poam: dict[str, Any]) -> list[str]:
+    """Validate POA&M item and relation required fields."""
+    out: list[str] = []
+    for item in _as_list(poam.get("poam-items")):
+        out.extend(_need(item, ["title", "description"], "poam-item"))
+        if not isinstance(item, dict):
+            continue
+        for relation in _as_list(item.get("related-observations")):
+            out.extend(_need(relation, ["observation-uuid"], "poam-item.related-observation"))
+        for relation in _as_list(item.get("related-risks")):
+            out.extend(_need(relation, ["risk-uuid"], "poam-item.related-risk"))
+    return out
+
+
+def _required_local_fields(poam: dict[str, Any]) -> list[str]:
+    """Validate optional local definitions and system identifier fields."""
+    out: list[str] = []
+    local = poam.get("local-definitions")
+    if isinstance(local, dict):
+        for item in _as_list(local.get("inventory-items")):
+            out.extend(_need(item, ["uuid", "description"], "inventory-item"))
+    if "system-id" in poam:
+        out.extend(_need(poam["system-id"], ["id"], "system-id"))
     return out
 
 
@@ -399,22 +442,39 @@ def _bs_props(document: dict[str, Any]) -> Iterator[tuple[Any, Any]]:
 
 def domain_vocabulary(document: dict[str, Any]) -> list[str]:
     """Every BreachSAFE prop value is within its declared vocabulary."""
+    checks = {
+        "readiness": (READINESS_VERDICTS, "readiness not in vocabulary"),
+        "mapping-confidence": (_CONFIDENCE, "mapping-confidence invalid"),
+        "severity": (_SEVERITY, "severity invalid"),
+    }
     out: list[str] = []
-    for name, val in _bs_props(document):
-        # A non-string value (incl. an unhashable list/dict) fails every check below and is
-        # reported, never crashes a set-membership test or a regex match.
-        s = val if isinstance(val, str) else None
-        if name == "readiness" and not (s is not None and s in READINESS_VERDICTS):
-            out.append(f"readiness not in vocabulary: {val!r}")
-        elif name == "mapping-confidence" and not (s is not None and s in _CONFIDENCE):
-            out.append(f"mapping-confidence invalid: {val!r}")
-        elif name == "severity" and not (s is not None and s in _SEVERITY):
-            out.append(f"severity invalid: {val!r}")
-        elif name == "provenance" and not (s is not None and _PROV_RE.match(s)):
-            out.append(f"provenance malformed: {val!r}")
-        elif name == "nistQuantumSecurityLevel" and not (s is not None and s.isdigit()):
-            out.append(f"nistQuantumSecurityLevel not a non-neg int: {val!r}")
+    for name, value in _bs_props(document):
+        error = _vocabulary_error(name, value, checks)
+        if error:
+            out.append(error)
     return out
+
+
+def _vocabulary_error(
+    name: object, value: object, checks: dict[str, tuple[frozenset[str], str]]
+) -> str | None:
+    """Return one domain-vocabulary diagnostic, or ``None`` for an unknown/non-domain prop."""
+    if name in checks:
+        allowed, label = checks[name]
+        return f"{label}: {value!r}" if not isinstance(value, str) or value not in allowed else None
+    if name == "provenance":
+        return (
+            f"provenance malformed: {value!r}"
+            if not isinstance(value, str) or _PROV_RE.match(value) is None
+            else None
+        )
+    if name == "nistQuantumSecurityLevel":
+        return (
+            f"nistQuantumSecurityLevel not a non-neg int: {value!r}"
+            if not isinstance(value, str) or not value.isdigit()
+            else None
+        )
+    return None
 
 
 def control_id_shape(document: dict[str, Any]) -> list[str]:
