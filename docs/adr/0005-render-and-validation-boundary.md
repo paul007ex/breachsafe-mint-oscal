@@ -1,4 +1,8 @@
-# ADR-0005 — Rendering & validation boundary: hand-rolled emitters, oscal-cli as schema oracle, in-process semantic validators (no trestle)
+# ADR-0005 — Rendering & validation boundary: OSCAL CLI oracle and in-process semantic validation
+
+> **Superseded for Profile authoring:** ADR-0010 supersedes the old “no Trestle” decision
+> for the Profile/compiler lane. This ADR remains applicable to the shipped POA&M emitter
+> until that path is migrated deliberately.
 
 - **Status:** Accepted
 - **Date:** 2026-07-28
@@ -127,6 +131,7 @@ module adds the cross-cutting invariants a JSON schema cannot express, so --vali
 stops reporting a false green. Pattern borrowed from IBM compliance-trestle's
 Validator framework (ADR-0005); the dependency is not taken.
 """
+
 from __future__ import annotations
 from collections import Counter
 from typing import Any
@@ -211,8 +216,11 @@ if problems:
     for p in problems:
         print(f"semantic error: {p}", file=sys.stderr)
     return 1
-print("semantic checks passed — NOT a substitute for NIST oscal-cli schema "
-      "validation (use --oracle, or run oscal-cli in CI)", file=sys.stderr)
+print(
+    "semantic checks passed — NOT a substitute for NIST oscal-cli schema "
+    "validation (use --oracle, or run oscal-cli in CI)",
+    file=sys.stderr,
+)
 ```
 
 ## What exactly we borrow — provenance ledger
@@ -237,14 +245,16 @@ The single structurally-similar function, side by side:
 # trestle — common/model_utils.py (Apache-2.0, IBM) — handles BaseModel + list + dict
 def find_values_by_name(object_of_interest, name_of_interest):
     loe = []
-    if isinstance(object_of_interest, BaseModel):        # ← branch we DROP (we have no models)
+    if isinstance(object_of_interest, BaseModel):  # ← branch we DROP (we have no models)
         value = getattr(object_of_interest, name_of_interest, None)
         if value is not None:
             loe.append(value)
         fields = getattr(object_of_interest, const.FIELDS_SET, None)
         if fields is not None:
             for field in fields:
-                loe.extend(find_values_by_name(getattr(object_of_interest, field, None), name_of_interest))
+                loe.extend(
+                    find_values_by_name(getattr(object_of_interest, field, None), name_of_interest)
+                )
     elif type(object_of_interest) is list:
         for item in object_of_interest:
             loe.extend(find_values_by_name(item, name_of_interest))

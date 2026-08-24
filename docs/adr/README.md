@@ -17,3 +17,5 @@ linkage) are tracked as stubs in [`requirements.xlsx`](../requirements.xlsx) →
 | [0003](0003-naming.md) | Package naming | Accepted |
 | [0006](0006-cbom-first-ingestion.md) | File-driven CycloneDX-CBOM ingestion | Proposed |
 | [0008](0008-source-extension-model.md) | Source × extension model (`breachsafe:v1` enricher) | Proposed |
+| [0009](0009-registry-source-and-lock-format.md) | Registry source and lock format | Accepted |
+| [0010](0010-trestle-aligned-profile-compiler.md) | Trestle-aligned Profile compiler | Accepted |

@@ -14,6 +14,8 @@
 #   2. Obtain oscal-cli 3.2.0 (detect a local install, else download from Maven Central).
 #   3. POSITIVE control: the minted POA&M MUST be reported valid  -> else exit non-zero.
 #   4. NEGATIVE control: the same doc with one required field removed MUST be rejected
+#   5. Profile control: Trestle validates/resolves a Profile, then oscal-cli validates a
+#      portable copy with file:// references (oscal-cli does not understand trestle://).
 #      -> if the validator rubber-stamps it, the gate is broken and we exit non-zero.
 #
 # Exit 0 iff both controls hold. Any other outcome is non-zero.
@@ -35,6 +37,7 @@
 #   JAVA_HOME="/path/to/jre17"     Java 17+ home (else $JAVA_HOME, then PATH `java`)
 #   OSCAL_CLI="/path/to/oscal-cli" exact launcher (skips detection/download)
 #   OSCAL_CLI_HOME="$HOME/.cache/mint-oscal"   download/cache dir for auto-fetched oscal-cli
+#   TRESTLE="/path/to/trestle"                   optional Profile validator override
 
 set -uo pipefail
 
@@ -215,9 +218,102 @@ else
   fail=$((fail + 1))
 fi
 
+# 4. Profile control: Trestle workspace validation + portable oscal-cli validation -------
+# Keep the fixture in examples, but run Trestle against a temporary copy because profile
+# resolution writes its resolved Catalog below catalogs/. This keeps a conformance run
+# hermetic and prevents generated artifacts from dirtying a checkout.
+PROFILE_FIXTURE="$ROOT/examples/profile-conformance"
+if [ -d "$PROFILE_FIXTURE" ]; then
+  if [ -n "${TRESTLE:-}" ]; then
+    :
+  elif command -v trestle >/dev/null 2>&1; then
+    TRESTLE="$(command -v trestle)"
+  else
+    bad "Profile conformance requires Compliance Trestle, but trestle is not installed"
+    fail=$((fail + 1))
+    TRESTLE=""
+  fi
+
+  if [ -n "$TRESTLE" ]; then
+    PROFILE_WORK="$TMP/profile-workspace"
+    cp -R "$PROFILE_FIXTURE"/. "$PROFILE_WORK"/
+    PROFILE_FILE="$PROFILE_WORK/profiles/pqc-readiness/profile.json"
+    if "$TRESTLE" validate --name pqc-readiness --type profile \
+      --trestle-root "$PROFILE_WORK" >/dev/null 2>&1; then
+      ok "Trestle validates the Profile fixture"
+    else
+      bad "Trestle rejected the Profile fixture"
+      fail=$((fail + 1))
+    fi
+
+    # Resolution is an explicit gate: a syntactically valid Profile with an unresolvable
+    # Catalog is not usable by the downstream assessment pipeline.
+    if "$TRESTLE" author profile-resolve --name pqc-readiness --output resolved \
+      --trestle-root "$PROFILE_WORK" >/dev/null 2>&1 \
+      && [ -f "$PROFILE_WORK/catalogs/resolved/catalog.json" ]; then
+      ok "Trestle resolves the Profile imports into a Catalog"
+    else
+      bad "Trestle could not resolve the Profile imports"
+      fail=$((fail + 1))
+    fi
+
+    PORTABLE_PROFILE="$TMP/profile.json"
+    "$PY" - "$PROFILE_FILE" "$PORTABLE_PROFILE" <<'PYEOF'
+import json, pathlib, sys
+
+source, destination = sys.argv[1:]
+document = json.loads(pathlib.Path(source).read_text())
+catalog = pathlib.Path(source).parents[2] / "catalogs" / "fixture" / "catalog.json"
+document["profile"]["imports"][0]["href"] = catalog.resolve().as_uri()
+pathlib.Path(destination).write_text(json.dumps(document, separators=(",", ":")))
+PYEOF
+    if [ "$(validate_verdict "$CLI" "$PORTABLE_PROFILE")" = "VALID" ]; then
+      ok "oscal-cli validates the portable Profile"
+    else
+      bad "oscal-cli rejected the portable Profile"
+      fail=$((fail + 1))
+    fi
+
+    PROFILE_BROKEN="$TMP/broken.profile.json"
+    "$PY" - "$PORTABLE_PROFILE" "$PROFILE_BROKEN" <<'PYEOF'
+import json, pathlib, sys
+
+source, destination = sys.argv[1:]
+document = json.loads(pathlib.Path(source).read_text())
+document["profile"].pop("uuid", None)
+pathlib.Path(destination).write_text(json.dumps(document, separators=(",", ":")))
+PYEOF
+    if [ "$(validate_verdict "$CLI" "$PROFILE_BROKEN")" = "INVALID" ]; then
+      ok "oscal-cli rejects a Profile with required uuid removed"
+    else
+      bad "oscal-cli accepted a known-invalid Profile"
+      fail=$((fail + 1))
+    fi
+
+    PROFILE_SELECTION_BROKEN="$TMP/broken.profile-selection.json"
+    "$PY" - "$PORTABLE_PROFILE" "$PROFILE_SELECTION_BROKEN" <<'PYEOF'
+import json, pathlib, sys
+
+source, destination = sys.argv[1:]
+document = json.loads(pathlib.Path(source).read_text())
+document["profile"]["imports"][0]["include-all"] = {}
+pathlib.Path(destination).write_text(json.dumps(document, separators=(",", ":")))
+PYEOF
+    if [ "$(validate_verdict "$CLI" "$PROFILE_SELECTION_BROKEN")" = "INVALID" ]; then
+      ok "oscal-cli rejects an import containing both selection modes"
+    else
+      bad "oscal-cli accepted an import containing both selection modes"
+      fail=$((fail + 1))
+    fi
+  fi
+else
+  bad "Profile conformance fixture is missing: $PROFILE_FIXTURE"
+  fail=$((fail + 1))
+fi
+
 echo
 if [ "$fail" -eq 0 ]; then
-  printf "${GREEN}${BOLD}CONFORMANCE GATE PASSED${NC}  — minted OSCAL is valid per the NIST reference validator.\n"
+  printf "${GREEN}${BOLD}CONFORMANCE GATE PASSED${NC}  — POA&M and Profile controls passed.\n"
   exit 0
 else
   printf "${RED}${BOLD}CONFORMANCE GATE FAILED${NC}  (%d control(s) failed)\n" "$fail"

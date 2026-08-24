@@ -10,6 +10,7 @@ target ``oscal-version`` moves.
 
 from __future__ import annotations
 
+from itertools import starmap
 from typing import Any
 
 OSCAL_VERSION = "1.2.2"
@@ -35,7 +36,7 @@ def prop(name: str, value: str, *, ns: str | None = BREACHSAFE_NS) -> dict[str, 
 
 def props_from(mapping: dict[str, str]) -> list[dict[str, Any]]:
     """Build a list of custom (BreachSAFE-namespaced) OSCAL ``prop`` objects."""
-    return [prop(name, value) for name, value in mapping.items()]
+    return list(starmap(prop, mapping.items()))
 
 
 def metadata(

@@ -1,0 +1,24 @@
+{
+  "catalog": {
+    "uuid": "af31569e-0157-57bb-93a8-ce5a02942f76",
+    "metadata": {
+      "title": "SCF Quantum Security fixture",
+      "last-modified": "2026-08-24T00:00:00Z",
+      "version": "2026.2",
+      "oscal-version": "1.1.2"
+    },
+    "groups": [
+      {
+        "id": "quantum-security",
+        "title": "Quantum Security",
+        "controls": [
+          {"id": "qts-04", "title": "Quantum Security Discovery", "parts": [{"id": "qts-04_smt", "name": "statement", "prose": "Fixture control."}]},
+          {"id": "qts-04.2", "title": "Quantum Security Exposure", "parts": [{"id": "qts-04.2_smt", "name": "statement", "prose": "Fixture control."}]},
+          {"id": "qts-06.3", "title": "Cryptographic Inventory", "parts": [{"id": "qts-06.3_smt", "name": "statement", "prose": "Fixture control."}]},
+          {"id": "qts-06.5", "title": "PQC Migration Planning", "parts": [{"id": "qts-06.5_smt", "name": "statement", "prose": "Fixture control."}]},
+          {"id": "qts-06.9", "title": "Quantum-Resistant Cryptography", "parts": [{"id": "qts-06.9_smt", "name": "statement", "prose": "Fixture control."}]}
+        ]
+      }
+    ]
+  }
+}

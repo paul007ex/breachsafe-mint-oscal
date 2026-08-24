@@ -22,6 +22,7 @@ classifiers = [
 ]
 dependencies = [
   "cyclonedx-python-lib>=11,<12",
+  "jsonschema>=4,<5",
   "PyYAML>=6",
   "structlog>=24",
 ]
@@ -54,7 +55,21 @@ dev = [
   "mypy",
   "pytest",
   "pytest-randomly",
+  "types-jsonschema",
+  "types-PyYAML",
   "coverage[toml]",
+  "allure-pytest>=2.15,<3",
+  "bandit>=1.8,<2",
+  "deptry>=0.23,<1",
+  "diff-cover>=9,<10",
+  "import-linter>=2,<3",
+  "interrogate>=1.7,<2",
+  "pip-audit>=2.9,<3",
+  "pylint>=3.3,<4",
+  "pytest-cov>=6,<7",
+  "refurb>=2,<3",
+  "vulture>=2.14,<3",
+  "xenon>=0.9,<1",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -106,7 +121,7 @@ files = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-p randomly -ra"
+addopts = "-p randomly -ra --alluredir=.allure-results"
 
 [tool.coverage.run]
 source = ["mint_oscal"]
@@ -119,3 +134,13 @@ show_missing = true
 # Python SAST. Scans src only; the shipped code has zero findings today. tests/ (when it
 # exists) is excluded since asserts there are expected. Run: `bandit -c pyproject.toml -r src`.
 exclude_dirs = ["tests"]
+
+[tool.importlinter]
+root_package = "mint_oscal"
+include_external = false
+
+[[tool.importlinter.contracts]]
+name = "CLI boundary does not leak into the domain core"
+type = "forbidden"
+source_modules = ["mint_oscal.ir", "mint_oscal.adapters", "mint_oscal.emitters", "mint_oscal.policy"]
+forbidden_modules = ["mint_oscal.cli"]

@@ -44,6 +44,7 @@ from mint_oscal.extensions import apply_extensions, available_extensions
 from mint_oscal.ir import IR
 from mint_oscal.logging import BoundLog, configure_logging, get_logger
 from mint_oscal.policy import FRAMEWORK_PACKS, set_active_framework
+from mint_oscal.registry import Registry, RegistryError, load_registry, lock_registry, verify_lock
 from mint_oscal.render import render
 from mint_oscal.validate import oscal_cli_available, semantic_errors
 
@@ -200,6 +201,58 @@ def _build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.Argumen
     sources = sorted(available_adapters())
     extensions = sorted(available_extensions())
     model_parsers: dict[str, argparse.ArgumentParser] = {}
+
+    registry = models.add_parser(
+        "registry",
+        help="inspect and verify governed OSCAL Catalog sources",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Validate and inspect the governed OSCAL registry.",
+    )
+    model_parsers["registry"] = registry
+    registry_verbs = registry.add_subparsers(
+        dest="registry_verb", required=False, metavar="<command>"
+    )
+    registry_list = registry_verbs.add_parser(
+        "list",
+        help="list registered Catalogs",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    registry_list.add_argument("--registry", default="policy", help="registry directory")
+    registry_list.add_argument("--json", action="store_true", help="emit JSON")
+    _add_logging_args(registry_list)
+    registry_show = registry_verbs.add_parser(
+        "show",
+        help="show one registered Catalog",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    registry_show.add_argument("catalog_id", help="registered Catalog ID")
+    registry_show.add_argument("--registry", default="policy", help="registry directory")
+    registry_show.add_argument("--json", action="store_true", help="emit JSON")
+    _add_logging_args(registry_show)
+    registry_validate = registry_verbs.add_parser(
+        "validate",
+        help="validate registry schema, files, digests, and control references",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    registry_validate.add_argument("--registry", default="policy", help="registry directory")
+    _add_logging_args(registry_validate)
+    registry_lock = registry_verbs.add_parser(
+        "lock",
+        help="write a deterministic registry lock",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    registry_lock.add_argument("--registry", default="policy", help="registry directory")
+    registry_lock.add_argument("--output", help="lock output path")
+    _add_logging_args(registry_lock)
+    registry_verify = registry_verbs.add_parser(
+        "verify",
+        help="verify the deterministic registry lock",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    registry_verify.add_argument("--registry", default="policy", help="registry directory")
+    registry_verify.add_argument("--lock", help="lock path")
+    _add_logging_args(registry_verify)
+
     for model in available_models():
         blurb = _MODEL_BLURB.get(model, model)
         planned = model in _PLANNED_MODELS
@@ -295,6 +348,66 @@ def _build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.Argumen
             )
             _add_logging_args(validate)
     return parser, model_parsers
+
+
+def _registry_list(registry: Registry, as_json: bool) -> int:
+    """Render the registered Catalog list."""
+    if as_json:
+        sys.stdout.write(
+            json.dumps([entry.__dict__ for entry in registry.catalogs], indent=2, sort_keys=True)
+            + "\n"
+        )
+        return _EXIT_OK
+    sys.stdout.write("ID\tTYPE\tVERSION\tOSCAL\tSTATUS\n")
+    for entry in registry.catalogs:
+        sys.stdout.write(
+            f"{entry.id}\t{entry.kind}\t{entry.document_version}\t"
+            f"{entry.oscal_version}\t{entry.compatibility}\n"
+        )
+    return _EXIT_OK
+
+
+def _registry_show(registry: Registry, catalog_id: str, as_json: bool) -> int:
+    """Render one registered Catalog."""
+    try:
+        entry = next(item for item in registry.catalogs if item.id == catalog_id)
+    except StopIteration as exc:
+        raise RegistryError(f"unknown Catalog {catalog_id!r}") from exc
+    payload = entry.__dict__
+    output = (
+        json.dumps(payload, indent=2, sort_keys=True)
+        if as_json
+        else "\n".join(f"{key}: {value}" for key, value in payload.items())
+    )
+    sys.stdout.write(output + "\n")
+    return _EXIT_OK
+
+
+def _run_registry(args: argparse.Namespace) -> int:
+    """Run a read-only registry command; diagnostics stay on STDERR."""
+    registry = load_registry(args.registry)
+    verb = args.registry_verb
+    if verb == "validate":
+        sys.stdout.write(
+            f"Valid registry: {len(registry.catalogs)} Catalogs, "
+            f"{len(registry.document['profiles'])} Profiles, "
+            f"{len(registry.document['packs'])} packs\n"
+        )
+        return _EXIT_OK
+    if verb == "lock":
+        target = lock_registry(args.registry, args.output)
+        sys.stdout.write(f"Wrote registry lock: {target}\n")
+        return _EXIT_OK
+    if verb == "verify":
+        target = verify_lock(args.registry, args.lock)
+        sys.stdout.write(f"Registry lock verified: {target}\n")
+        return _EXIT_OK
+    if verb == "list":
+        return _registry_list(registry, args.json)
+    if verb == "show":
+        return _registry_show(registry, args.catalog_id, args.json)
+    _build_parser()[1]["registry"].print_help(sys.stderr)
+    return _EXIT_OK
 
 
 def _run(args: argparse.Namespace, log: BoundLog) -> int:
@@ -397,7 +510,51 @@ def _validate(args: argparse.Namespace, log: BoundLog) -> int:
     return _EXIT_OK
 
 
-def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911 -- error boundary: N domain errors -> exit codes
+def _run_registry_command(
+    args: argparse.Namespace, model_parsers: dict[str, argparse.ArgumentParser]
+) -> int:
+    """Dispatch registry commands through their error boundary."""
+    if getattr(args, "registry_verb", None) is None:
+        model_parsers["registry"].print_help(sys.stderr)
+        return _EXIT_OK
+    configure_logging(verbosity=args.verbose, json_logs=args.json_logs, quiet=args.quiet)
+    log = get_logger("mint_oscal.cli")
+    try:
+        return _run_registry(args)
+    except (RegistryError, FileNotFoundError, OSError) as exc:
+        log.error("registry_error", error=str(exc))
+        return _EXIT_INPUT
+
+
+def _run_model_command(
+    args: argparse.Namespace, model_parsers: dict[str, argparse.ArgumentParser]
+) -> int:
+    """Dispatch a model verb through the shared input and internal-error boundary."""
+    if getattr(args, "verb", None) is None:
+        model_parsers[args.model].print_help(sys.stderr)
+        return _EXIT_OK
+    configure_logging(verbosity=args.verbose, json_logs=args.json_logs, quiet=args.quiet)
+    log = get_logger("mint_oscal.cli")
+    src = getattr(args, "report", None) or getattr(args, "document", "-")
+    try:
+        return _validate(args, log) if args.verb == "validate" else _run(args, log)
+    except (FileNotFoundError, OSError) as exc:
+        log.error("input_error", report=src, error=str(exc))
+        return _EXIT_INPUT
+    except json.JSONDecodeError as exc:
+        log.error("invalid_json", report=src, error=str(exc))
+        return _EXIT_INPUT
+    except NotImplementedError as exc:
+        log.error(
+            "not_implemented", model=args.model, fmt=getattr(args, "fmt", None), error=str(exc)
+        )
+        return _EXIT_NOT_IMPLEMENTED
+    except Exception as exc:  # noqa: BLE001 -- top-level internal-error boundary
+        log.error("internal_error", error=str(exc), error_type=type(exc).__name__)
+        return _EXIT_INTERNAL
+
+
+def main(argv: list[str] | None = None) -> int:
     """Entry point: read a source report, emit an OSCAL document to STDOUT.
 
     STDOUT carries only the minted OSCAL document; all diagnostics go to STDERR via
@@ -429,35 +586,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911 -- error bounda
     if args.model is None:
         parser.print_help(sys.stderr)
         return _EXIT_OK
-    if getattr(args, "verb", None) is None:
-        model_parsers[args.model].print_help(sys.stderr)
-        return _EXIT_OK
-    configure_logging(verbosity=args.verbose, json_logs=args.json_logs, quiet=args.quiet)
-    log = get_logger("mint_oscal.cli")
-
-    # The input path is `report` for generate, `document` for validate; use whichever exists so
-    # the error handlers work for both verbs (a hardcoded `args.report` would AttributeError in
-    # the handler on the validate path and leak a traceback).
-    src = getattr(args, "report", None) or getattr(args, "document", "-")
-    try:
-        return _validate(args, log) if args.verb == "validate" else _run(args, log)
-    except (FileNotFoundError, OSError) as exc:
-        log.error("input_error", report=src, error=str(exc))
-        return _EXIT_INPUT
-    except json.JSONDecodeError as exc:
-        log.error("invalid_json", report=src, error=str(exc))
-        return _EXIT_INPUT
-    except NotImplementedError as exc:
-        log.error(
-            "not_implemented", model=args.model, fmt=getattr(args, "fmt", None), error=str(exc)
-        )
-        return _EXIT_NOT_IMPLEMENTED
-    except Exception as exc:  # noqa: BLE001 -- top-level internal-error boundary
-        # Any unexpected fault is mint's own bug, not the user's input: report it honestly as an
-        # internal error with a distinct exit code (70, EX_SOFTWARE), never a leaked traceback,
-        # and never mislabeled as malformed input (#70).
-        log.error("internal_error", error=str(exc), error_type=type(exc).__name__)
-        return _EXIT_INTERNAL
+    if args.model == "registry":
+        return _run_registry_command(args, model_parsers)
+    return _run_model_command(args, model_parsers)
 
 
 if __name__ == "__main__":

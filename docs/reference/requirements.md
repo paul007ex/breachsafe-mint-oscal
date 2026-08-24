@@ -74,6 +74,17 @@ control-mapping requirements below.
 | R-OSC-04 | Element ordering conforms to the metaschema. | Constraint | Must | metaschema | No ordering errors from validator. | Demo | PASS (v2) |
 | R-OSC-05 | All cross-references resolve (obs↔risk↔poam-item, subject↔inventory-item). | Constraint | Must | `validate.semantic_errors` (Layer-2 checks) | No dangling refs. | Test | PASS (v2) |
 
+## PROF: OSCAL Profile conformance
+
+| ID | Requirement | Type | Priority | Grounding / Source | Acceptance Criteria | Verify | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| R-PROF-01 | Profile uses the OSCAL Profile model and Trestle workspace conventions. | Constraint | Must | ADR-0010; OSCAL Profile metaschema | Trestle validates the Profile fixture. | Test | PASS |
+| R-PROF-02 | Profile contains required `uuid`, metadata, and imports fields. | Constraint | Must | OSCAL Profile schema 1.2.1 | Required-field negative control is rejected. | Test | PASS |
+| R-PROF-03 | Each import has one selection mode: `include-all` or `include-controls`. | Constraint | Must | OSCAL Profile metaschema | Invalid dual-selection fixture is rejected. | Test | Planned (#156) |
+| R-PROF-04 | Profile imports resolve before portable validation. | Functional | Must | Trestle profile resolver | Trestle produces a resolved Catalog with no dangling imports. | Test | PASS |
+| R-PROF-05 | Portable Profile validates with the official `oscal-cli` validator. | Non-functional | Must | oscal-cli 3.2.0 | `oscal-cli validate` exits valid after `trestle://` materialization. | Test | PASS |
+| R-PROF-06 | Profile conformance runs locally and in CI with positive and negative controls. | Non-functional | Must | `scripts/oscal-conformance.sh` | Gate exits non-zero when a required field is removed. | Test | PASS |
+
 ## DET: Determinism (reproducibility)
 
 | ID | Requirement | Type | Priority | Grounding / Source | Acceptance Criteria | Verify | Status |

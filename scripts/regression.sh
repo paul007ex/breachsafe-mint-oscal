@@ -284,7 +284,6 @@ expect_exit 2 "malformed qureddy (no target)"    -- poam generate --from qureddy
 expect_exit 3 "--to xml without oscal-cli"       -- poam generate --from cbom "$EX/example.cbom.json" --to xml
 expect_exit 3 "--to yaml without oscal-cli"      -- poam generate --from cbom "$EX/example.cbom.json" --to yaml
 expect_exit 3 "stub model 'ar' -> not-implemented" -- ar generate --from cbom "$EX/example.cbom.json"
-expect_exit 3 "stub model 'component-definition'" -- component-definition generate --from cbom "$EX/example.cbom.json"
 
 echo "-- honest-failure regression guards --"
 readiness_is classically_weak true  "#67 legacy TLS 'TLSv1.0' string caps at classically_weak" "$TMP/tlsv10.cbom.json"

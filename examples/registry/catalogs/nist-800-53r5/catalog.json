@@ -1,0 +1,24 @@
+{
+  "catalog": {
+    "uuid": "2f7e7e1e-7f5c-4a9f-9c6d-000000000053",
+    "metadata": {
+      "title": "NIST SP 800-53 Revision 5 fixture",
+      "last-modified": "2026-08-24T00:00:00Z",
+      "version": "5.0.0",
+      "oscal-version": "1.2.1"
+    },
+    "groups": [
+      {
+        "id": "security",
+        "title": "Security and Privacy Controls",
+        "controls": [
+          {"id": "SC-8", "title": "Transmission and Communications Confidentiality", "parts": [{"id": "SC-8_smt", "name": "statement", "prose": "Fixture control."}]},
+          {"id": "SC-12", "title": "Cryptographic Key Establishment and Management", "parts": [{"id": "SC-12_smt", "name": "statement", "prose": "Fixture control."}]},
+          {"id": "SC-13", "title": "Cryptographic Protection", "parts": [{"id": "SC-13_smt", "name": "statement", "prose": "Fixture control."}]},
+          {"id": "SC-17", "title": "Public Key Infrastructure Certificates", "parts": [{"id": "SC-17_smt", "name": "statement", "prose": "Fixture control."}]},
+          {"id": "SC-23", "title": "Session Authenticity", "parts": [{"id": "SC-23_smt", "name": "statement", "prose": "Fixture control."}]}
+        ]
+      }
+    ]
+  }
+}

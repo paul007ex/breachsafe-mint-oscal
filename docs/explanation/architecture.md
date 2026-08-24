@@ -16,6 +16,28 @@
 
 ## Overview
 
+### Source layout and separation of concerns
+
+The implementation is organized by responsibility, while compatibility modules preserve
+the existing import and entry-point contracts:
+
+```text
+mint_oscal/
+├── ingestion/       untrusted source parsing and CBOM boundary
+├── adapters/        compatibility and third-party adapter ports
+├── validation/      pure OSCAL structural/reference/domain checks
+├── governance/      registry, lock, digest, and policy-pack integrity
+├── ir/              trusted intermediate representation
+├── emitters/        IR -> OSCAL model construction
+├── render.py        encoding/delegation boundary
+└── cli.py           user-facing orchestration and exit-code boundary
+```
+
+`adapters/cbom.py`, `validate.py`, and `registry.py` remain thin compatibility imports;
+new code belongs under `ingestion`, `validation`, and `governance`. This prevents source
+formats, validation policy, registry governance, and CLI concerns from becoming one
+dependency cycle.
+
 mint-oscal converts security-tool findings into NIST OSCAL documents through an
 `N sources -> neutral IR -> M OSCAL shapes` pipeline. The core is agnostic: it knows only
 the intermediate representation (IR) and OSCAL, never a source's schema
@@ -57,6 +79,46 @@ The consume boxes (profile and catalog ingestion for the organization-defined pa
 are a planned path, not shipped. The boundaries hold today because the emitters already
 carry only IR facts and hashes, and control mapping is versioned policy YAML rather than
 scanner output.
+
+### Profile resolver boundary (P0 design)
+
+The future Profile path is a strict extension of the `oscal-cli` command grammar:
+
+```text
+mint-oscal profile <command> [<options>]
+  create       BreachSAFE registry-backed objective resolver
+  validate     same model/action meaning as oscal-cli
+  convert      same model/action meaning as oscal-cli
+  resolve      same model/action meaning as oscal-cli
+  explain      BreachSAFE registry/provenance explanation
+```
+
+The parser remains the existing nested command tree (root → model → command), not a
+framework-specific `mint-oscal nist profile` branch. `create` loads a versioned registry
+entry, verifies selected IDs against the Catalog, constructs the Profile through the OSCAL
+engine, and emits a resolution receipt. `validate`, `convert`, and `resolve` preserve the
+official option names, positional source/destination conventions, and help hierarchy.
+
+The registry is the BreachSAFE policy seam; the OSCAL Profile remains the authoritative
+control-selection artifact. Targets are introduced later by an Assessment Plan, not added
+to Profile creation. This design is proposed and does not change the shipped POA&M path.
+
+### Registry deployment decision
+
+The P0 source of truth is a reviewable Git policy pack, not a database or service:
+
+```text
+Git policy pack
+  -> Mint-OSCAL registry library/CLI
+  -> registry.lock / signed artifact
+  -> optional Enterprise API + database projection
+```
+
+The database/API projection must be rebuildable from Git. It may add search, approvals,
+tenant views, and workflow, but it cannot become an unreviewed policy authority. P0 ships
+only Catalogs required by approved use cases, preserving each upstream Catalog unchanged
+with source URL, version, and SHA-256. A lock file records policy/catalog digests and the
+resolver version for deterministic compilation.
 
 ## Decision ledger
 
