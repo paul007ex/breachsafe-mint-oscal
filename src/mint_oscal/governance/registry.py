@@ -37,6 +37,7 @@ class CatalogEntry:
     source_uri: str
     sha256: str
     license: str
+    source_verified: bool
     compatibility: str
     status: str
 
@@ -64,6 +65,7 @@ class Registry:
                 source_uri=item["source"]["uri"],
                 sha256=item["source"]["sha256"],
                 license=item["source"]["license"],
+                source_verified=item["source"]["verified"],
                 compatibility=item["compatibility"]["status"],
                 status=item["review"]["status"],
             )
@@ -92,6 +94,14 @@ def _normalize_state(document: dict[str, Any]) -> dict[str, Any]:
     """Treat legacy registries without a lifecycle state as active."""
     if "registry-state" not in document:
         document["registry-state"] = "active"
+    return document
+
+
+def _normalize_provenance(document: dict[str, Any]) -> dict[str, Any]:
+    """Mark legacy Catalog provenance as unverified before schema validation."""
+    for catalog in document.get("catalogs", []):
+        if isinstance(catalog, dict) and isinstance(catalog.get("source"), dict):
+            catalog["source"].setdefault("verified", False)
     return document
 
 
@@ -267,7 +277,7 @@ def load_registry(path: str | Path = "policy") -> Registry:
         root = root.parent
     else:
         registry_file = root / "registry.yaml"
-    document = _normalize_state(_read_yaml(registry_file))
+    document = _normalize_provenance(_normalize_state(_read_yaml(registry_file)))
     _schema_validate(document)
     _semantic_validate(root, document)
     return Registry(root=root, registry_file=registry_file, document=document)
@@ -292,6 +302,7 @@ def _canonical_lock(registry: Registry) -> dict[str, Any]:
         entry.id: {
             "oscal_version": entry.oscal_version,
             "sha256": entry.sha256,
+            "source_verified": entry.source_verified,
             "uuid": entry.uuid,
         }
         for entry in registry.catalogs

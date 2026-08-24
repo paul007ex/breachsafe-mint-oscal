@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 from pathlib import Path
 
@@ -127,3 +128,54 @@ def test_add_catalog_rejects_path_traversal_before_writing(tmp_path: Path) -> No
             ),
         )
     assert not (tmp_path / "escaped").exists()
+
+
+def test_init_rejects_nonempty_directory(tmp_path: Path) -> None:
+    target = tmp_path / "policy"
+    target.mkdir()
+    (target / "keep.txt").write_text("do not overwrite", encoding="utf-8")
+
+    with pytest.raises(RegistryError, match="not empty"):
+        init_registry(target)
+
+
+@pytest.mark.parametrize(
+    ("field", "message"),
+    [("metadata", "Catalog metadata"), ("uuid", "Catalog UUID"), ("title", "metadata.title")],
+)
+def test_add_catalog_rejects_malformed_catalog(tmp_path: Path, field: str, message: str) -> None:
+    root = init_registry(tmp_path / "policy")
+    source = tmp_path / "bad.json"
+    document = {"catalog": {"uuid": "11111111-1111-4111-8111-111111111111", "metadata": {}}}
+    if field == "metadata":
+        del document["catalog"]["metadata"]
+    elif field == "uuid":
+        del document["catalog"]["uuid"]
+    else:
+        document["catalog"]["metadata"] = {"title": "", "version": "1", "oscal-version": "1.2.1"}
+    source.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(RegistryError, match=message):
+        add_catalog(
+            root,
+            CatalogSource("bad", source, "https://example.invalid/catalog", "test", "test", "test"),
+        )
+
+
+def test_add_catalog_rolls_back_when_resulting_registry_is_invalid(tmp_path: Path) -> None:
+    root = _copy_fixture(tmp_path)
+    document = yaml.safe_load((root / "registry.yaml").read_text(encoding="utf-8"))
+    document["registry-state"] = "active"
+    del document["defaults"]
+    (root / "registry.yaml").write_text(yaml.safe_dump(document), encoding="utf-8")
+    original = (root / "registry.yaml").read_bytes()
+
+    with pytest.raises(RegistryError):
+        add_catalog(
+            root,
+            CatalogSource(
+                "rollback", CATALOG, "https://example.invalid/catalog", "test", "test", "test"
+            ),
+        )
+    assert (root / "registry.yaml").read_bytes() == original
+    assert not (root / "catalogs" / "rollback").exists()

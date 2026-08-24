@@ -29,6 +29,7 @@ catalogs:
       sha256: 42afafa05d918b0dc77a57e40b18d1ea3951fad127f0bf54db06a5aa1fc0c247
       license: NIST
       retrieved-at: "2026-08-24"
+      verified: false
     compatibility:
       trestle: ready
       oscal-cli: ready
@@ -52,6 +53,7 @@ catalogs:
       sha256: bbc2db46733270c0e304835c9881ac1fa2cb508ddbf1b544165f654b4cfa7632
       license: CC-BY-ND-4.0
       retrieved-at: "2026-08-24"
+      verified: false
     compatibility:
       trestle: conversion-required
       oscal-cli: conversion-required

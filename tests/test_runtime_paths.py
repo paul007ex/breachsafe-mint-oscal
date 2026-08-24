@@ -67,6 +67,39 @@ def test_cbom_rejects_bad_envelopes() -> None:
         from_cbom(bad)
 
 
+@pytest.mark.parametrize(
+    ("mutate", "needle"),
+    [
+        (lambda b: b.__setitem__("specVersion", 1), "specVersion must be a string"),
+        (lambda b: b.__setitem__("components", [{"name": []}]), "unhashable|component name"),
+        (
+            lambda b: b["components"].append(
+                {
+                    "type": "cryptographic-asset",
+                    "name": "legacy TLS",
+                    "cryptoProperties": {
+                        "assetType": "protocol",
+                        "protocolProperties": {"type": "tls", "version": "1.0"},
+                    },
+                }
+            ),
+            "legacy-protocols",
+        ),
+    ],
+)
+def test_cbom_edge_inputs_are_fail_closed_or_surface_posture(
+    mutate: Callable[[dict[str, object]], None], needle: str
+) -> None:
+    document = copy.deepcopy(_cbom())
+    mutate(document)
+    if needle == "legacy-protocols":
+        findings, _ = from_cbom(document)
+        assert needle in findings[0].posture
+    else:
+        with pytest.raises(MalformedCbomError, match=needle):
+            from_cbom(document)
+
+
 def test_qureddy_adapter_rejects_bad_input() -> None:
     with pytest.raises(MalformedScanError):
         from_scan_v1({})

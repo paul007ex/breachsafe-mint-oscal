@@ -10,7 +10,9 @@ from pathlib import Path
 
 import pytest
 
+from mint_oscal.adapters.cbom import from_cbom
 from mint_oscal.cli import main
+from mint_oscal.emitters.poam import to_poam
 
 ROOT = Path(__file__).parents[1]
 CBOM = str(ROOT / "examples/example.cbom.json")
@@ -35,6 +37,7 @@ def _invoke(argv: list[str]) -> int:
         ["poam", "generate", "--help"],
         ["poam", "validate", "--help"],
         ["registry", "--help"],
+        ["registry"],
     ],
 )
 def test_help_paths(argv: list[str], capsys: pytest.CaptureFixture[str]) -> None:
@@ -80,6 +83,20 @@ def test_usage_and_input_errors(argv: list[str]) -> None:
     assert _invoke(argv) in {2, 4}
 
 
+def test_generate_maps_malformed_adapter_input_to_input_exit(tmp_path: Path) -> None:
+    malformed = tmp_path / "malformed.json"
+    malformed.write_text("{}", encoding="utf-8")
+    assert main(["poam", "generate", "--from", "cbom", str(malformed)]) == 2
+
+
+def test_generate_validation_failure_is_reported(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr("mint_oscal.cli.semantic_errors", lambda _document: ["synthetic error"])
+    assert main(["poam", "generate", "--from", "cbom", CBOM, "--validate"]) == 1
+    assert "semantic_error" in capsys.readouterr().err
+
+
 def test_render_and_planned_model_paths() -> None:
     assert _invoke(["poam", "generate", "--from", "cbom", CBOM, "--to", "xml"]) == 4
     assert _invoke(["poam", "generate", "--from", "cbom", CBOM, "--to", "yaml"]) == 0
@@ -97,6 +114,17 @@ def test_validate_paths(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> N
     broken.write_text("not-json", encoding="utf-8")
     assert main(["poam", "validate", str(broken)]) == 2
     assert capsys.readouterr().err
+
+
+def test_validate_accepts_minted_document_and_reports_semantics(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    output = tmp_path / "poam.json"
+    source = json.loads(Path(CBOM).read_text(encoding="utf-8"))
+    findings, subject = from_cbom(source)
+    output.write_text(json.dumps(to_poam(findings, subject, source="CBOM")), encoding="utf-8")
+    assert main(["poam", "validate", str(output), "--verbose"]) == 0
+    assert "valid" in capsys.readouterr().err
 
 
 def test_registry_commands(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -120,3 +148,36 @@ def test_registry_verbose_logging_reports_state(
 
     assert main(["registry", "validate", "--registry", str(registry_path), "--verbose"]) == 0
     assert "registry_loaded" in capsys.readouterr().err
+
+
+def test_registry_init_and_add_catalog_commands(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    workspace = tmp_path / "new-registry"
+    assert main(["registry", "init", "--output", str(workspace), "--verbose"]) == 0
+    assert "Created registry workspace" in capsys.readouterr().out
+    catalog = ROOT / "examples/registry/catalogs/nist-800-53r5/catalog.json"
+    assert (
+        main(
+            [
+                "registry",
+                "add-catalog",
+                "--registry",
+                str(workspace),
+                "--id",
+                "fixture",
+                "--file",
+                str(catalog),
+                "--source-uri",
+                "https://example.invalid/catalog",
+                "--release",
+                "fixture",
+                "--license",
+                "fixture",
+                "--authority",
+                "fixture",
+            ]
+        )
+        == 0
+    )
+    assert "Added Catalog" in capsys.readouterr().out

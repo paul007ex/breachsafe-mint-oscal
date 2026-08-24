@@ -29,6 +29,7 @@ from cyclonedx.model.component import Component
 from cyclonedx.schema import SchemaVersion
 
 from mint_oscal.controls.nist import controls_for, risk_statement
+from mint_oscal.ingestion.cbom_readiness import classify_algorithm, derive_readiness
 from mint_oscal.ir import Finding, Subject
 from mint_oscal.policy import active_policy
 
@@ -37,15 +38,6 @@ _DATA_PACKAGE = "mint_oscal.adapters.cbom_data"
 # CycloneDX spec versions the parser understands ("1.0".."1.7"); an out-of-range
 # specVersion is rejected up front rather than silently mis-parsed.
 _SUPPORTED_SPEC_VERSIONS = frozenset(v.to_version() for v in SchemaVersion)
-# Primitives that establish a shared/transported key -- the quantum-relevant exchange.
-# key-agree (DH/ECDH) and kem (ML-KEM), plus pke: RSA-encrypted **key transport** is classical
-# key establishment and must be scored, not silently dropped as a non-KEX primitive (#68).
-_KEX_PRIMITIVES = frozenset({"key-agree", "kem", "pke"})
-# CycloneDX's indeterminate `primitive` enum values: the producer is explicitly telling us
-# it could not determine the primitive. An indeterminate algorithm that also misses the
-# registry must surface as `unclassified` (it could be a hidden classical KEX), never be
-# silently dropped into the most-favorable verdict -- same as a no-primitive unknown (#78).
-_INDETERMINATE_PRIMITIVES = frozenset({"unknown", "other"})
 _QUANTIFIERS = frozenset({"all", "some", "none"})
 # Transport protocols that carry a numeric TLS-style version; SSL is handled by name.
 _TLS_LIKE = frozenset({"tls", "dtls"})
@@ -286,53 +278,6 @@ def _inventory(
     return algos, sigs, sorted(weak_protocols)
 
 
-def _classify_algorithm(
-    name: str,
-    declared_primitive: str | None,
-    declared_level: int | None,
-    registry: dict[str, dict[str, Any]],
-) -> tuple[bool, bool | None, int, bool]:
-    """Classify one algorithm without turning missing evidence into a safe verdict."""
-    entry = registry.get(name.upper())
-    is_kex = declared_primitive in _KEX_PRIMITIVES or (entry or {}).get("kind") == "kex"
-    registry_classical = entry is not None and not entry.get("quantum_safe", False)
-    if declared_level is not None:
-        safe: bool | None = declared_level > 0 and not registry_classical
-        level = declared_level
-    elif entry is not None:
-        safe = bool(entry.get("quantum_safe"))
-        level = int(entry.get("nistLevel", 0))
-    else:
-        safe, level = None, 0
-    indeterminate = (
-        not is_kex
-        and entry is None
-        and (declared_primitive is None or declared_primitive in _INDETERMINATE_PRIMITIVES)
-    )
-    return is_kex, safe, level, indeterminate
-
-
-def _derive_readiness(
-    kex_safe: list[bool], unclassified: list[str], rules: list[dict[str, Any]]
-) -> str:
-    """Apply declarative readiness rules to the KEX evidence we could classify."""
-    if not kex_safe:
-        return "unknown"
-    total, safe_count = len(kex_safe), sum(kex_safe)
-    quantum_safe = {"all": safe_count == total, "some": safe_count > 0, "none": safe_count == 0}
-    classical = {"all": safe_count == 0, "some": safe_count < total, "none": safe_count == total}
-    readiness = next(
-        (
-            str(rule["readiness"])
-            for rule in rules
-            if quantum_safe.get(rule.get("kex_quantum_safe", ""), True)
-            and classical.get(rule.get("kex_classical", ""), True)
-        ),
-        "unknown",
-    )
-    return "unknown" if readiness == "quantum_ready" and unclassified else readiness
-
-
 def _parse_cbom(document: dict[str, Any]) -> Bom:
     """Validate the CycloneDX envelope and parse its typed model."""
     if document.get("bomFormat") != "CycloneDX" or "specVersion" not in document:
@@ -414,7 +359,7 @@ def _readiness(
     unclassified: list[str] = []
     levels: list[int] = []
     for name, (declared_primitive, declared_level) in algos.items():
-        is_kex, safe, level, indeterminate = _classify_algorithm(
+        is_kex, safe, level, indeterminate = classify_algorithm(
             name, declared_primitive, declared_level, registry
         )
         if is_kex:
@@ -437,7 +382,7 @@ def _readiness(
             # otherwise it is silently dropped and a hidden KEX rides a favorable verdict (#98).
             unclassified.append(name)
 
-    readiness = _derive_readiness(kex_safe, unclassified, rules)
+    readiness = derive_readiness(kex_safe, unclassified, rules)
     # honest-failure cap: a legacy TLS/SSL offering means the posture cannot be more
     # favorable than classically_weak, regardless of how strong the KEX looks. Applied
     # last so it also covers the not-yet-scored `unknown` case; an already-unfavorable

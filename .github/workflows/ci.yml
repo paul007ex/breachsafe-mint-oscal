@@ -45,7 +45,9 @@ jobs:
       - name: Dependency audit
         run: uv run --locked pip-audit
       - name: Dependency hygiene
-        run: uv run --locked deptry . --optional-dependencies-dev-groups dev --known-first-party mint_oscal
+        # compliance-trestle is consumed by scripts/oscal-conformance.sh rather than imported
+        # by the package; keep DEP002 fail-closed for every other dependency.
+        run: uv run --locked deptry . --optional-dependencies-dev-groups dev --known-first-party mint_oscal --per-rule-ignores DEP002=compliance-trestle
       - name: REUSE license audit
         run: uvx reuse lint
       - name: Xenon complexity ceiling
