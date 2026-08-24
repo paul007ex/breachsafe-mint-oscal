@@ -497,6 +497,16 @@ def control_id_shape(document: dict[str, Any]) -> list[str]:
     return out
 
 
+def link_href(document: dict[str, Any]) -> list[str]:
+    """Require ``href`` on every OSCAL link wherever a links array occurs."""
+    out: list[str] = []
+    for links in _find(document, "links"):
+        for link in _as_list(links):
+            if not isinstance(link, dict) or "href" not in link:
+                out.append("link missing required 'href'")
+    return out
+
+
 _VALIDATORS = (
     uuid_syntax,
     unique_uuids,
@@ -506,6 +516,7 @@ _VALIDATORS = (
     props_namespaced,
     # A -- OSCAL POA&M structural (1:1 with the schema)
     required_fields,
+    link_href,
     cardinality,
     datatypes,
     risk_status,
