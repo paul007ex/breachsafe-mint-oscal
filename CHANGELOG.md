@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The OSCAL conformance extra now declares the pinned Compliance Trestle dependency used by
+  the local and CI conformance gate.
+
 ## [0.2.3] - 2026-08-24
 
 ### Fixed
