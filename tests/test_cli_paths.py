@@ -80,9 +80,9 @@ def test_usage_and_input_errors(argv: list[str]) -> None:
     assert _invoke(argv) in {2, 4}
 
 
-def test_render_dependency_and_planned_model_paths() -> None:
-    assert _invoke(["poam", "generate", "--from", "cbom", CBOM, "--to", "xml"]) == 3
-    assert _invoke(["poam", "generate", "--from", "cbom", CBOM, "--to", "yaml"]) == 3
+def test_render_and_planned_model_paths() -> None:
+    assert _invoke(["poam", "generate", "--from", "cbom", CBOM, "--to", "xml"]) == 4
+    assert _invoke(["poam", "generate", "--from", "cbom", CBOM, "--to", "yaml"]) == 0
     assert _invoke(["ar", "generate", "--from", "cbom", CBOM]) == 3
 
 
