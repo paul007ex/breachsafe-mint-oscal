@@ -72,6 +72,7 @@ Rationale and context. No commands.
 - [Valid is not compliant](explanation/valid-vs-compliant.md): what validation does and does not mean
 - [State and control frameworks](explanation/honest-state-and-frameworks.md): the `scf-qts` default, the provisional marker, the fact→finding gate
 - [Architecture](explanation/architecture.md): components, data flow, trust boundaries
+- [QuReddy quality-port review](reviews/qureddy-quality-port-review.md): quality practices reviewed for Mint-OSCAL adoption
 
 ## Decision records
 
