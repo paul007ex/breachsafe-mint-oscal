@@ -90,7 +90,7 @@ OSCAL has no native crypto model; these props pass through validators unchanged.
 ## Supported formats
 
 JSON is the only shipped native encoding: deterministic, no external dependency. Native
-`--to xml` and `--to yaml` are planned (ADR-0005) and exit `3` (`not_implemented`) today.
+`--to yaml` is supported natively. XML is not a supported output format.
 To get XML or YAML now, mint JSON and convert it with `oscal-cli`:
 
 ```bash
