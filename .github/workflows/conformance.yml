@@ -45,11 +45,7 @@ jobs:
       - name: Install mint-oscal
         run: |
           python -m pip install --upgrade pip
-          pip install .
-          # Profile conformance uses the same Compliance Trestle major version as the
-          # local pressure-test fixture and ADR-0010. Keep this explicit until the Profile
-          # compiler promotes Trestle to a runtime dependency.
-          pip install "compliance-trestle==5.0.0"
+          pip install ".[conformance]"
 
       # Runs the identical local gate: mint a POA&M from the fixture CBOM, validate the
       # Profile fixture with Trestle, resolve it, then fetch/detect

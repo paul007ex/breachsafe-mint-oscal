@@ -46,6 +46,9 @@ cbom = "mint_oscal.adapters.cbom:from_cbom"
 breachsafe = "mint_oscal.extensions.breachsafe:enrich"
 
 [project.optional-dependencies]
+conformance = [
+  "compliance-trestle==5.0.0",
+]
 dev = [
   "ruff",
   "mypy",
