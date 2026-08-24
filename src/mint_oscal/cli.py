@@ -77,6 +77,23 @@ class _UsageParser(argparse.ArgumentParser):
         self.exit(_EXIT_USAGE, f"{self.prog}: usage error: {message}\n")
 
 
+class _SingleUseStore(argparse.Action):
+    """Store an option once and reject repeated occurrences instead of dropping input."""
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: object,
+        option_string: str | None = None,
+    ) -> None:
+        seen_key = f"_{self.dest}_seen"
+        if getattr(namespace, seen_key, False):
+            parser.error(f"{option_string or self.dest} may only be specified once")
+        setattr(namespace, self.dest, values)
+        setattr(namespace, seen_key, True)
+
+
 # Human-facing display names for a source id (used in the POA&M title); falls back to the
 # raw source so a newly registered adapter still reads sensibly without a code change here.
 _SOURCE_DISPLAY = {"cbom": "CBOM", "qureddy": "QuReddy"}
@@ -244,6 +261,7 @@ def _build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.Argumen
     registry_list.add_argument("--json", action="store_true", help="emit JSON")
     registry_list.add_argument(
         "--type",
+        action=_SingleUseStore,
         choices=("catalog", "profile", "pack", "objective", "crosswalk"),
         default="catalog",
         help="entity type to list (default: catalog)",
@@ -260,6 +278,7 @@ def _build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.Argumen
     registry_show.add_argument("--json", action="store_true", help="emit JSON")
     registry_show.add_argument(
         "--type",
+        action=_SingleUseStore,
         choices=("catalog", "profile", "pack", "objective", "crosswalk"),
         default="catalog",
         help="entity type (default: catalog)",

@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Repeated registry `--type` flags now fail with usage exit code 4 instead of silently
+  discarding the earlier value.
+
 ## [0.2.4] - 2026-08-24
 
 ### Fixed
