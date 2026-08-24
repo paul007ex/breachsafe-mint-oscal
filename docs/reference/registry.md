@@ -12,6 +12,7 @@ evidence-plane policy tables under `src/mint_oscal/policy/`.
 5. [Initial catalog options](#initial-catalog-options)
 6. [Source authority and drift](#source-authority-and-drift)
 7. [Milestone and issues](#milestone-and-issues)
+8. [Source, generated, and release boundary](#source-generated-and-release-boundary)
 
 ## Responsibilities
 
@@ -149,3 +150,11 @@ Milestone `0.4.1 - Registry foundation`:
 
 The enterprise projection is deferred to `0.6.0` (#160, #161, #163). Git remains the
 authoritative source even when those projections exist.
+
+## Source, generated, and release boundary
+
+The source/generated/release decision is recorded in [ADR-0010](../adr/0010-source-generated-release-boundary.md).
+The registry source and pinned Catalogs are authoritative; `generated/` and `release/` are
+reserved for future projections. CI runs `scripts/check_registry_drift.py` to regenerate the
+lock in a temporary directory and fail closed when the committed lock is stale or not
+byte-stable.
