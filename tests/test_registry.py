@@ -194,6 +194,56 @@ def test_unknown_control_fails_closed(tmp_path: Path) -> None:
         load_registry(registry_path)
 
 
+def test_missing_catalog_file_fails_closed(tmp_path: Path) -> None:
+    registry_path = _registry(tmp_path)
+    document = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
+    document["catalogs"][0]["href"] = "missing/catalog.json"
+    registry_path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+
+    with pytest.raises(RegistryError, match="does not exist"):
+        load_registry(registry_path)
+
+
+def test_objective_with_unknown_profile_fails_closed(tmp_path: Path) -> None:
+    registry_path = _registry(tmp_path)
+    document = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
+    document["objectives"][0]["profiles"] = ["missing-profile"]
+    registry_path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+
+    with pytest.raises(RegistryError, match="unknown Profiles"):
+        load_registry(registry_path)
+
+
+def test_duplicate_profile_control_selection_fails_closed(tmp_path: Path) -> None:
+    registry_path = _registry(tmp_path)
+    document = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
+    document["profiles"][0]["imports"][0]["include-controls"].append({"with-ids": ["qts-04"]})
+    registry_path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+
+    with pytest.raises(RegistryError, match="selects a control more than once"):
+        load_registry(registry_path)
+
+
+def test_duplicate_crosswalk_id_fails_closed(tmp_path: Path) -> None:
+    registry_path = _registry(tmp_path)
+    document = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
+    document["crosswalks"] = [
+        {
+            "id": "fixture-crosswalk",
+            "kind": "framework-crosswalk",
+            "source-framework": "fixture",
+            "source-version": "1",
+            "target-framework": "fixture-target",
+            "target-version": "1",
+            "status": "approved",
+        }
+    ] * 2
+    registry_path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+
+    with pytest.raises(RegistryError, match="duplicate crosswalk ID"):
+        load_registry(registry_path)
+
+
 def test_unknown_field_fails_schema(tmp_path: Path) -> None:
     registry_path = _registry(tmp_path)
     document = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
