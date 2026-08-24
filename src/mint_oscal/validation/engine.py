@@ -133,7 +133,7 @@ def _is_uuid(value: object) -> bool:
     """Return True if ``value`` is a syntactically valid uuid string."""
     try:
         uuid.UUID(str(value))
-    except (ValueError, AttributeError):
+    except ValueError, AttributeError:
         return False
     return True
 
