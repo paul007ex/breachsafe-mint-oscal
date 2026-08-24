@@ -117,7 +117,7 @@ wheels = [
 
 [[package]]
 name = "breachsafe-mint-oscal"
-version = "0.2.2"
+version = "0.2.3"
 source = { editable = "." }
 dependencies = [
     { name = "cyclonedx-python-lib" },
