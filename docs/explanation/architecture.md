@@ -16,6 +16,28 @@
 
 ## Overview
 
+### Source layout and separation of concerns
+
+The implementation is organized by responsibility, while compatibility modules preserve
+the existing import and entry-point contracts:
+
+```text
+mint_oscal/
+├── ingestion/       untrusted source parsing and CBOM boundary
+├── adapters/        compatibility and third-party adapter ports
+├── validation/      pure OSCAL structural/reference/domain checks
+├── governance/      registry, lock, digest, and policy-pack integrity
+├── ir/              trusted intermediate representation
+├── emitters/        IR -> OSCAL model construction
+├── render.py        encoding/delegation boundary
+└── cli.py           user-facing orchestration and exit-code boundary
+```
+
+`adapters/cbom.py`, `validate.py`, and `registry.py` remain thin compatibility imports;
+new code belongs under `ingestion`, `validation`, and `governance`. This prevents source
+formats, validation policy, registry governance, and CLI concerns from becoming one
+dependency cycle.
+
 mint-oscal converts security-tool findings into NIST OSCAL documents through an
 `N sources -> neutral IR -> M OSCAL shapes` pipeline. The core is agnostic: it knows only
 the intermediate representation (IR) and OSCAL, never a source's schema
