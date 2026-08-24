@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   legacy registries are fail-closed as unverified, and lock projections preserve that state.
 - MAX quality gates are green: POA&M/CBOM complexity was decomposed, the shell-only Trestle
   dependency is explicitly accounted for, and regression coverage now exceeds 90%.
+- Registry YAML loading now rejects duplicate mapping keys instead of silently accepting the
+  last value; Catalog import uses the same strict loader.
 
 - The OSCAL conformance extra now declares the pinned Compliance Trestle dependency used by
   the local and CI conformance gate.
