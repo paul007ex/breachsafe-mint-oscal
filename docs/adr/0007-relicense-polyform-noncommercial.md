@@ -16,8 +16,8 @@
 ## Context
 
 `mint-oscal` was initially published under **Apache-2.0** (OSI open-source), and the
-repository's license state was inconsistent: source files carried
-`SPDX-License-Identifier: Apache-2.0` while GitHub detected no top-level license. The
+repository's license state was inconsistent: source files carried Apache-2.0 SPDX
+license tags while GitHub detected no top-level license. The
 owner's intent is that BreachSAFE code be **source-available for noncommercial use** —
 anyone may read, run, evaluate, self-host, modify, and share it, but **may not use it in
 or for a commercial product, or for commercial advantage, without a separate commercial
@@ -71,7 +71,7 @@ The project is now **source-available, not open source** — all public wording 
 1. `LICENSE` — PolyForm Noncommercial 1.0.0 text, prefixed with a `Required Notice:`
    copyright line per the license's Notices clause.
 2. `NOTICE` — source-available statement + commercial-license contact.
-3. Every source `SPDX-License-Identifier: Apache-2.0` → `PolyForm-Noncommercial-1.0.0`.
+3. Every source Apache-2.0 SPDX tag → `PolyForm-Noncommercial-1.0.0`.
 4. `pyproject` `license = "PolyForm-Noncommercial-1.0.0"`; classifier →
    `License :: Other/Proprietary License`.
 5. `CHANGELOG` entry; public docs say "source-available," never "open source."

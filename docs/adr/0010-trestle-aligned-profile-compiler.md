@@ -1,5 +1,13 @@
 # ADR-0010: Trestle-aligned Profile compiler
 
+## Contents
+
+1. [Status](#status)
+2. [Context](#context)
+3. [Decision](#decision)
+4. [Consequences](#consequences)
+5. [Verification](#verification)
+
 ## Status
 
 Accepted (P0 control-plane design)

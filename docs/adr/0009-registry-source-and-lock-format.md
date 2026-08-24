@@ -1,5 +1,15 @@
 # ADR-0009: Registry source and lock format
 
+## Contents
+
+1. [Status](#status)
+2. [Context](#context)
+3. [Decision](#decision)
+4. [Automation boundary](#automation-boundary)
+5. [Consequences](#consequences)
+6. [Rejected alternatives](#rejected-alternatives)
+7. [Verification](#verification)
+
 ## Status
 
 Accepted (P0 control-plane design)

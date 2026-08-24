@@ -55,7 +55,7 @@ def configure_logging(
     if json_logs:
         procs.append(structlog.processors.JSONRenderer())
     else:
-        color = getattr(out, "isatty", lambda: False)() and "NO_COLOR" not in os.environ
+        color = getattr(out, "isatty", bool)() and "NO_COLOR" not in os.environ
         procs.append(structlog.dev.ConsoleRenderer(colors=color))
     structlog.configure(
         processors=procs,

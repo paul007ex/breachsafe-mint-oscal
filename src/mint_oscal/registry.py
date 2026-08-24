@@ -7,6 +7,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from operator import itemgetter
 from pathlib import Path
 from typing import Any
 
@@ -223,7 +224,7 @@ def load_registry(path: str | Path = "policy") -> Registry:
 def _canonical_lock(registry: Registry) -> dict[str, Any]:
     """Build the deterministic integrity projection for a validated registry."""
     profiles: dict[str, dict[str, Any]] = {}
-    for profile in sorted(registry.document["profiles"], key=lambda item: item["id"]):
+    for profile in sorted(registry.document["profiles"], key=itemgetter("id")):
         ids = [
             control_id
             for import_entry in profile["imports"]

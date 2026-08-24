@@ -1,10 +1,10 @@
 name: CI
 
-# Automatic triggers are disabled: GitHub Actions execution is blocked on this repo by
-# billing (#46), so push/pull_request runs only produce noise (failed/queued jobs with no
-# steps). The pipeline is kept intact and runnable on demand via the Actions tab; re-enable
-# the push/pull_request triggers below in one edit once billing is restored.
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -15,6 +15,85 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+
+  # Issue #125: these are intentionally fail-closed. Existing baseline failures are
+  # reported by the local pressure-test before this workflow is merged.
+  max-quality:
+    name: MAX quality gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Install locked development environment
+        run: |
+          python -m pip install --upgrade pip uv
+          uv sync --locked --extra dev
+      - name: Ruff lint
+        run: uv run --locked ruff check .
+      - name: Ruff format
+        run: uv run --locked ruff format --check .
+      - name: Mypy strict
+        run: uv run --locked mypy src --strict
+      - name: Import architecture
+        run: uv run --locked lint-imports
+      - name: Bandit
+        run: uv run --locked bandit -r -ll src
+      - name: Dependency audit
+        run: uv run --locked pip-audit
+      - name: Dependency hygiene
+        run: uv run --locked deptry . --optional-dependencies-dev-groups dev --known-first-party mint_oscal
+      - name: REUSE license audit
+        run: uvx reuse lint
+      - name: Xenon complexity ceiling
+        run: uv run --locked xenon --max-absolute B --max-modules A --max-average A src/mint_oscal
+      - name: Refurb modernization
+        run: uv run --locked refurb src/mint_oscal
+      - name: Vulture dead-code scan
+        run: uv run --locked vulture src/mint_oscal --min-confidence 80
+      - name: Pylint duplicate-code scan
+        run: uv run --locked pylint --disable=all --enable=duplicate-code src/mint_oscal
+      - name: jscpd duplication ceiling
+        run: npx --yes jscpd@4 --threshold 0.5 src tests
+      - name: Interrogate docstring audit
+        run: uv run --locked interrogate -v src/mint_oscal
+      - name: Gitleaks
+        run: gitleaks detect --source . --no-git --redact --no-banner
+
+  max-tests:
+    name: MAX tests and coverage
+    runs-on: ubuntu-latest
+    needs: max-quality
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Install locked development environment
+        run: |
+          python -m pip install --upgrade pip uv
+          uv sync --locked --extra dev
+      - name: Pytest with coverage and JUnit
+        run: uv run --locked pytest --cov=mint_oscal --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=90 --junitxml=pytest-results.xml
+      - name: Changed-line coverage
+        if: github.event_name == 'pull_request'
+        run: uv run --locked diff-cover coverage.xml --compare-branch "origin/${{ github.event.pull_request.base.ref }}" --fail-under=100
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: max-quality-test-evidence
+          path: |
+            coverage.xml
+            pytest-results.xml
+            .allure-results
+          if-no-files-found: error
+
   test:
     runs-on: ubuntu-latest
     strategy:
