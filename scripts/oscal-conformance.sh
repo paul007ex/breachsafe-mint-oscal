@@ -55,19 +55,19 @@ ok()    { printf "  ${GREEN}PASS${NC}  %s\n" "$*"; }
 bad()   { printf "  ${RED}FAIL${NC}  %s\n" "$*"; }
 die()   { printf "${RED}${BOLD}conformance gate ERROR:${NC} %s\n" "$*" >&2; exit 2; }
 
-# --- resolve a Python 3.12+ interpreter (mint-oscal's floor; 3.9 is BANNED) -----------
-# Ambient `python3` is often an old system build (3.9 on macOS) that fails opaquely, so
-# prefer $PYTHON, then a versioned python3.1x, and HARD-REQUIRE >= 3.12 (fail closed).
-_py312() { command -v "$1" >/dev/null 2>&1 && "$1" -c 'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 12) else 1)' 2>/dev/null; }
+# --- resolve a Python 3.14+ interpreter (mint-oscal's floor; older versions are BANNED) -
+# Ambient `python3` may be an older system build that fails opaquely, so
+# prefer $PYTHON, then a versioned python3.1x, and HARD-REQUIRE >= 3.14 (fail closed).
+_py314() { command -v "$1" >/dev/null 2>&1 && "$1" -c 'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 14) else 1)' 2>/dev/null; }
 if [ -n "${PYTHON:-}" ]; then
-  _py312 "$PYTHON" || die "PYTHON=$PYTHON is not Python 3.12+ (mint-oscal floor; 3.9 is banned)"
+  _py314 "$PYTHON" || die "PYTHON=$PYTHON is not Python 3.14+ (mint-oscal floor)"
   PY="$PYTHON"
 else
   PY=""
-  for cand in python3.14 python3.13 python3.12 python3; do
-    if _py312 "$cand"; then PY="$(command -v "$cand")"; break; fi
+  for cand in python3.14 python3; do
+    if _py314 "$cand"; then PY="$(command -v "$cand")"; break; fi
   done
-  [ -n "$PY" ] || die "Python 3.12+ not found (3.9 is banned); install it or set PYTHON=/path/to/python3.12+"
+  [ -n "$PY" ] || die "Python 3.14+ not found; install it or set PYTHON=/path/to/python3.14+"
 fi
 
 # --- resolve the mint-oscal CLI under test --------------------------------------------

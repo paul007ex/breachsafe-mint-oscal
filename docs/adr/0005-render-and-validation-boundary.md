@@ -54,7 +54,7 @@ built-in validation. We evaluated it empirically rather than by reputation (`/tm
 | Latest version | **4.2.0**, released **2026-07-02**; **11 releases in 2026** (3.11→4.0→4.1→4.2) — **actively maintained** | PyPI JSON |
 | OSCAL modelled | **1.2.1**, hard-locked `OSCAL_VERSION_REGEX = ^1\.2\.[0-1]$` | `trestle/oscal/__init__.py` |
 | NIST latest | **1.2.2** (2026-04-30) — trestle **cannot represent it** (regex forbids `1.2.2`) | usnistgov/OSCAL |
-| Dependency weight | **42 packages / 54 MB** | `pip install` on py3.12 |
+| Dependency weight | **42 packages / 54 MB** | `pip install` on py3.14 |
 | 1.2.2 committed? | No committed date; "Next OSCAL Version Update" milestone holds pydantic-v2/task issues, **not** a 1.2.2 bump | IBM issue tracker |
 | Build works? | Yes — `oscal_serialize_json()` produced a POA&M that `oscal-cli` validated, byte-identical across runs, custom `ns` props preserved | `/tmp` pressure test |
 

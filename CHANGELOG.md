@@ -96,7 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **NIST OSCAL conformance gate** (#71, #93): `scripts/oscal-conformance.sh` (and a
   `workflow_dispatch` CI workflow) validate every minted POA&M against the upstream reference
   validator **oscal-cli 3.2.0** — positive + negative controls, fail-closed. Requires Python
-  3.12+ (3.9 is rejected).
+  3.14+ (older versions are rejected).
 
 ### Changed
 
@@ -479,7 +479,7 @@ by NIST `oscal-cli` and IBM `trestle`.
 
 - **License: Apache-2.0 → PolyForm Noncommercial 1.0.0** (ADR-0007): source-available,
   not open source; commercial use requires a separate license (see `NOTICE`).
-- Require **Python 3.12**.
+- Require **Python 3.14**.
 - Render/validation boundary hand-rolled with `oscal-cli` as the oracle — **no `trestle`
   dependency** (version sovereignty + minimal supply chain; ADR-0005).
 
