@@ -134,6 +134,7 @@ def test_registry_commands(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
     assert main(["registry", "validate", "--registry", registry]) == 0
     assert main(["registry", "list", "--registry", registry, "--json"]) == 0
     assert main(["registry", "show", "nist-800-53r5", "--registry", registry]) == 0
+    assert main(["registry", "show", "catalog", "nist-800-53r5", "--registry", registry]) == 0
     assert main(["registry", "list", "--type", "profile", "--registry", registry, "--json"]) == 0
     assert (
         main(["registry", "show", "profile", "scf-qts-pqc-readiness", "--registry", registry]) == 0

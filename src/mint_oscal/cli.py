@@ -499,10 +499,9 @@ def _run_registry(args: argparse.Namespace, log: BoundLog) -> int:  # noqa: PLR0
     if verb == "list":
         return _registry_list(registry, args.json, args.type)
     if verb == "show":
-        entity_type = (
-            args.entity if args.entity in _REGISTRY_ENTITY_TYPES and args.entity_id else args.type
-        )
-        entity_id = args.entity_id if entity_type != args.type else args.entity
+        positional_type = args.entity in _REGISTRY_ENTITY_TYPES and args.entity_id is not None
+        entity_type = args.entity if positional_type else args.type
+        entity_id = args.entity_id if positional_type else args.entity
         return _registry_show(registry, entity_type, entity_id, args.json)
     _build_parser()[1]["registry"].print_help(sys.stderr)
     return _EXIT_OK
