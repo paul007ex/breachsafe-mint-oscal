@@ -80,6 +80,8 @@ jobs:
           uv sync --locked --extra dev
       - name: Pytest with coverage and JUnit
         run: uv run --locked pytest --cov=mint_oscal --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=90 --junitxml=pytest-results.xml
+      - name: Registry source/generated drift
+        run: uv run --locked python scripts/check_registry_drift.py --registry examples/registry
       - name: Changed-line coverage
         if: github.event_name == 'pull_request'
         run: uv run --locked diff-cover coverage.xml --compare-branch "origin/${{ github.event.pull_request.base.ref }}" --fail-under=100

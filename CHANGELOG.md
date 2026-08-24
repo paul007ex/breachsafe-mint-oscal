@@ -41,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dependency is explicitly accounted for, and regression coverage now exceeds 90%.
 - Registry YAML loading now rejects duplicate mapping keys instead of silently accepting the
   last value; Catalog import uses the same strict loader.
+- Registry source/generated/release boundaries are now explicit, with a CI drift gate that
+  reproduces and compares the committed lock bytes.
 - Registry validation now rejects duplicate crosswalk IDs and duplicate control selections,
   with regression coverage for missing Catalogs and objectives that reference unknown Profiles.
 
