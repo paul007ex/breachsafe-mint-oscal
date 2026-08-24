@@ -7,12 +7,14 @@
 ## Contents
 
 1. [Overview](#overview)
-2. [Data flow and trust boundaries](#data-flow-and-trust-boundaries)
-3. [Decision ledger](#decision-ledger)
-4. [Where mint-oscal fits the ecosystem](#where-mint-oscal-fits-the-ecosystem)
-5. [Output](#output)
-6. [Versioning](#versioning)
-7. [References](#references)
+2. [OSS-first capability rule](#oss-first-capability-rule)
+3. [Stability-first sequencing rule](#stability-first-sequencing-rule)
+4. [Data flow and trust boundaries](#data-flow-and-trust-boundaries)
+5. [Decision ledger](#decision-ledger)
+6. [Where mint-oscal fits the ecosystem](#where-mint-oscal-fits-the-ecosystem)
+7. [Output](#output)
+8. [Versioning](#versioning)
+9. [References](#references)
 
 ## Overview
 
@@ -102,6 +104,50 @@ official option names, positional source/destination conventions, and help hiera
 The registry is the BreachSAFE policy seam; the OSCAL Profile remains the authoritative
 control-selection artifact. Targets are introduced later by an Assessment Plan, not added
 to Profile creation. This design is proposed and does not change the shipped POA&M path.
+
+## OSS-first capability rule
+
+Every new mint-oscal capability starts with a build-versus-adopt check. This applies to
+standards parsing, schema validation, OSCAL model construction and resolution, format
+conversion, CLI grammar, and document rendering. The check must compare authoritative
+OSS candidates before custom code is approved, including conformance, maintenance,
+license compatibility, security/supply-chain posture, API or CLI fit, integration cost,
+and exit cost.
+
+The default ownership boundary is:
+
+| Concern | Preferred owner |
+|---|---|
+| OSCAL schema validation and format conversion | `oscal-cli` |
+| OSCAL authoring and profile/catalog resolution | Trestle or liboscal, where supported |
+| CBOM schema parsing | CycloneDX implementation |
+| Framework selection, PQC interpretation, provenance, locks, and evidence semantics | mint-oscal |
+
+More integration work does not justify duplicating a standards engine. A custom
+implementation is allowed only when the decision record explains the gap, records the
+candidate versions and licenses evaluated, defines the narrow BreachSAFE-owned seam, and
+provides conformance and exit tests. The decision record belongs in `docs/adr/` or the
+tracked issue before substantial implementation begins.
+
+## Stability-first sequencing rule
+
+Mint-oscal prioritizes architectural stability and evidence-producing reliability before
+new product features. A feature milestone may begin only after its prerequisite baseline
+is green or has an explicit, owner-approved exception with a tracked exit condition.
+
+The stabilization pass covers, in order:
+
+1. stale or contradictory contracts and examples;
+2. fail-closed behavior and OSCAL conformance;
+3. CI, interpreter, dependency, and reproducibility gates;
+4. provenance, review status, and release-integrity boundaries;
+5. only then new registry, Profile, Assessment Plan, or Assessment Results behavior.
+
+This prevents a feature from hardening an unstable boundary. For the registry roadmap,
+that means resolving the current CI/Python-floor blockers and clarifying policy-review
+exit criteria before importing additional framework Catalogs; Profile compilation follows
+the governed registry contract rather than racing it. A red baseline gate is a stop
+signal, not technical debt to carry silently into the next milestone.
 
 ### Registry deployment decision
 
