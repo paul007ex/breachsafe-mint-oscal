@@ -48,7 +48,7 @@ mint-oscal --version
 It prints a line of the form:
 
 ```text
-BreachSAFE Mint-OSCAL <version> -- https://www.breachsafe.ai
+BreachSAFE Mint-OSCAL <version> -- https://www.breachsafe.io
 ```
 
 ## 3. Mint a POA&M from a CBOM
