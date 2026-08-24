@@ -84,6 +84,13 @@ def _read_yaml(path: Path) -> dict[str, Any]:
     return loaded
 
 
+def _normalize_state(document: dict[str, Any]) -> dict[str, Any]:
+    """Treat legacy registries without a lifecycle state as active."""
+    if "registry-state" not in document:
+        document["registry-state"] = "active"
+    return document
+
+
 def _schema_validate(document: dict[str, Any]) -> None:
     schema = json.loads(_schema_path().read_text(encoding="utf-8"))
     errors = sorted(
@@ -233,7 +240,8 @@ def _semantic_validate(root: Path, document: dict[str, Any]) -> None:
     profile_ids_list, catalog_ids, pack_ids = _validate_unique_ids(document)
     catalog_controls = _load_catalog_controls(root, document["catalogs"])
     profile_ids = set(profile_ids_list)
-    _validate_defaults(document, profile_ids, catalog_ids, pack_ids)
+    if document["registry-state"] == "active":
+        _validate_defaults(document, profile_ids, catalog_ids, pack_ids)
     _validate_profiles(document, catalog_ids, catalog_controls)
     _validate_packs_and_objectives(document, catalog_ids, profile_ids)
 
@@ -246,7 +254,7 @@ def load_registry(path: str | Path = "policy") -> Registry:
         root = root.parent
     else:
         registry_file = root / "registry.yaml"
-    document = _read_yaml(registry_file)
+    document = _normalize_state(_read_yaml(registry_file))
     _schema_validate(document)
     _semantic_validate(root, document)
     return Registry(root=root, registry_file=registry_file, document=document)

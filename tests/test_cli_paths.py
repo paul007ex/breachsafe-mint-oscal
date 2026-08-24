@@ -110,3 +110,13 @@ def test_registry_commands(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
     assert main(["registry", "verify", "--registry", registry]) == 0
     assert main(["registry", "show", "missing", "--registry", registry]) == 2
     assert "unknown Catalog" in capsys.readouterr().err
+
+
+def test_registry_verbose_logging_reports_state(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry_path = tmp_path / "registry"
+    shutil.copytree(ROOT / "examples/registry", registry_path)
+
+    assert main(["registry", "validate", "--registry", str(registry_path), "--verbose"]) == 0
+    assert "registry_loaded" in capsys.readouterr().err

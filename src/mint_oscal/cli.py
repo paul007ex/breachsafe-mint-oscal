@@ -407,10 +407,11 @@ def _registry_show(registry: Registry, catalog_id: str, as_json: bool) -> int:
     return _EXIT_OK
 
 
-def _run_registry_creator(args: argparse.Namespace) -> int:
+def _run_registry_creator(args: argparse.Namespace, log: BoundLog) -> int:
     """Run workspace or Catalog import commands."""
     if args.registry_verb == "init":
         target = init_registry(args.output)
+        log.info("registry_initialized", registry=str(target), state="bootstrap")
         sys.stdout.write(f"Created registry workspace: {target}\n")
         return _EXIT_OK
     target = add_catalog(
@@ -424,29 +425,41 @@ def _run_registry_creator(args: argparse.Namespace) -> int:
             authority=args.authority,
         ),
     )
+    log.info("catalog_added", catalog=str(target), registry=str(args.registry))
     sys.stdout.write(f"Added Catalog: {target}\n")
     return _EXIT_OK
 
 
-def _run_registry(args: argparse.Namespace) -> int:  # noqa: PLR0911 -- command exit surface
+def _run_registry(args: argparse.Namespace, log: BoundLog) -> int:  # noqa: PLR0911 -- command exit surface
     """Run a read-only registry command; diagnostics stay on STDERR."""
     if args.registry_verb in {"init", "add-catalog"}:
-        return _run_registry_creator(args)
+        return _run_registry_creator(args, log)
     registry = load_registry(args.registry)
+    log.info(
+        "registry_loaded",
+        registry=str(registry.root),
+        state=registry.document["registry-state"],
+        catalogs=len(registry.catalogs),
+        profiles=len(registry.document["profiles"]),
+        packs=len(registry.document["packs"]),
+    )
     verb = args.registry_verb
     if verb == "validate":
         sys.stdout.write(
-            f"Valid registry: {len(registry.catalogs)} Catalogs, "
+            f"Valid {registry.document['registry-state']} registry: "
+            f"{len(registry.catalogs)} Catalogs, "
             f"{len(registry.document['profiles'])} Profiles, "
             f"{len(registry.document['packs'])} packs\n"
         )
         return _EXIT_OK
     if verb == "lock":
         target = lock_registry(args.registry, args.output)
+        log.info("registry_locked", lock=str(target))
         sys.stdout.write(f"Wrote registry lock: {target}\n")
         return _EXIT_OK
     if verb == "verify":
         target = verify_lock(args.registry, args.lock)
+        log.info("registry_lock_verified", lock=str(target))
         sys.stdout.write(f"Registry lock verified: {target}\n")
         return _EXIT_OK
     if verb == "list":
@@ -567,7 +580,7 @@ def _run_registry_command(
     configure_logging(verbosity=args.verbose, json_logs=args.json_logs, quiet=args.quiet)
     log = get_logger("mint_oscal.cli")
     try:
-        return _run_registry(args)
+        return _run_registry(args, log)
     except (RegistryError, FileNotFoundError, OSError) as exc:
         log.error("registry_error", error=str(exc))
         return _EXIT_INPUT

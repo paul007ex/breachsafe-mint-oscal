@@ -118,10 +118,15 @@ mint-oscal registry lock --registry policy
 mint-oscal registry verify --registry policy
 ```
 
-`registry init` creates the directory layout only. It does not fabricate a Catalog, Profile,
-or review decision. `registry add-catalog` copies a local OSCAL Catalog, records its UUID,
-version, provenance, retrieval date, and SHA-256, then validates and locks the existing
+`registry init` creates a valid `bootstrap` registry and the directory layout. It does not
+fabricate a Catalog, Profile, Pack, or review decision. A bootstrap registry may have empty
+collections and no defaults. `registry add-catalog` copies a local OSCAL Catalog, records its
+UUID, version, provenance, retrieval date, and SHA-256, then validates and locks the existing
 registry. Remote URLs are provenance metadata; acquisition remains a separate audited step.
+
+An `active` registry requires defaults that resolve to registered Catalog, Profile, and Pack
+entries. Registries created before the lifecycle field existed are treated as `active` for
+backward compatibility.
 
 ## Milestone and issues
 
