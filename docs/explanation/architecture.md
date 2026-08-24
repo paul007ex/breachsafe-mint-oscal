@@ -8,12 +8,13 @@
 
 1. [Overview](#overview)
 2. [OSS-first capability rule](#oss-first-capability-rule)
-3. [Data flow and trust boundaries](#data-flow-and-trust-boundaries)
-4. [Decision ledger](#decision-ledger)
-5. [Where mint-oscal fits the ecosystem](#where-mint-oscal-fits-the-ecosystem)
-6. [Output](#output)
-7. [Versioning](#versioning)
-8. [References](#references)
+3. [Stability-first sequencing rule](#stability-first-sequencing-rule)
+4. [Data flow and trust boundaries](#data-flow-and-trust-boundaries)
+5. [Decision ledger](#decision-ledger)
+6. [Where mint-oscal fits the ecosystem](#where-mint-oscal-fits-the-ecosystem)
+7. [Output](#output)
+8. [Versioning](#versioning)
+9. [References](#references)
 
 ## Overview
 
@@ -127,6 +128,26 @@ implementation is allowed only when the decision record explains the gap, record
 candidate versions and licenses evaluated, defines the narrow BreachSAFE-owned seam, and
 provides conformance and exit tests. The decision record belongs in `docs/adr/` or the
 tracked issue before substantial implementation begins.
+
+## Stability-first sequencing rule
+
+Mint-oscal prioritizes architectural stability and evidence-producing reliability before
+new product features. A feature milestone may begin only after its prerequisite baseline
+is green or has an explicit, owner-approved exception with a tracked exit condition.
+
+The stabilization pass covers, in order:
+
+1. stale or contradictory contracts and examples;
+2. fail-closed behavior and OSCAL conformance;
+3. CI, interpreter, dependency, and reproducibility gates;
+4. provenance, review status, and release-integrity boundaries;
+5. only then new registry, Profile, Assessment Plan, or Assessment Results behavior.
+
+This prevents a feature from hardening an unstable boundary. For the registry roadmap,
+that means resolving the current CI/Python-floor blockers and clarifying policy-review
+exit criteria before importing additional framework Catalogs; Profile compilation follows
+the governed registry contract rather than racing it. A red baseline gate is a stop
+signal, not technical debt to carry silently into the next milestone.
 
 ### Registry deployment decision
 
