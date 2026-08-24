@@ -5,7 +5,7 @@ line. This page is the exact contract. For a first-use walkthrough see the
 [tutorial](../tutorials/your-first-poam.md); for goal recipes see the
 [how-to guides](../how-to/mint-from-a-cbom.md).
 
-The banner and examples on this page were captured from `mint-oscal` version `0.2.1`.
+The banner and examples on this page were captured from `mint-oscal` version `0.2.3`.
 The version string is read from installed package metadata, so `--version` reports the
 version of the artifact you have installed.
 
@@ -45,7 +45,7 @@ A bare `mint-oscal`, a model with no verb (for example `mint-oscal poam`), or th
 The version banner is a single line:
 
 ```text
-BreachSAFE Mint-OSCAL 0.2.1 -- https://www.breachsafe.ai
+BreachSAFE Mint-OSCAL 0.2.3 -- https://www.breachsafe.io
 ```
 
 ## Models and verbs
@@ -59,6 +59,30 @@ The OSCAL model is the first token and the verb is the second, following the
 | `ar` (Assessment Results) | Planned | `generate` | `ar generate` exits `3` (not implemented). The emitter is a stub; the OSCAL AR model requires an `import-ap` reference that is a program input. |
 
 `ar` exposes only `generate`. The `validate` verb exists for `poam` alone.
+
+## OSCAL CLI compatibility contract
+
+Mint-OSCAL is a superset of the NIST `oscal-cli` command grammar, not a byte-for-byte copy.
+`oscal-cli` validates, converts, and resolves existing OSCAL documents; Mint-OSCAL also
+generates OSCAL from source adapters. Requiring a one-to-one grammar would make the minting
+verb impossible because `oscal-cli` has no generation command.
+
+| Surface | `oscal-cli` meaning | Mint-OSCAL contract |
+| --- | --- | --- |
+| Model-first path | `<model> <verb>` | Shared model-first shape |
+| `validate` | Validate an existing OSCAL document | Same name and meaning for shared models |
+| `convert` | Convert an existing OSCAL document | Reserved for the same meaning on Profile and future models |
+| `resolve` | Resolve a Profile into a Catalog | Reserved for Profile with the same positional source/destination convention |
+| `generate` | Not provided | BreachSAFE additive operation for source adapter → OSCAL minting |
+| `--from` | Not an adapter selector | Mint-OSCAL source adapter (`cbom`, `qureddy`); never document encoding |
+| `--as` | Source document encoding | Reserved for shared OSCAL conversion/resolution commands with the official meaning |
+| destination | Optional positional destination | POA&M remains stdout-first; shared conversion/resolution uses the positional destination |
+| model aliases | `ap`, `ar` | Use `ap` and `ar`; do not introduce `assessment-plan` or `assessment-results` aliases |
+
+The current POA&M command intentionally remains a composable stdout filter. Profile
+`validate`, `convert`, and `resolve` must preserve the official option names (`--as`, `--to`,
+`--overwrite`, `--relative-to`, and formatting/quiet flags where applicable) when implemented.
+This contract supersedes the earlier “1:1 with oscal-cli” wording tracked in #177 and #153.
 
 ## `poam generate`
 
@@ -177,8 +201,8 @@ the CLI sits in the system.
 ## Planned `profile` command grammar (P0)
 
 The Profile surface is not shipped yet, but its grammar is locked to the official
-`oscal-cli profile` shape. This is a compatibility requirement, not a stylistic
-approximation.
+`oscal-cli profile` shape. Shared commands preserve the official contract; Profile creation
+and explanation are explicitly additive BreachSAFE operations.
 
 ```text
 mint-oscal profile <command> [<options>]

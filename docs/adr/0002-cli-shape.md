@@ -1,6 +1,6 @@
 # ADR-0002 — CLI shape
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Deciders:** mint-oscal maintainers
 - **Related:** CLI-1 (workbook *Open-Decisions*); [cli-design.md](../contributors/cli-design.md)
 
@@ -27,7 +27,9 @@ document. It must **chain** with upstream scanners and downstream validators, an
 must be deterministic enough to review in git.
 
 Options considered (workbook CLI-1): model-first (`mint <shape>`) · verb (`convert --to`) ·
-trestle-tasks.
+trestle-tasks. The resulting contract is a superset of `oscal-cli`: shared model/action
+commands retain the official names and meanings, while `generate` is a BreachSAFE additive
+operation because `oscal-cli` does not mint documents from scanner inputs.
 
 ## Decision
 
@@ -37,7 +39,10 @@ Adopt **model-first subcommands + a composable stdin→stdout filter**.
   "mint a `<shape>`" and matching NIST oscal-cli's model-first ergonomics.
 - The tool is a **pure Unix filter**: stdin (or a path arg) in, OSCAL to stdout by default,
   no side effects beyond the declared output.
-- The source is chosen explicitly with `--from <adapter>`; no auto-detection.
+- The source is chosen explicitly with `--from <adapter>`; no auto-detection. This flag names
+  an ingestion adapter and must not be confused with `oscal-cli`'s document-encoding flags.
+- Future Profile `validate`, `convert`, and `resolve` commands retain `oscal-cli`'s positional
+  source/destination grammar and option meanings. Model aliases use `ap` and `ar`.
 
 Explicitly rejected: the **Trestle-style stateful task** model. `mint-oscal` never edits an
 OSCAL working directory in place (`R-CLI-D12`). Trestle owns that lane; `mint` is a producing
@@ -68,5 +73,5 @@ review in git.
 - Introspection (`sources`, `shapes`, `--version`) and full exit-code handling are still
   **Open** (`R-CLI-D07`, `R-CLI-D08`).
 
-**Status note:** Proposed. Core filter behavior and `--from` are Built; format/output/validate
-plumbing is Designed/Partial.
+**Status note:** Accepted. Core filter behavior and `--from` are Built; Profile shared-command
+compatibility is a designed P0 contract tracked by #153–#156.
