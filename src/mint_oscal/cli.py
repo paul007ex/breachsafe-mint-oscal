@@ -41,6 +41,7 @@ from mint_oscal._help import colorize_help
 from mint_oscal.adapters import available_adapters, get_adapter
 from mint_oscal.emitters import available_models
 from mint_oscal.extensions import apply_extensions, available_extensions
+from mint_oscal.governance.registry_builder import CatalogSource, add_catalog, init_registry
 from mint_oscal.ir import IR
 from mint_oscal.logging import BoundLog, configure_logging, get_logger
 from mint_oscal.policy import FRAMEWORK_PACKS, set_active_framework
@@ -184,6 +185,28 @@ def _read_source(path: str) -> str:
     return sys.stdin.read() if path == "-" else Path(path).read_text(encoding="utf-8")
 
 
+def _add_registry_creator_parsers(
+    registry_verbs: argparse._SubParsersAction[_UsageParser],
+) -> None:
+    """Register workspace and Catalog-import commands on the registry parser."""
+    registry_init = registry_verbs.add_parser(
+        "init", help="create an empty governed registry workspace"
+    )
+    registry_init.add_argument("--output", required=True, help="registry workspace")
+    _add_logging_args(registry_init)
+    registry_add = registry_verbs.add_parser(
+        "add-catalog", help="copy and pin a local OSCAL Catalog into a registry"
+    )
+    registry_add.add_argument("--registry", required=True, help="registry directory")
+    registry_add.add_argument("--id", required=True, dest="catalog_id", help="Catalog ID")
+    registry_add.add_argument("--file", required=True, dest="source_file", help="Catalog JSON")
+    registry_add.add_argument("--source-uri", required=True, help="source URI")
+    registry_add.add_argument("--release", required=True, help="source release or revision")
+    registry_add.add_argument("--license", required=True, dest="license_name", help="license")
+    registry_add.add_argument("--authority", required=True, help="Catalog authority")
+    _add_logging_args(registry_add)
+
+
 def _build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.ArgumentParser]]:
     """Build the parser, returning it plus the per-model subparsers (for no-verb help).
 
@@ -252,6 +275,7 @@ def _build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.Argumen
     registry_verify.add_argument("--registry", default="policy", help="registry directory")
     registry_verify.add_argument("--lock", help="lock path")
     _add_logging_args(registry_verify)
+    _add_registry_creator_parsers(registry_verbs)
 
     for model in available_models():
         blurb = _MODEL_BLURB.get(model, model)
@@ -383,8 +407,31 @@ def _registry_show(registry: Registry, catalog_id: str, as_json: bool) -> int:
     return _EXIT_OK
 
 
-def _run_registry(args: argparse.Namespace) -> int:
+def _run_registry_creator(args: argparse.Namespace) -> int:
+    """Run workspace or Catalog import commands."""
+    if args.registry_verb == "init":
+        target = init_registry(args.output)
+        sys.stdout.write(f"Created registry workspace: {target}\n")
+        return _EXIT_OK
+    target = add_catalog(
+        args.registry,
+        CatalogSource(
+            catalog_id=args.catalog_id,
+            source_file=Path(args.source_file),
+            source_uri=args.source_uri,
+            release=args.release,
+            license_name=args.license_name,
+            authority=args.authority,
+        ),
+    )
+    sys.stdout.write(f"Added Catalog: {target}\n")
+    return _EXIT_OK
+
+
+def _run_registry(args: argparse.Namespace) -> int:  # noqa: PLR0911 -- command exit surface
     """Run a read-only registry command; diagnostics stay on STDERR."""
+    if args.registry_verb in {"init", "add-catalog"}:
+        return _run_registry_creator(args)
     registry = load_registry(args.registry)
     verb = args.registry_verb
     if verb == "validate":

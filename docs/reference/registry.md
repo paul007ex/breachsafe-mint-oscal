@@ -102,12 +102,26 @@ the mismatch and blocking the import.
 ## Commands
 
 ```bash
+mint-oscal registry init --output policy
+mint-oscal registry add-catalog \\
+  --registry policy \\
+  --id nist-800-53r5 \\
+  --file /path/to/catalog.json \\
+  --source-uri https://github.com/usnistgov/oscal-content \\
+  --release v1.5.0 \\
+  --license NIST \\
+  --authority NIST
 mint-oscal registry list
 mint-oscal registry show nist-800-53r5:pqc-readiness
 mint-oscal registry validate --registry policy
 mint-oscal registry lock --registry policy
 mint-oscal registry verify --registry policy
 ```
+
+`registry init` creates the directory layout only. It does not fabricate a Catalog, Profile,
+or review decision. `registry add-catalog` copies a local OSCAL Catalog, records its UUID,
+version, provenance, retrieval date, and SHA-256, then validates and locks the existing
+registry. Remote URLs are provenance metadata; acquisition remains a separate audited step.
 
 ## Milestone and issues
 
