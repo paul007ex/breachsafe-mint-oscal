@@ -134,10 +134,30 @@ def test_registry_commands(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
     assert main(["registry", "validate", "--registry", registry]) == 0
     assert main(["registry", "list", "--registry", registry, "--json"]) == 0
     assert main(["registry", "show", "nist-800-53r5", "--registry", registry]) == 0
+    assert main(["registry", "list", "--type", "profile", "--registry", registry, "--json"]) == 0
+    assert (
+        main(["registry", "show", "profile", "scf-qts-pqc-readiness", "--registry", registry]) == 0
+    )
+    assert main(["registry", "show", "scf-qts-pqc", "--type", "pack", "--registry", registry]) == 0
+    assert main(["registry", "list", "--type", "objective", "--registry", registry]) == 0
+    assert (
+        main(["registry", "show", "pqc-readiness", "--type", "objective", "--registry", registry])
+        == 0
+    )
+    assert main(["registry", "list", "--type", "crosswalk", "--registry", registry]) == 0
+    assert (
+        main(
+            ["registry", "show", "scf-to-pci-dss-4", "--type", "crosswalk", "--registry", registry]
+        )
+        == 0
+    )
     assert main(["registry", "lock", "--registry", registry]) == 0
     assert main(["registry", "verify", "--registry", registry]) == 0
     assert main(["registry", "show", "missing", "--registry", registry]) == 2
-    assert "unknown Catalog" in capsys.readouterr().err
+    output = capsys.readouterr()
+    assert "unknown catalog" in output.err.lower()
+    assert "scf-qts-pqc-readiness" in output.out
+    assert "scf-qts-pqc" in output.out
 
 
 def test_registry_verbose_logging_reports_state(

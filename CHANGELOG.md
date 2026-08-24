@@ -43,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   last value; Catalog import uses the same strict loader.
 - Registry source/generated/release boundaries are now explicit, with a CI drift gate that
   reproduces and compares the committed lock bytes.
+- Registry `list` and `show` now support Profiles, Packs, Objectives, and Crosswalks in
+  addition to Catalogs; validation summaries report every registered collection.
 - Registry validation now rejects duplicate crosswalk IDs and duplicate control selections,
   with regression coverage for missing Catalogs and objectives that reference unknown Profiles.
 

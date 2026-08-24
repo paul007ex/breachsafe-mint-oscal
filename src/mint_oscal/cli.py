@@ -207,7 +207,7 @@ def _add_registry_creator_parsers(
     _add_logging_args(registry_add)
 
 
-def _build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.ArgumentParser]]:
+def _build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.ArgumentParser]]:  # noqa: PLR0915 -- parser construction
     """Build the parser, returning it plus the per-model subparsers (for no-verb help).
 
     Subparsers are ``required=False`` so a bare ``mint-oscal`` or ``mint-oscal <model>``
@@ -242,15 +242,28 @@ def _build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.Argumen
     )
     registry_list.add_argument("--registry", default="policy", help="registry directory")
     registry_list.add_argument("--json", action="store_true", help="emit JSON")
+    registry_list.add_argument(
+        "--type",
+        choices=("catalog", "profile", "pack", "objective", "crosswalk"),
+        default="catalog",
+        help="entity type to list (default: catalog)",
+    )
     _add_logging_args(registry_list)
     registry_show = registry_verbs.add_parser(
         "show",
         help="show one registered Catalog",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    registry_show.add_argument("catalog_id", help="registered Catalog ID")
+    registry_show.add_argument("entity", help="registered entity ID, or entity type")
+    registry_show.add_argument("entity_id", nargs="?", help="ID when entity type is positional")
     registry_show.add_argument("--registry", default="policy", help="registry directory")
     registry_show.add_argument("--json", action="store_true", help="emit JSON")
+    registry_show.add_argument(
+        "--type",
+        choices=("catalog", "profile", "pack", "objective", "crosswalk"),
+        default="catalog",
+        help="entity type (default: catalog)",
+    )
     _add_logging_args(registry_show)
     registry_validate = registry_verbs.add_parser(
         "validate",
@@ -374,30 +387,49 @@ def _build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.Argumen
     return parser, model_parsers
 
 
-def _registry_list(registry: Registry, as_json: bool) -> int:
-    """Render the registered Catalog list."""
+_REGISTRY_ENTITY_TYPES = ("catalog", "profile", "pack", "objective", "crosswalk")
+
+
+def _registry_entities(registry: Registry, entity_type: str) -> list[dict[str, object]]:
+    if entity_type not in _REGISTRY_ENTITY_TYPES:
+        raise RegistryError(f"unknown registry entity type {entity_type!r}")
+    if entity_type == "catalog":
+        return [entry.__dict__ for entry in registry.catalogs]
+    return sorted(
+        [dict(item) for item in registry.document[f"{entity_type}s"]],
+        key=lambda item: str(item["id"]),
+    )
+
+
+def _registry_list(registry: Registry, as_json: bool, entity_type: str) -> int:
+    """Render registered entities of one type."""
+    entities = _registry_entities(registry, entity_type)
     if as_json:
-        sys.stdout.write(
-            json.dumps([entry.__dict__ for entry in registry.catalogs], indent=2, sort_keys=True)
-            + "\n"
-        )
+        sys.stdout.write(json.dumps(entities, indent=2, sort_keys=True) + "\n")
         return _EXIT_OK
     sys.stdout.write("ID\tTYPE\tVERSION\tOSCAL\tSTATUS\n")
-    for entry in registry.catalogs:
+    for entry in entities:
+        version = entry.get(
+            "version", entry.get("document-version", entry.get("document_version", ""))
+        )
+        oscal_version = entry.get("oscal-version", entry.get("oscal_version", ""))
+        status = entry.get("compatibility", entry.get("status", ""))
         sys.stdout.write(
-            f"{entry.id}\t{entry.kind}\t{entry.document_version}\t"
-            f"{entry.oscal_version}\t{entry.compatibility}\n"
+            f"{entry['id']}\t{entry.get('kind', entity_type)}\t{version}\t"
+            f"{oscal_version}\t{status}\n"
         )
     return _EXIT_OK
 
 
-def _registry_show(registry: Registry, catalog_id: str, as_json: bool) -> int:
-    """Render one registered Catalog."""
+def _registry_show(registry: Registry, entity_type: str, entity_id: str, as_json: bool) -> int:
+    """Render one registered entity."""
     try:
-        entry = next(item for item in registry.catalogs if item.id == catalog_id)
+        entry = next(
+            item for item in _registry_entities(registry, entity_type) if item["id"] == entity_id
+        )
     except StopIteration as exc:
-        raise RegistryError(f"unknown Catalog {catalog_id!r}") from exc
-    payload = entry.__dict__
+        raise RegistryError(f"unknown {entity_type} {entity_id!r}") from exc
+    payload = entry
     output = (
         json.dumps(payload, indent=2, sort_keys=True)
         if as_json
@@ -449,7 +481,9 @@ def _run_registry(args: argparse.Namespace, log: BoundLog) -> int:  # noqa: PLR0
             f"Valid {registry.document['registry-state']} registry: "
             f"{len(registry.catalogs)} Catalogs, "
             f"{len(registry.document['profiles'])} Profiles, "
-            f"{len(registry.document['packs'])} packs\n"
+            f"{len(registry.document['packs'])} packs, "
+            f"{len(registry.document['objectives'])} objectives, "
+            f"{len(registry.document['crosswalks'])} crosswalks\n"
         )
         return _EXIT_OK
     if verb == "lock":
@@ -463,9 +497,13 @@ def _run_registry(args: argparse.Namespace, log: BoundLog) -> int:  # noqa: PLR0
         sys.stdout.write(f"Registry lock verified: {target}\n")
         return _EXIT_OK
     if verb == "list":
-        return _registry_list(registry, args.json)
+        return _registry_list(registry, args.json, args.type)
     if verb == "show":
-        return _registry_show(registry, args.catalog_id, args.json)
+        entity_type = (
+            args.entity if args.entity in _REGISTRY_ENTITY_TYPES and args.entity_id else args.type
+        )
+        entity_id = args.entity_id if entity_type != args.type else args.entity
+        return _registry_show(registry, entity_type, entity_id, args.json)
     _build_parser()[1]["registry"].print_help(sys.stderr)
     return _EXIT_OK
 
