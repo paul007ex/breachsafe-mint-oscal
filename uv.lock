@@ -183,6 +183,7 @@ dependencies = [
     { name = "cyclonedx-python-lib" },
     { name = "jsonschema" },
     { name = "pyyaml" },
+    { name = "rfc8785" },
     { name = "structlog" },
 ]
 
@@ -232,6 +233,7 @@ requires-dist = [
     { name = "pytest-randomly", marker = "extra == 'dev'" },
     { name = "pyyaml", specifier = ">=6" },
     { name = "refurb", marker = "extra == 'dev'", specifier = ">=2,<3" },
+    { name = "rfc8785", specifier = ">=0.1,<1" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "structlog", specifier = ">=24" },
     { name = "types-jsonschema", marker = "extra == 'dev'" },

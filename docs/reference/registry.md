@@ -43,7 +43,9 @@ The loader rejects unknown fields, duplicate IDs, missing Catalogs, invalid cont
 framework/catalog mismatches, unresolved dependencies, and unapproved release content.
 
 The lock records the source Git revision, resolver version, Catalog UUID/digest, objective
-source digest, and canonical selected-control arrays.
+source digest, and canonical selected-control arrays. `source_sha256` is computed over RFC 8785
+canonical JSON of the parsed registry document, not raw YAML bytes; comments and formatting do
+not change identity. The lock records the canonicalization method explicitly.
 
 ## Initial catalog options
 

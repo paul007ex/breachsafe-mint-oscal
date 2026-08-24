@@ -175,6 +175,29 @@ def test_lock_is_deterministic_and_verifiable(tmp_path: Path) -> None:
     assert verify_lock(registry_path, first) == first
 
 
+def test_lock_ignores_yaml_comments_and_formatting(tmp_path: Path) -> None:
+    registry_path = _registry(tmp_path)
+    lock = lock_registry(registry_path)
+    document = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
+    registry_path.write_text(
+        "# Formatting-only comment.\n" + yaml.safe_dump(document, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    assert verify_lock(registry_path, lock) == lock
+
+
+def test_lock_rejects_semantic_registry_change(tmp_path: Path) -> None:
+    registry_path = _registry(tmp_path)
+    lock = lock_registry(registry_path)
+    document = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
+    document["metadata"]["title"] = "Changed Registry"
+    registry_path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+
+    with pytest.raises(RegistryError, match="lock mismatch"):
+        verify_lock(registry_path, lock)
+
+
 def test_lock_mismatch_fails_closed(tmp_path: Path) -> None:
     registry_path = _registry(tmp_path)
     lock = lock_registry(registry_path)

@@ -1,0 +1,32 @@
+{
+  "canonicalization": "RFC 8785 canonical JSON",
+  "catalogs": {
+    "nist-800-53r5": {
+      "oscal_version": "1.2.1",
+      "sha256": "42afafa05d918b0dc77a57e40b18d1ea3951fad127f0bf54db06a5aa1fc0c247",
+      "uuid": "2f7e7e1e-7f5c-4a9f-9c6d-000000000053"
+    },
+    "scf-qts-2026-2": {
+      "oscal_version": "1.1.2",
+      "sha256": "bbc2db46733270c0e304835c9881ac1fa2cb508ddbf1b544165f654b4cfa7632",
+      "uuid": "af31569e-0157-57bb-93a8-ce5a02942f76"
+    }
+  },
+  "profiles": {
+    "scf-qts-pqc-readiness": {
+      "catalog": "scf-qts-2026-2",
+      "control_ids": [
+        "qts-04",
+        "qts-04.2",
+        "qts-06.3",
+        "qts-06.5",
+        "qts-06.9"
+      ],
+      "source_sha256": "5b51a63be69faaf4242251a21b2717a63fd2adcb77a8288cb235ced9f17651fc"
+    }
+  },
+  "registry_version": "0.4.0",
+  "resolver_version": "mint-oscal/0.2",
+  "schema": "breachsafe.registry.lock/v1",
+  "source_sha256": "4ffa3364b5e7881025a759f1f48b1d8d8c6370e31dae62df96535483e97df428"
+}

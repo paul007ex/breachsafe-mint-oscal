@@ -13,10 +13,14 @@ from typing import Any
 
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
+from rfc8785 import dumps as canonical_json
 
 
 class RegistryError(ValueError):
     """Raised when a registry is malformed or fails a semantic integrity check."""
+
+
+_CANONICALIZATION = "RFC 8785 canonical JSON"
 
 
 @dataclass(frozen=True)
@@ -134,6 +138,15 @@ def _digest(path: Path) -> str:
     except OSError as exc:
         raise RegistryError(f"cannot read Catalog {path}: {exc}") from exc
     return digest.hexdigest()
+
+
+def _canonical_document_digest(document: dict[str, Any]) -> str:
+    """Hash the parsed registry document in RFC 8785 canonical form."""
+    try:
+        canonical = canonical_json(document)
+    except (TypeError, ValueError) as exc:
+        raise RegistryError(f"registry cannot be canonicalized: {exc}") from exc
+    return hashlib.sha256(canonical).hexdigest()
 
 
 def _load_catalog_controls(root: Path, catalogs: list[dict[str, Any]]) -> dict[str, set[str]]:
@@ -273,9 +286,7 @@ def _canonical_lock(registry: Registry) -> dict[str, Any]:
         profiles[profile["id"]] = {
             "catalog": profile["catalog"],
             "control_ids": sorted(ids),
-            "source_sha256": hashlib.sha256(
-                json.dumps(profile, sort_keys=True, separators=(",", ":")).encode("utf-8")
-            ).hexdigest(),
+            "source_sha256": hashlib.sha256(canonical_json(profile)).hexdigest(),
         }
     catalogs = {
         entry.id: {
@@ -287,8 +298,9 @@ def _canonical_lock(registry: Registry) -> dict[str, Any]:
     }
     return {
         "schema": "breachsafe.registry.lock/v1",
+        "canonicalization": _CANONICALIZATION,
         "registry_version": registry.document["registry-version"],
-        "source_sha256": hashlib.sha256(registry.registry_file.read_bytes()).hexdigest(),
+        "source_sha256": _canonical_document_digest(registry.document),
         "resolver_version": "mint-oscal/0.2",
         "catalogs": catalogs,
         "profiles": profiles,
