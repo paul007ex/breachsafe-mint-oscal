@@ -76,6 +76,7 @@ def _registry(tmp_path: Path, *, control_id: str = "qts-04") -> Path:
                     "sha256": digest,
                     "license": "PolyForm-Noncommercial-1.0.0",
                     "retrieved-at": "2026-08-24",
+                    "verified": False,
                 },
                 "compatibility": {"trestle": "ready", "oscal-cli": "ready", "status": "ready"},
                 "review": {"status": "approved", "owner": "test", "reviewed-at": "2026-08-24"},
@@ -129,6 +130,17 @@ def _registry(tmp_path: Path, *, control_id: str = "qts-04") -> Path:
 def test_valid_registry_loads_and_lists_catalog(tmp_path: Path) -> None:
     registry = load_registry(_registry(tmp_path))
     assert [entry.id for entry in registry.catalogs] == ["fixture"]
+    assert registry.catalogs[0].source_verified is False
+
+
+def test_legacy_registry_source_is_normalized_to_unverified(tmp_path: Path) -> None:
+    registry_path = _registry(tmp_path)
+    document = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
+    del document["catalogs"][0]["source"]["verified"]
+    registry_path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+
+    registry = load_registry(registry_path)
+    assert registry.catalogs[0].source_verified is False
 
 
 def test_registry_cli_list_and_validate(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

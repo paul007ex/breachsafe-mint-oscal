@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   changes do not create false lock mismatches.
 - Registry initialization now creates a valid bootstrap registry that can accept a first
   Catalog through the CLI; registry lifecycle and verbose diagnostics are explicit.
+- Catalog provenance now carries an explicit `source.verified` state; offline imports and
+  legacy registries are fail-closed as unverified, and lock projections preserve that state.
+- MAX quality gates are green: POA&M/CBOM complexity was decomposed, the shell-only Trestle
+  dependency is explicitly accounted for, and regression coverage now exceeds 90%.
 
 - The OSCAL conformance extra now declares the pinned Compliance Trestle dependency used by
   the local and CI conformance gate.

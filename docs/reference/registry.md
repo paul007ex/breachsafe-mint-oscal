@@ -124,7 +124,10 @@ mint-oscal registry verify --registry policy
 fabricate a Catalog, Profile, Pack, or review decision. A bootstrap registry may have empty
 collections and no defaults. `registry add-catalog` copies a local OSCAL Catalog, records its
 UUID, version, provenance, retrieval date, and SHA-256, then validates and locks the existing
-registry. Remote URLs are provenance metadata; acquisition remains a separate audited step.
+registry. Imported sources are marked `source.verified: false`: remote URLs are provenance
+metadata, not proof of origin, and acquisition/digest verification remains a separate audited
+step. The CLI has no offline-safe way to assert that a remote URI matches the local bytes.
+Registries written before this field existed are normalized to `verified: false` when loaded.
 
 An `active` registry requires defaults that resolve to registered Catalog, Profile, and Pack
 entries. Registries created before the lifecycle field existed are treated as `active` for

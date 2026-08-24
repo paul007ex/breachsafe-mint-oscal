@@ -134,6 +134,8 @@ def _catalog_entry(
             "sha256": _sha256(path),
             "license": source.license_name,
             "retrieved-at": _today(),
+            # The URI is provenance metadata only; add-catalog never fetches it.
+            "verified": False,
         },
         "compatibility": {
             "trestle": "not-evaluated",

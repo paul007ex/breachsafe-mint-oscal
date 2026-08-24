@@ -99,14 +99,9 @@ def emit(ir: IR, *, source: str | None = None, now: str | None = None) -> dict[s
     )
 
 
-def _emit_finding(
-    finding: Finding, inventory_uuid: str, policy: Policy, *, uuid_key: str | None = None
-) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
-    """Build the observation, risk, and POA&M item for one finding."""
-    key = uuid_key or finding.id
-    observation_uuid = _det("observation", key)
-    risk_uuid = _det("risk", key)
-    observation: dict[str, Any] = {"uuid": observation_uuid, "description": finding.title}
+def _emit_observation(finding: Finding, inventory_uuid: str, key: str) -> dict[str, Any]:
+    """Build the OSCAL observation for one finding."""
+    observation: dict[str, Any] = {"uuid": _det("observation", key), "description": finding.title}
     if finding.posture:
         observation["props"] = _common.props_from(finding.posture)
     observation.update(
@@ -114,43 +109,64 @@ def _emit_finding(
             "methods": ["TEST"],
             "types": ["finding"],
             "subjects": [{"subject-uuid": inventory_uuid, "type": "inventory-item"}],
+            "collected": _aware(finding.observed_at),
         }
     )
     if finding.evidence:
         observation["relevant-evidence"] = _relevant_evidence(finding.evidence)
-    observation["collected"] = _aware(finding.observed_at)
-    risk = {
-        "uuid": risk_uuid,
+    return observation
+
+
+def _emit_risk(finding: Finding, key: str) -> dict[str, Any]:
+    """Build the OSCAL risk for one finding."""
+    return {
+        "uuid": _det("risk", key),
         "title": finding.title,
         "description": finding.risk_statement,
         "statement": finding.risk_statement,
         "status": finding.status,
     }
+
+
+def _emit_item(
+    finding: Finding, policy: Policy, key: str, observation: dict[str, Any], risk: dict[str, Any]
+) -> dict[str, Any]:
+    """Build the OSCAL POA&M item linking its observation and risk."""
+    props = [
+        *(
+            _common.prop("control-id", c, ns=policy.authority_ns or None)
+            for c in finding.control_ids
+        ),
+        _common.prop("severity", finding.severity),
+    ]
+    if policy.framework:
+        props.append(_common.prop("framework", policy.framework))
+    if not policy.reviewed:
+        props.append(_common.prop("interpretation-status", "provisional"))
     item: dict[str, Any] = {
         "uuid": _det("poam-item", key),
         "title": finding.title,
         "description": finding.description,
-        "props": [
-            *(
-                _common.prop("control-id", c, ns=policy.authority_ns or None)
-                for c in finding.control_ids
-            ),
-            _common.prop("severity", finding.severity),
-            *([_common.prop("framework", policy.framework)] if policy.framework else []),
-            *(
-                [_common.prop("interpretation-status", "provisional")]
-                if not policy.reviewed
-                else []
-            ),
-        ],
-        "related-observations": [{"observation-uuid": observation_uuid}],
-        "related-risks": [{"risk-uuid": risk_uuid}],
+        "props": props,
+        "related-observations": [{"observation-uuid": observation["uuid"]}],
+        "related-risks": [{"risk-uuid": risk["uuid"]}],
     }
     if policy.catalog_href and finding.control_ids:
         item["links"] = [
             {"href": f"{policy.catalog_href}#{control}", "rel": "reference"}
             for control in finding.control_ids
         ]
+    return item
+
+
+def _emit_finding(
+    finding: Finding, inventory_uuid: str, policy: Policy, *, uuid_key: str | None = None
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Build the observation, risk, and POA&M item for one finding."""
+    key = uuid_key or finding.id
+    observation = _emit_observation(finding, inventory_uuid, key)
+    risk = _emit_risk(finding, key)
+    item = _emit_item(finding, policy, key, observation, risk)
     return observation, risk, item
 
 
