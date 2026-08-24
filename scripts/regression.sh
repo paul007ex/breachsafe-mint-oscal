@@ -23,16 +23,32 @@ EX="$ROOT/examples"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
+# --- resolve a Python 3.14+ interpreter (fail closed) -------------------------------
+_python314() {
+  command -v "$1" >/dev/null 2>&1 \
+    && "$1" -c 'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 14) else 1)' \
+    2>/dev/null
+}
+if [ -n "${PYTHON:-}" ]; then
+  _python314 "$PYTHON" || { echo "PYTHON=$PYTHON is not Python 3.14+" >&2; exit 2; }
+  PY="$PYTHON"
+else
+  PY=""
+  for candidate in python3.14 python3; do
+    if _python314 "$candidate"; then PY="$(command -v "$candidate")"; break; fi
+  done
+  [ -n "$PY" ] || { echo "Python 3.14+ is required; set PYTHON=/path/to/python3.14" >&2; exit 2; }
+fi
+
 # --- resolve the CLI under test -------------------------------------------------------
 if [ -n "${MINT:-}" ]; then
   :
 elif command -v mint-oscal >/dev/null 2>&1; then
   MINT="mint-oscal"
 else
-  MINT="python3 -m mint_oscal.cli"
+  MINT="$PY -m mint_oscal.cli"
   export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
 fi
-PY="${PYTHON:-python3}"
 
 pass=0
 fail=0
