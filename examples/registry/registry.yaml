@@ -26,7 +26,7 @@ catalogs:
     source:
       uri: https://github.com/usnistgov/oscal-content
       release: v1.5.0
-      sha256: 53dd18252eef5bcc07ec8850adf20177a44d5575592de47186b7ef10f85d894d
+      sha256: 42afafa05d918b0dc77a57e40b18d1ea3951fad127f0bf54db06a5aa1fc0c247
       license: NIST
       retrieved-at: "2026-08-24"
     compatibility:
@@ -49,7 +49,7 @@ catalogs:
     source:
       uri: https://github.com/securecontrolsframework/securecontrolsframework/releases/tag/2026.2
       release: "2026.2"
-      sha256: a856d60dbd67e2cf1045b9f83ba75f5de8361aade8ca0227be1e98f188318633
+      sha256: bbc2db46733270c0e304835c9881ac1fa2cb508ddbf1b544165f654b4cfa7632
       license: CC-BY-ND-4.0
       retrieved-at: "2026-08-24"
     compatibility:
