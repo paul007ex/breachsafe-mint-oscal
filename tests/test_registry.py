@@ -197,3 +197,23 @@ def test_lock_rejects_noncanonical_json_bytes(tmp_path: Path) -> None:
     lock.write_text(json.dumps(json.loads(lock.read_text(encoding="utf-8"))), encoding="utf-8")
     with pytest.raises(RegistryError, match="lock mismatch"):
         verify_lock(registry_path, lock)
+
+
+@pytest.mark.parametrize("field", ["catalog", "profile", "pack"])
+def test_invalid_default_reference_fails(tmp_path: Path, field: str) -> None:
+    path = _registry(tmp_path)
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    document["defaults"][field] = "missing"
+    path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+    with pytest.raises(RegistryError, match="not registered"):
+        load_registry(path)
+
+
+@pytest.mark.parametrize("collection", ["catalogs", "profiles", "packs", "objectives"])
+def test_duplicate_registry_ids_fail(tmp_path: Path, collection: str) -> None:
+    path = _registry(tmp_path)
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    document[collection].append(document[collection][0].copy())
+    path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+    with pytest.raises(RegistryError, match="duplicate"):
+        load_registry(path)

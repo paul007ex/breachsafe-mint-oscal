@@ -18,6 +18,7 @@ from __future__ import annotations
 import functools
 import re
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass
 from importlib import resources
 from typing import Any, cast
@@ -233,12 +234,19 @@ def _protocol_component(
     props = comp.crypto_properties.protocol_properties if comp.crypto_properties else None
     if not props:
         return
-    for suite in props.cipher_suites or []:
-        for ref in suite.algorithms or []:
-            _add_algorithm(canon, _tail(ref), None, None)
+    _add_protocol_algorithms(canon, props.cipher_suites or [])
     ptype = props.type.value if props.type else None
     if _is_legacy_protocol(comp.name, ptype, props.version):
         weak.add(comp.name or f"{ptype or 'protocol'} {props.version or '?'}")
+
+
+def _add_protocol_algorithms(
+    canon: dict[str, tuple[str, str | None, int | None]], suites: Iterable[object]
+) -> None:
+    """Fold cipher-suite algorithm references into the canonical inventory."""
+    for suite in suites:
+        for ref in getattr(suite, "algorithms", []) or []:
+            _add_algorithm(canon, _tail(ref), None, None)
 
 
 def _certificate_component(
@@ -278,6 +286,113 @@ def _inventory(
     return algos, sigs, sorted(weak_protocols)
 
 
+def _classify_algorithm(
+    name: str,
+    declared_primitive: str | None,
+    declared_level: int | None,
+    registry: dict[str, dict[str, Any]],
+) -> tuple[bool, bool | None, int, bool]:
+    """Classify one algorithm without turning missing evidence into a safe verdict."""
+    entry = registry.get(name.upper())
+    is_kex = declared_primitive in _KEX_PRIMITIVES or (entry or {}).get("kind") == "kex"
+    registry_classical = entry is not None and not entry.get("quantum_safe", False)
+    if declared_level is not None:
+        safe: bool | None = declared_level > 0 and not registry_classical
+        level = declared_level
+    elif entry is not None:
+        safe = bool(entry.get("quantum_safe"))
+        level = int(entry.get("nistLevel", 0))
+    else:
+        safe, level = None, 0
+    indeterminate = (
+        not is_kex
+        and entry is None
+        and (declared_primitive is None or declared_primitive in _INDETERMINATE_PRIMITIVES)
+    )
+    return is_kex, safe, level, indeterminate
+
+
+def _derive_readiness(
+    kex_safe: list[bool], unclassified: list[str], rules: list[dict[str, Any]]
+) -> str:
+    """Apply declarative readiness rules to the KEX evidence we could classify."""
+    if not kex_safe:
+        return "unknown"
+    total, safe_count = len(kex_safe), sum(kex_safe)
+    quantum_safe = {"all": safe_count == total, "some": safe_count > 0, "none": safe_count == 0}
+    classical = {"all": safe_count == 0, "some": safe_count < total, "none": safe_count == total}
+    readiness = next(
+        (
+            str(rule["readiness"])
+            for rule in rules
+            if quantum_safe.get(rule.get("kex_quantum_safe", ""), True)
+            and classical.get(rule.get("kex_classical", ""), True)
+        ),
+        "unknown",
+    )
+    return "unknown" if readiness == "quantum_ready" and unclassified else readiness
+
+
+def _parse_cbom(document: dict[str, Any]) -> Bom:
+    """Validate the CycloneDX envelope and parse its typed model."""
+    if document.get("bomFormat") != "CycloneDX" or "specVersion" not in document:
+        raise MalformedCbomError(
+            "not a CycloneDX BOM (expected bomFormat=CycloneDX and specVersion)"
+        )
+    spec_version = document["specVersion"]
+    if not isinstance(spec_version, str):
+        raise MalformedCbomError(f"specVersion must be a string, got {type(spec_version).__name__}")
+    if spec_version not in _SUPPORTED_SPEC_VERSIONS:
+        supported = ", ".join(sorted(_SUPPORTED_SPEC_VERSIONS))
+        raise MalformedCbomError(
+            f"unsupported CycloneDX specVersion {spec_version}; supported: {supported}"
+        )
+    try:
+        return cast("Bom", Bom.from_json(document))  # type: ignore[attr-defined]
+    except Exception as exc:  # any parse failure becomes one domain error, never a leak
+        raise MalformedCbomError(str(exc)) from exc
+
+
+def _subject_from_bom(bom: Bom) -> Subject:
+    """Build a stable IR subject from CBOM metadata."""
+    component = bom.metadata.component
+    name = (component.name if component else None) or (
+        str(bom.serial_number) if bom.serial_number else None
+    )
+    subject_id = name or "unknown-subject"
+    if not isinstance(subject_id, str):
+        raise MalformedCbomError(
+            f"metadata.component.name must be a string, got {type(subject_id).__name__}"
+        )
+    return Subject(
+        id=subject_id,
+        kind="inventory-item",
+        description=f"cryptographic subject {subject_id}",
+    )
+
+
+def _posture(facts: _Readiness) -> dict[str, str]:
+    """Render classified readiness facts as stable IR posture properties."""
+    if facts.unclassified:
+        confidence = "partial"
+    elif facts.readiness == "unknown":
+        confidence = "not-applicable"
+    else:
+        confidence = "high"
+    posture = {
+        "readiness": facts.readiness,
+        "kex-offered": ", ".join(facts.kex) or "none-observed",
+        "cert-signature": "none-observed",
+        "nistQuantumSecurityLevel": facts.level,
+        "mapping-confidence": confidence,
+    }
+    if facts.unclassified:
+        posture["unclassified-algorithms"] = ", ".join(facts.unclassified)
+    if facts.legacy_protocols:
+        posture["legacy-protocols"] = ", ".join(facts.legacy_protocols)
+    return posture
+
+
 def _readiness(
     algos: dict[str, tuple[str | None, int | None]], weak_protocols: list[str]
 ) -> _Readiness:
@@ -299,24 +414,9 @@ def _readiness(
     unclassified: list[str] = []
     levels: list[int] = []
     for name, (declared_primitive, declared_level) in algos.items():
-        entry = registry.get(name.upper())
-        is_kex = declared_primitive in _KEX_PRIMITIVES or (entry or {}).get("kind") == "kex"
-        # A producer's nistQuantumSecurityLevel is a *classical-equivalent* strength
-        # (category 1 ~ AES-128 ... 5 ~ AES-256), NOT a PQC-readiness claim. A positive
-        # level must never UPGRADE an algorithm the registry authoritatively records as
-        # classical (quantum_safe: false) -- otherwise a producer stamping level 1 on a
-        # purely classical X25519 would read as the most-favorable posture (#79).
-        # Downgrades (level 0) and registry misses stay producer-first.
-        registry_classical = entry is not None and not entry.get("quantum_safe", False)
-        if declared_level is not None:
-            safe: bool | None = declared_level > 0 and not registry_classical
-            level = declared_level
-        elif entry is not None:
-            safe = bool(entry.get("quantum_safe"))
-            level = int(entry.get("nistLevel", 0))
-        else:
-            safe = None
-            level = 0
+        is_kex, safe, level, indeterminate = _classify_algorithm(
+            name, declared_primitive, declared_level, registry
+        )
         if is_kex:
             kex_names.append(name)
             if safe is None:
@@ -327,9 +427,7 @@ def _readiness(
                 kex_safe.append(safe)
                 if safe and level:
                     levels.append(level)
-        elif entry is None and (
-            declared_primitive is None or declared_primitive in _INDETERMINATE_PRIMITIVES
-        ):
+        elif indeterminate:
             # a registry-miss we cannot classify: either no primitive at all, or one the
             # producer explicitly flagged indeterminate (`unknown`/`other`). Surface it as
             # unclassified so a hidden classical KEX cannot ride a favorable verdict (#78).
@@ -339,28 +437,7 @@ def _readiness(
             # otherwise it is silently dropped and a hidden KEX rides a favorable verdict (#98).
             unclassified.append(name)
 
-    readiness = "unknown"
-    if kex_safe:  # only judge over the KEX we could actually classify
-        total, safe_count = len(kex_safe), sum(kex_safe)
-        quantum_safe = {"all": safe_count == total, "some": safe_count > 0, "none": safe_count == 0}
-        classical = {
-            "all": safe_count == 0,
-            "some": safe_count < total,
-            "none": safe_count == total,
-        }
-        readiness = next(
-            (
-                str(rule["readiness"])
-                for rule in rules
-                if quantum_safe.get(rule.get("kex_quantum_safe", ""), True)
-                and classical.get(rule.get("kex_classical", ""), True)
-            ),
-            "unknown",
-        )
-        # honest-failure invariant: an unclassified algorithm means we cannot claim the
-        # most-favorable posture (a hidden KEX could be classical) -- never read unknown as ready.
-        if readiness == "quantum_ready" and unclassified:
-            readiness = "unknown"
+    readiness = _derive_readiness(kex_safe, unclassified, rules)
     # honest-failure cap: a legacy TLS/SSL offering means the posture cannot be more
     # favorable than classically_weak, regardless of how strong the KEX looks. Applied
     # last so it also covers the not-yet-scored `unknown` case; an already-unfavorable
@@ -382,77 +459,20 @@ def from_cbom(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
     Raises:
         MalformedCbomError: if ``document`` is not a parseable CycloneDX BOM.
     """
-    # cyclonedx-python-lib parses permissively — it does NOT reject a non-CycloneDX or
-    # shapeless dict — so assert the shape ourselves first, or a garbage document would
-    # mint a confident-but-wrong POA&M instead of failing loudly.
-    if (
-        not isinstance(document, dict)
-        or document.get("bomFormat") != "CycloneDX"
-        or "specVersion" not in document
-    ):
-        raise MalformedCbomError(
-            "not a CycloneDX BOM (expected bomFormat=CycloneDX and specVersion)"
-        )
-    spec_version = document["specVersion"]
-    # An unhashable specVersion (e.g. a list) would leak a bare ``TypeError`` from the
-    # ``in`` membership test below; assert it is a string first.
-    if not isinstance(spec_version, str):
-        raise MalformedCbomError(f"specVersion must be a string, got {type(spec_version).__name__}")
-    if spec_version not in _SUPPORTED_SPEC_VERSIONS:
-        supported = ", ".join(sorted(_SUPPORTED_SPEC_VERSIONS))
-        raise MalformedCbomError(
-            f"unsupported CycloneDX specVersion {spec_version}; supported: {supported}"
-        )
-    try:
-        bom = Bom.from_json(document)  # type: ignore[attr-defined]  # shape asserted above
-    except Exception as exc:  # any parse failure becomes one domain error, never a leak
-        raise MalformedCbomError(str(exc)) from exc
-
-    component = bom.metadata.component
-    name = (component.name if component else None) or (
-        str(bom.serial_number) if bom.serial_number else None
-    )
-    subject_id = name or "unknown-subject"
-    # subject_id is a _det part here and, via Subject.id, a _det part in the emitter too; a
-    # non-str metadata component name would leak a bare TypeError from str.join. Guard it as
-    # a typed malformation (contained honestly at the adapter, not silently coerced into a
-    # nonsense subject id that would mint a confident-but-wrong POA&M).
-    if not isinstance(subject_id, str):
-        raise MalformedCbomError(
-            f"metadata.component.name must be a string, got {type(subject_id).__name__}"
-        )
-    subject = Subject(
-        id=subject_id,
-        kind="inventory-item",
-        description=f"cryptographic subject {subject_id}",
-    )
-
+    if not isinstance(document, dict):
+        raise MalformedCbomError("CBOM root must be a JSON object")
+    bom = _parse_cbom(document)
+    subject = _subject_from_bom(bom)
     algos, sigs, weak_protocols = _inventory(bom)
     facts = _readiness(algos, weak_protocols)
-    readiness = facts.readiness
     # Read the timestamp from the RAW document: cyclonedx-python-lib auto-fills
     # bom.metadata.timestamp with wall-clock now() when the CBOM omits it, which would make
     # output non-deterministic. Absent -> a deterministic epoch; the emitter makes it
     # timezone-aware (OSCAL requires it).
     timestamp = (document.get("metadata") or {}).get("timestamp") or "1970-01-01T00:00:00+00:00"
 
-    if facts.unclassified:
-        confidence = "partial"  # something crypto-relevant we could not classify
-    elif readiness == "unknown":
-        confidence = "not-applicable"  # no key exchange was observed to assess
-    else:
-        confidence = "high"
-    posture = {
-        "readiness": readiness,
-        "kex-offered": ", ".join(facts.kex) or "none-observed",
-        "cert-signature": ", ".join(sorted(sigs)) or "none-observed",
-        "nistQuantumSecurityLevel": facts.level,
-        "mapping-confidence": confidence,
-    }
-    if facts.unclassified:
-        posture["unclassified-algorithms"] = ", ".join(facts.unclassified)
-    if facts.legacy_protocols:
-        posture["legacy-protocols"] = ", ".join(facts.legacy_protocols)
+    posture = _posture(facts)
+    posture["cert-signature"] = ", ".join(sorted(sigs)) or "none-observed"
 
     inventory_fp = (
         ";".join(sorted(algos))
@@ -462,17 +482,17 @@ def from_cbom(document: dict[str, Any]) -> tuple[list[Finding], Subject]:
         + ";".join(facts.legacy_protocols)
     )
     finding = Finding(
-        id=_det("cbom-finding", subject_id, readiness, inventory_fp),
-        title=f"Cryptographic posture: {readiness}",
+        id=_det("cbom-finding", subject.id, facts.readiness, inventory_fp),
+        title=f"Cryptographic posture: {facts.readiness}",
         description=(
             f"KEX offered: {posture['kex-offered']}; cert signature: {posture['cert-signature']}."
         ),
-        severity=active_policy().severity.get(readiness, "info"),
+        severity=active_policy().severity.get(facts.readiness, "info"),
         status="open",
         subject=subject,
         observed_at=timestamp,
-        control_ids=controls_for(readiness),
-        risk_statement=risk_statement(readiness),
+        control_ids=controls_for(facts.readiness),
+        risk_statement=risk_statement(facts.readiness),
         posture=posture,
     )
     return [finding], subject

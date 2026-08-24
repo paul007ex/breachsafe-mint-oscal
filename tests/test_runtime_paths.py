@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import copy
 import json
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -24,7 +26,11 @@ ROOT = Path(__file__).parents[1]
 
 
 def _cbom() -> dict[str, object]:
-    return json.loads((ROOT / "examples/example.cbom.json").read_text(encoding="utf-8"))
+    return cast("dict[str, object]", json.loads((ROOT / "examples/example.cbom.json").read_text()))
+
+
+def _scan() -> dict[str, object]:
+    return cast("dict[str, object]", json.loads((ROOT / "examples/example.scan.json").read_text()))
 
 
 def _finding(status: str = "open") -> Finding:
@@ -68,6 +74,35 @@ def test_qureddy_adapter_rejects_bad_input() -> None:
         from_scan_v1({"target": {"locator": "x", "host": "x", "port": 443}})
 
 
+def test_qureddy_adapter_valid_and_shape_guards() -> None:
+    findings, subject = from_scan_v1(_scan())
+    assert subject.id
+    assert findings
+    bad_cases: list[dict[str, Any]] = [
+        {"target": [], "scan": {}},
+        {"target": {"locator": "x", "host": "x", "port": 443}, "scan": []},
+        {"target": {"locator": "x", "host": "x", "port": 443}, "scan": {"completed_at": 4}},
+        {
+            "target": {"locator": "x", "host": "x", "port": 443},
+            "scan": {"completed_at": "bad"},
+        },
+    ]
+    for case in bad_cases:
+        with pytest.raises(MalformedScanError):
+            from_scan_v1(case)
+
+
+def test_qureddy_finding_and_evidence_guards() -> None:
+    base = _scan()
+    base["findings"] = [{"id": "f", "title": "bad", "severity": "high", "readiness": []}]
+    with pytest.raises(MalformedScanError):
+        from_scan_v1(base)
+    base = _scan()
+    base["evidence"] = [{"id": []}]
+    with pytest.raises(MalformedScanError):
+        from_scan_v1(base)
+
+
 def test_emitter_handles_empty_and_closed_findings() -> None:
     subject = Subject("ready.example", "inventory-item", "ready endpoint")
     empty = to_poam([], subject, source="CBOM", now="2026-08-24T00:00:00Z")
@@ -102,3 +137,29 @@ def test_semantic_errors_are_fail_closed() -> None:
     body = document["plan-of-action-and-milestones"]
     body["poam-items"][0]["related-risks"][0]["risk-uuid"] = "missing"
     assert any("unresolved risk-uuid" in error for error in semantic_errors(document))
+
+
+@pytest.mark.parametrize(
+    ("mutate", "needle"),
+    [
+        (lambda b: b["poam-items"].clear(), "minItems"),
+        (lambda b: b.__setitem__("observations", []), "minItems"),
+        (lambda b: b["observations"][0].__setitem__("methods", []), "methods"),
+        (lambda b: b["risks"][0].__setitem__("status", "bad status"), "risk status"),
+    ],
+)
+def test_semantic_shape_validators(
+    mutate: Callable[[dict[str, object]], None], needle: str
+) -> None:
+    document = to_poam([_finding()], _finding().subject, source="CBOM")
+    mutate(document["plan-of-action-and-milestones"])
+    assert any(needle in error for error in semantic_errors(document))
+
+
+def test_semantic_domain_and_control_validators() -> None:
+    document = to_poam([_finding()], _finding().subject, source="CBOM")
+    props = document["plan-of-action-and-milestones"]["poam-items"][0]["props"]
+    props.append({"name": "severity", "value": "invalid", "ns": "https://breachsafe.ai/ns/oscal"})
+    props.append({"name": "control-id", "value": "bad id"})
+    assert any("severity invalid" in error for error in semantic_errors(document))
+    assert any("control-id malformed" in error for error in semantic_errors(document))

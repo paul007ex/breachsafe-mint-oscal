@@ -16,7 +16,7 @@ from typing import Any
 
 from mint_oscal.emitters import _common
 from mint_oscal.ir import IR, Finding, Subject
-from mint_oscal.policy import active_policy
+from mint_oscal.policy import Policy, active_policy
 
 OSCAL_VERSION = _common.OSCAL_VERSION
 # Fixed namespace so the same scan produces the same OSCAL uuids (content-addressable).
@@ -98,6 +98,60 @@ def emit(ir: IR, *, source: str | None = None, now: str | None = None) -> dict[s
     )
 
 
+def _emit_finding(
+    finding: Finding, inventory_uuid: str, policy: Policy
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Build the observation, risk, and POA&M item for one finding."""
+    observation_uuid = _det("observation", finding.id)
+    risk_uuid = _det("risk", finding.id)
+    observation: dict[str, Any] = {"uuid": observation_uuid, "description": finding.title}
+    if finding.posture:
+        observation["props"] = _common.props_from(finding.posture)
+    observation.update(
+        {
+            "methods": ["TEST"],
+            "types": ["finding"],
+            "subjects": [{"subject-uuid": inventory_uuid, "type": "inventory-item"}],
+        }
+    )
+    if finding.evidence:
+        observation["relevant-evidence"] = _relevant_evidence(finding.evidence)
+    observation["collected"] = _aware(finding.observed_at)
+    risk = {
+        "uuid": risk_uuid,
+        "title": finding.title,
+        "description": finding.risk_statement,
+        "statement": finding.risk_statement,
+        "status": finding.status,
+    }
+    item: dict[str, Any] = {
+        "uuid": _det("poam-item", finding.id),
+        "title": finding.title,
+        "description": finding.description,
+        "props": [
+            *(
+                _common.prop("control-id", c, ns=policy.authority_ns or None)
+                for c in finding.control_ids
+            ),
+            _common.prop("severity", finding.severity),
+            *([_common.prop("framework", policy.framework)] if policy.framework else []),
+            *(
+                [_common.prop("interpretation-status", "provisional")]
+                if not policy.reviewed
+                else []
+            ),
+        ],
+        "related-observations": [{"observation-uuid": observation_uuid}],
+        "related-risks": [{"risk-uuid": risk_uuid}],
+    }
+    if policy.catalog_href and finding.control_ids:
+        item["links"] = [
+            {"href": f"{policy.catalog_href}#{control}", "rel": "reference"}
+            for control in finding.control_ids
+        ]
+    return observation, risk, item
+
+
 def to_poam(
     findings: Iterable[Finding],
     subject: Subject,
@@ -117,71 +171,9 @@ def to_poam(
     risks: list[dict[str, Any]] = []
     items: list[dict[str, Any]] = []
     for finding in findings:
-        observation_uuid = _det("observation", finding.id)
-        risk_uuid = _det("risk", finding.id)
-        # OSCAL metaschema observation child order:
-        # description -> props -> methods -> types -> subjects -> relevant-evidence -> collected.
-        observation: dict[str, Any] = {
-            "uuid": observation_uuid,
-            "description": finding.title,
-        }
-        if finding.posture:
-            observation["props"] = _common.props_from(finding.posture)
-        observation.update(
-            {
-                "methods": ["TEST"],
-                "types": ["finding"],
-                "subjects": [{"subject-uuid": inventory_uuid, "type": "inventory-item"}],
-            }
-        )
-        # relevant-evidence is optional and OSCAL requires >=1 item when present, so omit
-        # it for an evidence-less finding (e.g. a CBOM carries posture but no probe output).
-        if finding.evidence:
-            observation["relevant-evidence"] = _relevant_evidence(finding.evidence)
-        observation["collected"] = _aware(finding.observed_at)
+        observation, risk, item = _emit_finding(finding, inventory_uuid, pol)
         observations.append(observation)
-        risks.append(
-            {
-                "uuid": risk_uuid,
-                "title": finding.title,
-                "description": finding.risk_statement,
-                "statement": finding.risk_statement,
-                # Reflect the finding's own status (open|closed), not a hardcoded "open", so a
-                # remediated finding is not minted as an open risk (#66). Both IR values are
-                # valid OSCAL risk-status tokens.
-                "status": finding.status,
-            }
-        )
-        item: dict[str, Any] = {
-            "uuid": _det("poam-item", finding.id),
-            "title": finding.title,
-            "description": finding.description,
-            "props": [
-                # Control ids are the framework's (SCF/NIST); attribute them to its authority ns,
-                # NEVER the BreachSAFE ns (#88). framework + interpretation-status ARE ours.
-                *(
-                    _common.prop("control-id", c, ns=pol.authority_ns or None)
-                    for c in finding.control_ids
-                ),
-                _common.prop("severity", finding.severity),
-                *([_common.prop("framework", pol.framework)] if pol.framework else []),
-                # An unreviewed pack yields an ungoverned interpretation; mark it beside the
-                # control/severity claims so it is never read as authoritative (#84).
-                *(
-                    [_common.prop("interpretation-status", "provisional")]
-                    if not pol.reviewed
-                    else []
-                ),
-            ],
-            "related-observations": [{"observation-uuid": observation_uuid}],
-            "related-risks": [{"risk-uuid": risk_uuid}],
-        }
-        # Native OSCAL control reference: link each control id to its authoritative catalog so a
-        # consumer resolves it to the source instead of parsing a bare string (#88).
-        if pol.catalog_href and finding.control_ids:
-            item["links"] = [
-                {"href": f"{pol.catalog_href}#{c}", "rel": "reference"} for c in finding.control_ids
-            ]
+        risks.append(risk)
         items.append(item)
 
     # OSCAL requires observations/risks to have >=1 item when present, so omit an empty array
