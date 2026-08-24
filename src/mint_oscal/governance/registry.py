@@ -104,7 +104,7 @@ def _read_yaml(path: Path) -> dict[str, Any]:
         # duplicates; it does not permit arbitrary Python object tags.
         loaded = yaml.load(
             path.read_text(encoding="utf-8"),
-            Loader=_UniqueKeyLoader,  # noqa: S506
+            Loader=_UniqueKeyLoader,  # noqa: S506  # nosec B506
         )
     except OSError as exc:
         raise RegistryError(f"cannot read registry {path}: {exc}") from exc
@@ -210,21 +210,20 @@ def _load_catalog_controls(root: Path, catalogs: list[dict[str, Any]]) -> dict[s
     return catalog_controls
 
 
+def _ensure_unique_ids(items: list[dict[str, Any]], label: str) -> list[str]:
+    ids = [item["id"] for item in items]
+    if len(ids) != len(set(ids)):
+        raise RegistryError(f"duplicate {label} ID")
+    return ids
+
+
 def _validate_unique_ids(document: dict[str, Any]) -> tuple[list[str], set[str], set[str]]:
     """Validate collection identifiers and return profile/catalog/pack IDs."""
-    catalogs = document["catalogs"]
-    catalog_ids = [item["id"] for item in catalogs]
-    if len(catalog_ids) != len(set(catalog_ids)):
-        raise RegistryError("duplicate Catalog ID")
-    profile_ids_list = [profile["id"] for profile in document["profiles"]]
-    if len(profile_ids_list) != len(set(profile_ids_list)):
-        raise RegistryError("duplicate Profile ID")
-    pack_ids = [pack["id"] for pack in document["packs"]]
-    if len(pack_ids) != len(set(pack_ids)):
-        raise RegistryError("duplicate pack ID")
-    objective_ids = [objective["id"] for objective in document["objectives"]]
-    if len(objective_ids) != len(set(objective_ids)):
-        raise RegistryError("duplicate objective ID")
+    catalog_ids = _ensure_unique_ids(document["catalogs"], "Catalog")
+    profile_ids_list = _ensure_unique_ids(document["profiles"], "Profile")
+    pack_ids = _ensure_unique_ids(document["packs"], "pack")
+    _ensure_unique_ids(document["objectives"], "objective")
+    _ensure_unique_ids(document["crosswalks"], "crosswalk")
     return profile_ids_list, set(catalog_ids), set(pack_ids)
 
 
@@ -240,28 +239,41 @@ def _validate_defaults(
         raise RegistryError("default pack is not registered")
 
 
+def _validate_profile_import(
+    profile_id: str,
+    expected_href: str,
+    import_entry: dict[str, Any],
+    controls: set[str],
+) -> None:
+    if import_entry["href"] != expected_href:
+        raise RegistryError(f"Profile {profile_id!r} import href does not match its Catalog")
+    selected_ids = [
+        control_id
+        for selection in import_entry.get("include-controls", [])
+        for control_id in selection["with-ids"]
+    ]
+    if len(selected_ids) != len(set(selected_ids)):
+        raise RegistryError(f"Profile {profile_id!r} selects a control more than once")
+    unknown = set(selected_ids) - controls
+    if unknown:
+        raise RegistryError(
+            f"Profile {profile_id!r} references unknown controls: {sorted(unknown)}"
+        )
+
+
 def _validate_profiles(
     document: dict[str, Any], catalog_ids: set[str], catalog_controls: dict[str, set[str]]
 ) -> None:
     """Ensure profiles resolve to Catalogs and only select declared controls."""
-    catalogs = document["catalogs"]
+    catalogs = {catalog["id"]: catalog["href"] for catalog in document["catalogs"]}
     for profile in document["profiles"]:
-        if profile["catalog"] not in catalog_ids:
+        catalog_id = profile["catalog"]
+        if catalog_id not in catalog_ids:
             raise RegistryError(f"Profile {profile['id']!r} references an unknown Catalog")
-        expected_href = next(
-            catalog["href"] for catalog in catalogs if catalog["id"] == profile["catalog"]
-        )
         for import_entry in profile["imports"]:
-            if import_entry["href"] != expected_href:
-                raise RegistryError(
-                    f"Profile {profile['id']!r} import href does not match its Catalog"
-                )
-            for selection in import_entry.get("include-controls", []):
-                unknown = set(selection["with-ids"]) - catalog_controls[profile["catalog"]]
-                if unknown:
-                    raise RegistryError(
-                        f"Profile {profile['id']!r} references unknown controls: {sorted(unknown)}"
-                    )
+            _validate_profile_import(
+                profile["id"], catalogs[catalog_id], import_entry, catalog_controls[catalog_id]
+            )
 
 
 def _validate_packs_and_objectives(
