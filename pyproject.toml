@@ -59,6 +59,7 @@ dev = [
   "types-PyYAML",
   "coverage[toml]",
   "allure-pytest>=2.15,<3",
+  "bandit>=1.8,<2",
   "deptry>=0.23,<1",
   "diff-cover>=9,<10",
   "import-linter>=2,<3",
