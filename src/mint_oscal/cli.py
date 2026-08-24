@@ -573,7 +573,7 @@ def _run_registry_command(
         return _EXIT_INPUT
 
 
-def _run_model_command(
+def _run_model_command(  # noqa: PLR0911 -- explicit CLI exit-code boundary
     args: argparse.Namespace, model_parsers: dict[str, argparse.ArgumentParser]
 ) -> int:
     """Dispatch a model verb through the shared input and internal-error boundary."""
@@ -590,6 +590,9 @@ def _run_model_command(
         return _EXIT_INPUT
     except json.JSONDecodeError as exc:
         log.error("invalid_json", report=src, error=str(exc))
+        return _EXIT_INPUT
+    except UnicodeDecodeError as exc:
+        log.error("invalid_encoding", report=src, error=str(exc))
         return _EXIT_INPUT
     except NotImplementedError as exc:
         log.error(
