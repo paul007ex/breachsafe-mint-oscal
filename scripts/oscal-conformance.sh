@@ -32,7 +32,7 @@
 #   scripts/oscal-conformance.sh path/to.cbom.json
 #
 # Overrides (all optional; the script auto-detects sensible defaults):
-#   MINT="/path/to/mint-oscal"     CLI under test (else installed mint-oscal, else python -m)
+#   MINT="/path/to/mint-oscal"     CLI under test (else installed mint-oscal, else uv project run)
 #   PYTHON="/path/to/python"       interpreter for the python -m fallback + JSON mutation
 #   JAVA_HOME="/path/to/jre17"     Java 17+ home (else $JAVA_HOME, then PATH `java`)
 #   OSCAL_CLI="/path/to/oscal-cli" exact launcher (skips detection/download)
@@ -75,6 +75,10 @@ if [ -n "${MINT:-}" ]; then
   :
 elif command -v mint-oscal >/dev/null 2>&1; then
   MINT="mint-oscal"
+elif command -v uv >/dev/null 2>&1; then
+  # Use the declared project extras rather than an ambient interpreter.  A clean checkout
+  # may have Python 3.14 on PATH without this project's jsonschema/trestle dependencies.
+  MINT="uv run --project $ROOT --locked --extra conformance python -m mint_oscal.cli"
 else
   MINT="$PY -m mint_oscal.cli"
   export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
@@ -228,6 +232,12 @@ if [ -d "$PROFILE_FIXTURE" ]; then
     :
   elif command -v trestle >/dev/null 2>&1; then
     TRESTLE="$(command -v trestle)"
+  elif command -v uv >/dev/null 2>&1; then
+    # Resolve the executable from the same locked conformance environment used by MINT.
+    # Python on PATH is not sufficient: a clean checkout may not have trestle installed
+    # in its ambient interpreter even though the project extra declares it.
+    TRESTLE="$(uv run --project "$ROOT" --locked --extra conformance python -c \
+      'import shutil; print(shutil.which("trestle") or "")')"
   else
     bad "Profile conformance requires Compliance Trestle, but trestle is not installed"
     fail=$((fail + 1))
