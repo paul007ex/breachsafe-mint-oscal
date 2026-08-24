@@ -111,6 +111,14 @@ def test_emitter_handles_empty_and_closed_findings() -> None:
     assert closed["plan-of-action-and-milestones"]["risks"][0]["status"] == "closed"
 
 
+def test_duplicate_finding_ids_get_unique_oscal_uuids() -> None:
+    duplicate = _finding()
+    document = to_poam([duplicate, duplicate], duplicate.subject, source="CBOM")
+    body = document["plan-of-action-and-milestones"]
+    uuids = [item["uuid"] for key in ("observations", "risks", "poam-items") for item in body[key]]
+    assert len(uuids) == len(set(uuids))
+
+
 def test_extension_provenance_and_evidence() -> None:
     finding = _finding()
     document = {

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import datetime
 import uuid
+from collections import Counter
 from collections.abc import Iterable
 from typing import Any
 
@@ -99,11 +100,12 @@ def emit(ir: IR, *, source: str | None = None, now: str | None = None) -> dict[s
 
 
 def _emit_finding(
-    finding: Finding, inventory_uuid: str, policy: Policy
+    finding: Finding, inventory_uuid: str, policy: Policy, *, uuid_key: str | None = None
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     """Build the observation, risk, and POA&M item for one finding."""
-    observation_uuid = _det("observation", finding.id)
-    risk_uuid = _det("risk", finding.id)
+    key = uuid_key or finding.id
+    observation_uuid = _det("observation", key)
+    risk_uuid = _det("risk", key)
     observation: dict[str, Any] = {"uuid": observation_uuid, "description": finding.title}
     if finding.posture:
         observation["props"] = _common.props_from(finding.posture)
@@ -125,7 +127,7 @@ def _emit_finding(
         "status": finding.status,
     }
     item: dict[str, Any] = {
-        "uuid": _det("poam-item", finding.id),
+        "uuid": _det("poam-item", key),
         "title": finding.title,
         "description": finding.description,
         "props": [
@@ -170,8 +172,16 @@ def to_poam(
     observations: list[dict[str, Any]] = []
     risks: list[dict[str, Any]] = []
     items: list[dict[str, Any]] = []
+    id_counts = Counter(finding.id for finding in findings)
+    seen_ids: Counter[str] = Counter()
     for finding in findings:
-        observation, risk, item = _emit_finding(finding, inventory_uuid, pol)
+        seen_ids[finding.id] += 1
+        # Preserve existing UUIDs for the normal case. If an upstream producer repeats an id,
+        # add a stable ordinal rather than silently emitting duplicate OSCAL UUIDs (#168).
+        uuid_key = (
+            f"{finding.id}|duplicate-{seen_ids[finding.id]}" if id_counts[finding.id] > 1 else None
+        )
+        observation, risk, item = _emit_finding(finding, inventory_uuid, pol, uuid_key=uuid_key)
         observations.append(observation)
         risks.append(risk)
         items.append(item)
