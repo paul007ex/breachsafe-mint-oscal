@@ -6,7 +6,7 @@ metadata:
   title: BreachSAFE Governed OSCAL Registry
   version: 0.4.0
   last-modified: "2026-08-24"
-  oscal-version: 1.2.1
+  oscal-version: "1.2.1"
   remarks: Catalog pins, OSCAL-shaped Profiles, packs, and crosswalk metadata.
 
 defaults:
@@ -26,7 +26,7 @@ catalogs:
     source:
       uri: https://github.com/usnistgov/oscal-content
       release: v1.5.0
-      sha256: <nist-catalog-sha256>
+      sha256: 53dd18252eef5bcc07ec8850adf20177a44d5575592de47186b7ef10f85d894d
       license: NIST
       retrieved-at: "2026-08-24"
     compatibility:
@@ -49,7 +49,7 @@ catalogs:
     source:
       uri: https://github.com/securecontrolsframework/securecontrolsframework/releases/tag/2026.2
       release: "2026.2"
-      sha256: 9e0a4df4993726c95e636f04b3022d8b5edeba2bda45d16ed6722b13540e6835
+      sha256: a856d60dbd67e2cf1045b9f83ba75f5de8361aade8ca0227be1e98f188318633
       license: CC-BY-ND-4.0
       retrieved-at: "2026-08-24"
     compatibility:
@@ -118,8 +118,8 @@ crosswalks:
   - id: scf-to-pci-dss-4
     kind: framework-crosswalk
     source-framework: scf
-    source-version: 2026.2
+    source-version: "2026.2"
     target-framework: pci-dss
-    target-version: 4.0
+    target-version: "4.0"
     status: provisional
     notes: Mapping only; this does not create a PCI DSS OSCAL Catalog.
