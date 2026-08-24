@@ -161,6 +161,37 @@ def test_registry_commands(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
     assert "scf-qts-pqc" in output.out
 
 
+def test_registry_rejects_repeated_type_flag(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry_path = tmp_path / "registry"
+    shutil.copytree(ROOT / "examples/registry", registry_path)
+    registry = str(registry_path)
+    assert (
+        _invoke(
+            ["registry", "list", "--registry", registry, "--type", "catalog", "--type", "profile"]
+        )
+        == 4
+    )
+    assert (
+        _invoke(
+            [
+                "registry",
+                "show",
+                "x",
+                "--registry",
+                registry,
+                "--type",
+                "catalog",
+                "--type",
+                "profile",
+            ]
+        )
+        == 4
+    )
+    assert "may only be specified once" in capsys.readouterr().err
+
+
 def test_registry_verbose_logging_reports_state(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
