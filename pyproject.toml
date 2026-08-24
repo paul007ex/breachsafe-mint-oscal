@@ -22,6 +22,7 @@ classifiers = [
 ]
 dependencies = [
   "cyclonedx-python-lib>=11,<12",
+  "jsonschema>=4,<5",
   "PyYAML>=6",
   "structlog>=24",
 ]
@@ -54,6 +55,8 @@ dev = [
   "mypy",
   "pytest",
   "pytest-randomly",
+  "types-jsonschema",
+  "types-PyYAML",
   "coverage[toml]",
 ]
 

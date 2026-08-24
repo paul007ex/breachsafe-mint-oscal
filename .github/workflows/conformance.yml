@@ -1,6 +1,6 @@
 name: OSCAL Conformance
 
-# NIST OSCAL conformance gate (#71 / #17): prove every POA&M mint-oscal emits is valid
+# NIST OSCAL conformance gate (#71 / #17): prove every POA&M and Profile mint-oscal emits is valid
 # against the upstream reference validator (oscal-cli 3.2.0), not just our in-tree Layer-2
 # checks. This runs the EXACT same script a developer runs locally
 # (`scripts/oscal-conformance.sh`) — CI and laptop share one gate, no drift.
@@ -46,8 +46,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install .
+          # Profile conformance uses the same Compliance Trestle major version as the
+          # local pressure-test fixture and ADR-0010. Keep this explicit until the Profile
+          # compiler promotes Trestle to a runtime dependency.
+          pip install "compliance-trestle==5.0.0"
 
-      # Runs the identical local gate: mint a POA&M from the fixture CBOM, fetch/detect
+      # Runs the identical local gate: mint a POA&M from the fixture CBOM, validate the
+      # Profile fixture with Trestle, resolve it, then fetch/detect
       # oscal-cli 3.2.0 (Maven coordinate dev.metaschema.oscal:oscal-cli-enhanced:3.2.0),
       # assert the minted doc is VALID (positive control) and that a doc with a required
       # field removed is REJECTED (negative control). Exits non-zero on any failure.

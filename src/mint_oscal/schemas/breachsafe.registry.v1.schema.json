@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://breachsafe.ai/schemas/breachsafe.registry.v1.schema.json",
+  "title": "BreachSAFE Governed OSCAL Registry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "registry-version", "metadata", "defaults", "catalogs", "profiles", "packs", "objectives", "crosswalks"],
+  "properties": {
+    "schema": {"const": "breachsafe.registry/v1"},
+    "registry-version": {"type": "string", "minLength": 1},
+    "metadata": {"$ref": "#/$defs/metadata"},
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["catalog", "profile", "pack"],
+      "properties": {
+        "catalog": {"type": "string", "minLength": 1},
+        "profile": {"type": "string", "minLength": 1},
+        "pack": {"type": "string", "minLength": 1}
+      }
+    },
+    "catalogs": {"type": "array", "items": {"$ref": "#/$defs/catalog"}, "minItems": 1},
+    "profiles": {"type": "array", "items": {"$ref": "#/$defs/profile"}},
+    "packs": {"type": "array", "items": {"$ref": "#/$defs/pack"}},
+    "objectives": {"type": "array", "items": {"$ref": "#/$defs/objective"}},
+    "crosswalks": {"type": "array", "items": {"$ref": "#/$defs/crosswalk"}}
+  },
+  "$defs": {
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "version", "last-modified", "oscal-version"],
+      "properties": {
+        "title": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "last-modified": {"type": "string", "format": "date"},
+        "oscal-version": {"type": "string", "minLength": 1},
+        "parties": {"type": "array"},
+        "remarks": {"type": "string"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "sha256", "license", "retrieved-at"],
+      "properties": {
+        "uri": {"type": "string", "format": "uri"},
+        "release": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^[A-Fa-f0-9]{64}$"},
+        "license": {"type": "string", "minLength": 1},
+        "retrieved-at": {"type": "string", "format": "date"}
+      }
+    },
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "uuid", "title", "authority", "document-version", "oscal-version", "href", "source", "compatibility", "review"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+        "kind": {"const": "catalog"},
+        "uuid": {"type": "string", "format": "uuid"},
+        "title": {"type": "string", "minLength": 1},
+        "authority": {"type": "string", "minLength": 1},
+        "document-version": {"type": "string", "minLength": 1},
+        "oscal-version": {"type": "string", "minLength": 1},
+        "href": {"type": "string", "minLength": 1},
+        "source": {"$ref": "#/$defs/source"},
+        "compatibility": {
+          "type": "object", "additionalProperties": false, "required": ["trestle", "oscal-cli", "status"],
+          "properties": {
+            "trestle": {"type": "string"}, "oscal-cli": {"type": "string"},
+            "status": {"enum": ["ready", "conversion-required", "blocked", "deprecated"]},
+            "reason": {"type": "string"}
+          }
+        },
+        "review": {"$ref": "#/$defs/review"}
+      }
+    },
+    "review": {
+      "type": "object", "additionalProperties": false, "required": ["status", "owner", "reviewed-at"],
+      "properties": {
+        "status": {"enum": ["draft", "provisional", "approved", "deprecated"]},
+        "owner": {"type": "string", "minLength": 1},
+        "reviewed-at": {"type": "string", "format": "date"}
+      }
+    },
+    "profile": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "kind", "title", "version", "catalog", "oscal-version", "imports", "review"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}, "kind": {"const": "profile"},
+        "title": {"type": "string"}, "version": {"type": "string"}, "catalog": {"type": "string"},
+        "oscal-version": {"type": "string"}, "imports": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["href", "include-controls"], "additionalProperties": false, "properties": {"href": {"type": "string"}, "include-controls": {"type": "array", "items": {"type": "object", "required": ["with-ids"], "additionalProperties": false, "properties": {"with-ids": {"type": "array", "items": {"type": "string"}, "minItems": 1}}}}}}},
+        "review": {"$ref": "#/$defs/review"}
+      }
+    },
+    "pack": {
+      "type": "object", "additionalProperties": false, "required": ["id", "kind", "title", "framework", "catalog", "profile", "version", "status"],
+      "properties": {"id": {"type": "string"}, "kind": {"const": "breachsafe-pack"}, "title": {"type": "string"}, "framework": {"type": "string"}, "catalog": {"type": "string"}, "profile": {"type": "string"}, "version": {"type": "string"}, "status": {"enum": ["draft", "provisional", "approved", "deprecated"]}, "evidence-requirements": {"type": "array", "items": {"type": "string"}}, "execution": {"type": "object"}}
+    },
+    "objective": {
+      "type": "object", "additionalProperties": false, "required": ["id", "kind", "title", "version", "status", "profiles", "review", "constraints"],
+      "properties": {"id": {"type": "string"}, "kind": {"const": "governed-objective"}, "title": {"type": "string"}, "version": {"type": "string"}, "status": {"enum": ["draft", "provisional", "approved", "deprecated"]}, "profiles": {"type": "array", "items": {"type": "string"}}, "review": {"$ref": "#/$defs/review"}, "constraints": {"type": "object"}}
+    },
+    "crosswalk": {
+      "type": "object", "additionalProperties": false, "required": ["id", "kind", "source-framework", "source-version", "target-framework", "target-version", "status"],
+      "properties": {"id": {"type": "string"}, "kind": {"const": "framework-crosswalk"}, "source-framework": {"type": "string"}, "source-version": {"type": "string"}, "target-framework": {"type": "string"}, "target-version": {"type": "string"}, "source-uri": {"type": "string"}, "status": {"enum": ["planned", "provisional", "approved", "deprecated"]}, "license": {"type": "string"}, "notes": {"type": "string"}}
+    }
+  }
+}

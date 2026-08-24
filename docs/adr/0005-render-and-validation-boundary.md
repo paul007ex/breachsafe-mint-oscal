@@ -1,4 +1,8 @@
-# ADR-0005 — Rendering & validation boundary: hand-rolled emitters, oscal-cli as schema oracle, in-process semantic validators (no trestle)
+# ADR-0005 — Rendering & validation boundary: OSCAL CLI oracle and in-process semantic validation
+
+> **Superseded for Profile authoring:** ADR-0010 supersedes the old “no Trestle” decision
+> for the Profile/compiler lane. This ADR remains applicable to the shipped POA&M emitter
+> until that path is migrated deliberately.
 
 - **Status:** Accepted
 - **Date:** 2026-07-28

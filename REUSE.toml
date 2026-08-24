@@ -15,8 +15,11 @@ path = [
   "**/*.json",
   "**/*.xml",
   "**/*.toml",
+  "**/*.ini",
   "**/*.xlsx",
   "**/*.lock",
+  "**/.keep",
+  ".python-version",
   ".gitignore",
   "NOTICE",
 ]

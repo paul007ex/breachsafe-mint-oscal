@@ -1,0 +1,125 @@
+# Non-executable contract sample. Replace angle-bracket values before use.
+schema: breachsafe.registry/v1
+registry-version: 0.4.0
+
+metadata:
+  title: BreachSAFE Governed OSCAL Registry
+  version: 0.4.0
+  last-modified: "2026-08-24"
+  oscal-version: 1.2.1
+  remarks: Catalog pins, OSCAL-shaped Profiles, packs, and crosswalk metadata.
+
+defaults:
+  catalog: scf-qts-2026-2
+  profile: scf-qts-pqc-readiness
+  pack: scf-qts-pqc
+
+catalogs:
+  - id: nist-800-53r5
+    kind: catalog
+    uuid: 2f7e7e1e-7f5c-4a9f-9c6d-000000000053
+    title: NIST SP 800-53 Revision 5
+    authority: NIST
+    document-version: 5.0.0
+    oscal-version: 1.2.1
+    href: catalogs/nist-800-53r5/catalog.json
+    source:
+      uri: https://github.com/usnistgov/oscal-content
+      release: v1.5.0
+      sha256: <nist-catalog-sha256>
+      license: NIST
+      retrieved-at: "2026-08-24"
+    compatibility:
+      trestle: ready
+      oscal-cli: ready
+      status: ready
+    review:
+      status: approved
+      owner: security-architecture
+      reviewed-at: "2026-08-24"
+
+  - id: scf-qts-2026-2
+    kind: catalog
+    uuid: af31569e-0157-57bb-93a8-ce5a02942f76
+    title: SCF 2026.2 Quantum Security
+    authority: Secure Controls Framework
+    document-version: SCF 2026.2
+    oscal-version: 1.1.2
+    href: catalogs/scf-qts-2026-2/catalog.json
+    source:
+      uri: https://github.com/securecontrolsframework/securecontrolsframework/releases/tag/2026.2
+      release: "2026.2"
+      sha256: 9e0a4df4993726c95e636f04b3022d8b5edeba2bda45d16ed6722b13540e6835
+      license: CC-BY-ND-4.0
+      retrieved-at: "2026-08-24"
+    compatibility:
+      trestle: conversion-required
+      oscal-cli: conversion-required
+      status: conversion-required
+      reason: Source declares OSCAL 1.1.2; current Trestle lane targets 1.2.1.
+    review:
+      status: provisional
+      owner: security-architecture
+      reviewed-at: "2026-08-24"
+
+profiles:
+  - id: scf-qts-pqc-readiness
+    kind: profile
+    title: SCF QTS PQC Readiness Profile
+    version: 0.1.0
+    catalog: scf-qts-2026-2
+    oscal-version: 1.1.2
+    imports:
+      - href: catalogs/scf-qts-2026-2/catalog.json
+        include-controls:
+          - with-ids:
+              - qts-04
+              - qts-04.2
+              - qts-06.3
+              - qts-06.5
+              - qts-06.9
+    review:
+      status: provisional
+      owner: security-architecture
+      reviewed-at: "2026-08-24"
+
+packs:
+  - id: scf-qts-pqc
+    kind: breachsafe-pack
+    title: SCF QTS PQC Readiness Pack
+    framework: scf
+    catalog: scf-qts-2026-2
+    profile: scf-qts-pqc-readiness
+    version: 0.1.0
+    status: provisional
+    evidence-requirements:
+      - cbom
+      - tls-scan
+      - certificate-inventory
+
+objectives:
+  - id: pqc-readiness
+    kind: governed-objective
+    title: Post-Quantum Cryptography Readiness
+    version: 0.1.0
+    status: provisional
+    profiles:
+      - scf-qts-pqc-readiness
+    review:
+      status: provisional
+      owner: security-architecture
+      reviewed-at: "2026-08-24"
+    constraints:
+      require-reviewed-profile: true
+      reject-unknown-control-ids: true
+      reject-unpinned-catalogs: true
+
+crosswalks:
+  - id: scf-to-pci-dss-4
+    kind: framework-crosswalk
+    source-framework: scf
+    source-version: 2026.2
+    target-framework: pci-dss
+    target-version: 4.0
+    status: provisional
+    notes: Mapping only; this does not create a PCI DSS OSCAL Catalog.

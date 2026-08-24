@@ -173,5 +173,52 @@ mint-oscal poam validate their-poam.json
 See [../contributors/cli-design.md](../contributors/cli-design.md) for the design
 rationale and [../explanation/architecture.md](../explanation/architecture.md) for where
 the CLI sits in the system.
+
+## Planned `profile` command grammar (P0)
+
+The Profile surface is not shipped yet, but its grammar is locked to the official
+`oscal-cli profile` shape. This is a compatibility requirement, not a stylistic
+approximation.
+
+```text
+mint-oscal profile <command> [<options>]
+```
+
+The official Profile commands are preserved exactly:
+
+```text
+mint-oscal profile validate [<options>] <file-or-URI-to-validate>
+mint-oscal profile convert --to=FORMAT [<options>] <source-file-or-URL> [<destination-file>]
+mint-oscal profile resolve --to=FORMAT [<options>] <URI-to-resolve> [<destination-file>]
+```
+
+Mint-OSCAL adds only BreachSAFE-specific operations in the same command tree:
+
+```text
+mint-oscal profile create [<options>] <objective> [<destination-file>]
+mint-oscal profile explain [<options>] <file-or-URI>
+```
+
+The help cascade is mandatory:
+
+```bash
+mint-oscal --help
+mint-oscal profile --help
+mint-oscal profile create --help
+mint-oscal profile validate --help
+mint-oscal profile convert --help
+mint-oscal profile resolve --help
+mint-oscal profile explain --help
+```
+
+`create` resolves a governed objective through the registry. It must not become a second
+OSCAL engine: Profile construction, validation, conversion, and resolution delegate to the
+same Trestle/OSCAL tooling boundary used elsewhere. `validate`, `convert`, and `resolve`
+retain the official command meanings, option naming (`--as`, `--to`, `--overwrite`,
+`--relative-to`, `--pretty-print` where applicable), positional-source conventions, and
+help hierarchy. `mint-oscal nist profile ...` is explicitly not supported.
+
+Status: **designed P0; not implemented**. The shipped command surface above this section
+remains authoritative until these commands are released.
 </content>
 </invoke>

@@ -48,6 +48,7 @@ Task-oriented recipes.
 - [Mint a POA&M from a CBOM](how-to/mint-from-a-cbom.md)
 - [Choose a control framework](how-to/choose-a-control-framework.md): `scf-qts` vs `nist`
 - [Validate with oscal-cli](how-to/validate-with-oscal-cli.md)
+- [OSCAL conformance contract](conformance.md): Profile/POA&M validation sequence and gates
 - [Emit XML or YAML](how-to/emit-xml-or-yaml.md): convert minted JSON to XML or YAML with `oscal-cli`
 
 ## Reference
@@ -57,8 +58,11 @@ Look-it-up information: comprehensive, accurate, dry.
 - [CLI reference](reference/cli.md): every command, flag, default, and value
 - [Exit codes](reference/exit-codes.md): `generate` and `validate` code sets
 - [OSCAL shapes](reference/oscal-shapes.md): per-model required fields (POA&M shipped; others planned)
+- [Registry reference](reference/registry.md): governed Catalog/objective source of truth
+- [Profile compiler reference](reference/profile-compiler.md): Registry consumer and Trestle boundary
 - [Requirements (RTM)](reference/requirements.md): the traceability matrix
 - [Use cases](reference/use-cases.md): the sources × OSCAL-shapes matrix and its status
+- [Registry and Profile compiler plan](roadmap/registry-and-profile-plan.md): detailed P0-to-P2 execution contract
 
 ## Explanation
 

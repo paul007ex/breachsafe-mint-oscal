@@ -107,3 +107,65 @@ Shipped `poam validate`:
 | `0` | Valid: no semantic problems found. |
 | `1` | Invalid: one or more semantic problems (reported on STDERR). |
 | `2` | Input error: not valid JSON, or not a POA&M document. |
+
+## P0 Profile CLI contract (OSCAL-compatible extension)
+
+The Profile command surface must mirror the official `oscal-cli` model-first grammar. The
+official tool uses `oscal-cli profile <command> [<options>]` with `validate`, `convert`, and
+`resolve`; Mint-OSCAL must preserve those meanings and help conventions. BreachSAFE adds
+`create` and `explain` for the registry-backed resolver moat.
+
+```text
+mint-oscal profile <command> [<options>]
+
+  create       BreachSAFE registry-backed Profile compiler (designed P0)
+  validate     OSCAL Profile validation boundary (designed P0)
+  convert      JSON/XML/YAML conversion boundary (designed P0)
+  resolve      OSCAL Profile resolution boundary (designed P0)
+  explain      BreachSAFE selection/provenance explanation (designed P0)
+```
+
+The help cascade is part of the contract:
+
+```bash
+mint-oscal --help
+mint-oscal profile --help
+mint-oscal profile create --help
+mint-oscal profile validate --help
+mint-oscal profile convert --help
+mint-oscal profile resolve --help
+mint-oscal profile explain --help
+```
+
+P0 command shapes:
+
+```bash
+mint-oscal profile create \
+  --framework <framework-pack> \
+  --objective <objective-id> \
+  --catalog <catalog-id> \
+  --registry default \
+  [destination]
+
+mint-oscal profile validate <file-or-URI>
+mint-oscal profile convert --to FORMAT <source> [destination]
+mint-oscal profile resolve --to FORMAT <profile-URI> [destination]
+mint-oscal profile explain <file-or-URI>
+```
+
+`create` and `explain` are BreachSAFE additions. `validate`, `convert`, and `resolve` must
+not be renamed or given semantics that conflict with `oscal-cli`. The framework is an option
+to Profile creation; `mint-oscal nist profile ...` is not the contract. The objective is a
+governed registry key, not an arbitrary control expression. NIST SP 800-53 is the first
+fixture, not a product limitation. The same contract must support governed packs for NIST
+CSF, PCI-DSS, FFIEC, NCUA, EU frameworks, SCF, and future frameworks only when their
+Catalogs and crosswalks are reviewed and available. Names alone do not imply that a mapping
+exists.
+
+The parser implementation should retain Mint-OSCAL's existing nested-subparser pattern:
+top-level parser → model parser → verb parser → command-specific options. Keep one central
+error boundary, structured STDERR logging, pure OSCAL STDOUT/output behavior, and explicit
+exit codes. Do not add a second parser or a framework-specific command tree.
+
+This is a designed P0 contract, not shipped behavior. The shipped contract remains the
+`poam` and planned `ar` surface documented above until implementation lands.
