@@ -20,15 +20,16 @@ with `oscal-cli` or commit for review.
 1. [Why](#why)
 2. [Install](#install)
 3. [Quickstart](#quickstart)
-4. [Supported OSCAL models](#supported-oscal-models)
-5. [Supported formats](#supported-formats)
-6. [Library API](#library-api)
-7. [Determinism and git](#determinism-and-git)
-8. [What "valid" does and does not mean](#what-valid-does-and-does-not-mean)
-9. [Versioning](#versioning)
-10. [Documentation](#documentation)
-11. [Contributing, security, license](#contributing-security-license)
-12. [Relationship to prior work](#relationship-to-prior-work)
+4. [Registry CLI](#registry-cli)
+5. [Supported OSCAL models](#supported-oscal-models)
+6. [Supported formats](#supported-formats)
+7. [Library API](#library-api)
+8. [Determinism and git](#determinism-and-git)
+9. [What "valid" does and does not mean](#what-valid-does-and-does-not-mean)
+10. [Versioning](#versioning)
+11. [Documentation](#documentation)
+12. [Contributing, security, license](#contributing-security-license)
+13. [Relationship to prior work](#relationship-to-prior-work)
 
 ## Why
 
@@ -99,6 +100,33 @@ oscal-cli convert --to=xml poam.json poam.xml --overwrite
 ```
 
 See [docs/how-to/emit-xml-or-yaml.md](docs/how-to/emit-xml-or-yaml.md).
+
+## Registry CLI
+
+The governed registry keeps Catalog pins, framework packs, Profiles, objectives, and
+crosswalk metadata versioned and reviewable in Git. These registry commands are shipped:
+
+```bash
+# Create a bootstrap registry workspace.
+mint-oscal registry init --output policy
+
+# Add and pin a local OSCAL Catalog.
+mint-oscal registry add-catalog --registry policy --id nist-800-53r5 \
+  --file reference/nist/catalog.json \
+  --source-uri https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final \
+  --release rev5 --license "NIST public domain" --authority NIST
+
+# Inspect and verify the registry.
+mint-oscal registry list --registry policy
+mint-oscal registry show nist-800-53r5 --registry policy
+mint-oscal registry validate --registry policy
+mint-oscal registry lock --registry policy
+mint-oscal registry verify --registry policy
+```
+
+Use `mint-oscal registry --help` for the authoritative grammar. The complete contract,
+registry layout, lock format, and provenance rules are in
+[docs/reference/registry.md](docs/reference/registry.md).
 
 ## Library API
 

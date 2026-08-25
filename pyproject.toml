@@ -75,6 +75,10 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/mint_oscal"]
 
+[tool.hatch.build.targets.sdist]
+# Agent/process instructions are repository governance, not distributable package content.
+exclude = ["/AGENTS.md", "/CLAUDE.md", "/.allure-results", "/reference"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py314"

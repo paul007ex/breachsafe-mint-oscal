@@ -353,16 +353,18 @@ def _canonical_lock(registry: Registry) -> dict[str, Any]:
             }
             for item in sorted(registry.document[section], key=itemgetter("id"))
         }
-    return {
-        "schema": "breachsafe.registry.lock/v2",
-        "canonicalization": _CANONICALIZATION,
-        "registry_version": registry.document["registry-version"],
-        "source_sha256": _canonical_document_digest(registry.document),
-        "resolver_version": "mint-oscal/0.2",
-        "catalogs": catalogs,
-        "profiles": profiles,
-        **projections,
-    }
+    return (
+        {
+            "schema": "breachsafe.registry.lock/v2",
+            "canonicalization": _CANONICALIZATION,
+            "registry_version": registry.document["registry-version"],
+            "source_sha256": _canonical_document_digest(registry.document),
+            "resolver_version": "mint-oscal/0.2",
+        }
+        | {"catalogs": catalogs}
+        | {"profiles": profiles}
+        | projections
+    )
 
 
 def lock_registry(path: str | Path = "policy", output: str | Path | None = None) -> Path:
