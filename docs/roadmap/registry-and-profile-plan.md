@@ -183,7 +183,7 @@ The lock is canonical JSON with sorted keys and stable arrays:
 
 ```json
 {
-  "schema": "breachsafe.registry.lock/v1",
+  "schema": "breachsafe.registry.lock/v2",
   "source_revision": "<git-sha>",
   "resolver_version": "mint-oscal/<version>",
   "catalogs": {

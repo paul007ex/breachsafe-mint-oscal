@@ -262,6 +262,26 @@ def test_lock_is_deterministic_and_verifiable(tmp_path: Path) -> None:
     assert verify_lock(registry_path, first) == first
 
 
+def test_lock_projects_all_registry_sections(tmp_path: Path) -> None:
+    registry_path = _registry(tmp_path)
+    lock = lock_registry(registry_path)
+    document = json.loads(lock.read_text(encoding="utf-8"))
+    assert document["schema"] == "breachsafe.registry.lock/v2"
+    assert set(document) >= {"catalogs", "profiles", "packs", "objectives", "crosswalks"}
+    assert document["objectives"]["fixture-objective"]["constraints"] == {}
+
+
+def test_v1_lock_is_rejected_with_version_error(tmp_path: Path) -> None:
+    registry_path = _registry(tmp_path)
+    lock = lock_registry(registry_path)
+    document = json.loads(lock.read_text(encoding="utf-8"))
+    document["schema"] = "breachsafe.registry.lock/v1"
+    lock.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(RegistryError, match=r"schema mismatch.*v2.*v1"):
+        verify_lock(registry_path, lock)
+
+
 def test_lock_ignores_yaml_comments_and_formatting(tmp_path: Path) -> None:
     registry_path = _registry(tmp_path)
     lock = lock_registry(registry_path)
