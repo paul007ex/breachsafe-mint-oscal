@@ -34,6 +34,8 @@ jobs:
           uv sync --locked --extra dev
       - name: Ruff lint
         run: uv run --locked ruff check .
+      - name: Process contract
+        run: uv run --locked python scripts/validate_process_contract.py
       - name: Ruff format
         run: uv run --locked ruff format --check .
       - name: Mypy strict
