@@ -1,5 +1,9 @@
 # BreachSAFE Mint-OSCAL contributor instructions
 
+The executable agent card is [AGENTS.md](AGENTS.md). Read it after this repository policy and
+before starting any non-trivial change; it points back to the full parent policy and applicable
+skills.
+
 ## Contents
 
 1. [Review and merge discipline](#review-and-merge-discipline)

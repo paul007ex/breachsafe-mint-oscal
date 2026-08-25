@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Repository-level `AGENTS.md` process card and CI validation for the BreachSAFE ten-step
+  development contract and explicit `NOT RUN` reporting.
+
 ### Fixed
 
 - Repeated registry `--type` flags now fail with usage exit code 4 instead of silently
