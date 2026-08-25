@@ -43,10 +43,11 @@ evidence requirements, and review metadata.
 The loader rejects unknown fields, duplicate IDs, missing Catalogs, invalid control IDs,
 framework/catalog mismatches, unresolved dependencies, and unapproved release content.
 
-The lock records the source Git revision, resolver version, Catalog UUID/digest, objective
-source digest, and canonical selected-control arrays. `source_sha256` is computed over RFC 8785
-canonical JSON of the parsed registry document, not raw YAML bytes; comments and formatting do
-not change identity. The lock records the canonicalization method explicitly.
+The lock records deterministic projections for Catalogs, Profiles, Packs, Objectives, and
+Crosswalks. Objective constraints and review metadata are included so a consumer can resolve a
+governed objective without the source YAML. `source_sha256` is computed over RFC 8785 canonical
+JSON of the parsed registry document, not raw YAML bytes; comments and formatting do not change
+identity. The lock records the canonicalization method explicitly.
 
 ## Initial catalog options
 

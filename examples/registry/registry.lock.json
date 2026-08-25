@@ -14,6 +14,60 @@
       "uuid": "af31569e-0157-57bb-93a8-ce5a02942f76"
     }
   },
+  "crosswalks": {
+    "scf-to-pci-dss-4": {
+      "id": "scf-to-pci-dss-4",
+      "kind": "framework-crosswalk",
+      "notes": "Mapping only; this does not create a PCI DSS OSCAL Catalog.",
+      "source-framework": "scf",
+      "source-version": "2026.2",
+      "source_sha256": "2422c993c40934af716451d6d96ba374153c073fc951c72a8acd27c588b18e15",
+      "status": "provisional",
+      "target-framework": "pci-dss",
+      "target-version": "4.0"
+    }
+  },
+  "objectives": {
+    "pqc-readiness": {
+      "constraints": {
+        "reject-unknown-control-ids": true,
+        "reject-unpinned-catalogs": true,
+        "require-reviewed-profile": true
+      },
+      "id": "pqc-readiness",
+      "kind": "governed-objective",
+      "profiles": [
+        "scf-qts-pqc-readiness"
+      ],
+      "review": {
+        "owner": "security-architecture",
+        "reviewed-at": "2026-08-24",
+        "status": "provisional"
+      },
+      "source_sha256": "79eaa51b326f6c28229cdf581a986890b1aa00ba142acb8b9523f4f53621bc61",
+      "status": "provisional",
+      "title": "Post-Quantum Cryptography Readiness",
+      "version": "0.1.0"
+    }
+  },
+  "packs": {
+    "scf-qts-pqc": {
+      "catalog": "scf-qts-2026-2",
+      "evidence-requirements": [
+        "cbom",
+        "tls-scan",
+        "certificate-inventory"
+      ],
+      "framework": "scf",
+      "id": "scf-qts-pqc",
+      "kind": "breachsafe-pack",
+      "profile": "scf-qts-pqc-readiness",
+      "source_sha256": "dd5a5aa72015b2c355ec8b05edade225c048b73f8b081fcf9f5b795c2faf2594",
+      "status": "provisional",
+      "title": "SCF QTS PQC Readiness Pack",
+      "version": "0.1.0"
+    }
+  },
   "profiles": {
     "scf-qts-pqc-readiness": {
       "catalog": "scf-qts-2026-2",
@@ -29,6 +83,6 @@
   },
   "registry_version": "0.4.0",
   "resolver_version": "mint-oscal/0.2",
-  "schema": "breachsafe.registry.lock/v1",
+  "schema": "breachsafe.registry.lock/v2",
   "source_sha256": "57b529be47aa986258d683551bfbfa1be065a3bfe3a07209b7468257f7267831"
 }

@@ -344,14 +344,24 @@ def _canonical_lock(registry: Registry) -> dict[str, Any]:
         }
         for entry in registry.catalogs
     }
+    projections: dict[str, dict[str, dict[str, Any]]] = {}
+    for section in ("packs", "objectives", "crosswalks"):
+        projections[section] = {
+            item["id"]: {
+                **item,
+                "source_sha256": hashlib.sha256(canonical_json(item)).hexdigest(),
+            }
+            for item in sorted(registry.document[section], key=itemgetter("id"))
+        }
     return {
-        "schema": "breachsafe.registry.lock/v1",
+        "schema": "breachsafe.registry.lock/v2",
         "canonicalization": _CANONICALIZATION,
         "registry_version": registry.document["registry-version"],
         "source_sha256": _canonical_document_digest(registry.document),
         "resolver_version": "mint-oscal/0.2",
         "catalogs": catalogs,
         "profiles": profiles,
+        **projections,
     }
 
 
@@ -376,6 +386,12 @@ def verify_lock(path: str | Path = "policy", lock: str | Path | None = None) -> 
         actual = json.loads(target.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise RegistryError(f"cannot read registry lock {target}: {exc}") from exc
+    expected_schema = "breachsafe.registry.lock/v2"
+    if actual.get("schema") != expected_schema:
+        raise RegistryError(
+            f"registry lock schema mismatch: expected {expected_schema}, "
+            f"got {actual.get('schema')!r}"
+        )
     expected = json.dumps(_canonical_lock(registry), indent=2, sort_keys=True) + "\n"
     if actual != json.loads(expected) or target.read_bytes() != expected.encode("utf-8"):
         raise RegistryError(f"registry lock mismatch: {target}")

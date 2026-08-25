@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Repeated registry `--type` flags now fail with usage exit code 4 instead of silently
   discarding the earlier value.
+- Registry lock v2 now projects Packs, Objectives, and Crosswalks, including objective
+  constraints and review metadata for offline resolution.
+- Registry verification now rejects legacy lock schemas with an explicit version mismatch.
 
 ## [0.2.4] - 2026-08-24
 
